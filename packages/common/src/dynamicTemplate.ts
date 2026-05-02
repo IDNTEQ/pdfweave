@@ -45,9 +45,14 @@ interface LayoutItem {
   dynamicHeights: number[];
 }
 
-const getSchemaAnchorId = (schema: Schema): string => {
-  return schema.name;
-};
+const getSchemaAnchorIds = (schema: Schema): string[] =>
+  Array.from(
+    new Set(
+      [schema.name, schema.id].filter(
+        (id): id is string => typeof id === 'string' && id.length > 0,
+      ),
+    ),
+  );
 
 const getSchemaLayout = (schema: Schema): SchemaLayoutRule | undefined =>
   (schema as Schema & { layout?: SchemaLayoutRule }).layout;
@@ -55,8 +60,7 @@ const getSchemaLayout = (schema: Schema): SchemaLayoutRule | undefined =>
 function buildSchemaLookup(pageSchemas: Schema[]): Map<string, Schema> {
   const lookup = new Map<string, Schema>();
   pageSchemas.forEach((schema) => {
-    const id = getSchemaAnchorId(schema);
-    if (id) lookup.set(id, schema);
+    getSchemaAnchorIds(schema).forEach((id) => lookup.set(id, schema));
   });
   return lookup;
 }

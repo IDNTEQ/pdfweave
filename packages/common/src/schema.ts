@@ -147,6 +147,7 @@ export const SchemaBinding = z
 export const Schema = z
   .object({
     name: z.string(),
+    id: z.string().optional(),
     type: z.string(),
     content: z.string().optional(),
     position: z.object({ x: z.number(), y: z.number() }),

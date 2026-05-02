@@ -150,6 +150,51 @@ describe('getDynamicTemplate', () => {
       expect(qr?.position.y).toBe(12);
       expect(JSON.stringify(anchoredTemplate)).toBe(originalTemplateJson);
     });
+
+    test('should resolve anchors by stable schema id', async () => {
+      const anchoredTemplate: Template = {
+        schemas: [
+          [
+            {
+              id: 'schema-table',
+              name: 'renamedTable',
+              content: 'table',
+              type: 'table',
+              position: { x: 20, y: 20 },
+              width: 50,
+              height: 10,
+            },
+            {
+              id: 'schema-total',
+              name: 'renamedTotal',
+              content: 'total',
+              type: 'text',
+              position: { x: 0, y: 0 },
+              width: 20,
+              height: 10,
+              layout: {
+                mode: 'anchored',
+                x: { mode: 'alignRightEdge', ref: { schemaId: 'schema-table' }, offsetMm: 0 },
+                y: { mode: 'belowBottomEdge', ref: { schemaId: 'schema-table' }, offsetMm: 10 },
+              },
+            },
+          ],
+        ],
+        basePdf: { width: 100, height: 100, padding: [padding, padding, padding, padding] },
+      };
+
+      const dynamicTemplate = await getDynamicTemplate({
+        template: anchoredTemplate,
+        input: { renamedTable: 'table', renamedTotal: 'total' },
+        options,
+        _cache,
+      });
+
+      const total = dynamicTemplate.schemas[0].find((schema) => schema.id === 'schema-total');
+
+      expect(total?.position.x).toBe(50);
+      expect(total?.position.y).toBe(40);
+    });
   });
 
   describe('Multiple page scenarios', () => {

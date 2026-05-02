@@ -82,7 +82,7 @@ const cardStyle: React.CSSProperties = {
   background: '#fbfdff',
 };
 
-const getAnchorId = (schema: SchemaForUI): string => schema.name || schema.id;
+const getAnchorLabel = (schema: SchemaForUI): string => schema.name || schema.id;
 
 const getAnchorIds = (schema: SchemaForUI): string[] =>
   Array.from(new Set([schema.name, schema.id].filter((id): id is string => Boolean(id))));
@@ -109,17 +109,23 @@ const formatMm = (value: number): string => `${Number(value.toFixed(2))}mm`;
 
 const roundMm = (value: number): number => Number(value.toFixed(2));
 
-const formatHorizontalRule = (rule: HorizontalAnchorRule): string => {
+const formatHorizontalRule = (
+  rule: HorizontalAnchorRule,
+  getTargetLabel: (targetId: string) => string,
+): string => {
   if (rule.mode === 'pageLeft') return `X: page left + ${formatMm(rule.offsetMm)}`;
   if (rule.mode === 'afterRightEdge') {
-    return `X: after ${rule.ref.schemaId} right edge + ${formatMm(rule.offsetMm)}`;
+    return `X: after ${getTargetLabel(rule.ref.schemaId)} right edge + ${formatMm(rule.offsetMm)}`;
   }
-  return `X: align right to ${rule.ref.schemaId} + ${formatMm(rule.offsetMm ?? 0)}`;
+  return `X: align right to ${getTargetLabel(rule.ref.schemaId)} + ${formatMm(rule.offsetMm ?? 0)}`;
 };
 
-const formatVerticalRule = (rule: VerticalAnchorRule): string => {
+const formatVerticalRule = (
+  rule: VerticalAnchorRule,
+  getTargetLabel: (targetId: string) => string,
+): string => {
   if (rule.mode === 'pageTop') return `Y: page top + ${formatMm(rule.offsetMm)}`;
-  return `Y: below ${rule.ref.schemaId} + ${formatMm(rule.offsetMm)}`;
+  return `Y: below ${getTargetLabel(rule.ref.schemaId)} + ${formatMm(rule.offsetMm)}`;
 };
 
 const firstTargetId = (
@@ -137,13 +143,16 @@ const buildTargetOptions = (
   schemas: SchemaForUI[],
   currentTarget: string | null,
 ): Array<{ value: string; label: string }> => {
-  const activeId = getAnchorId(activeSchema);
+  const activeIds = new Set(getAnchorIds(activeSchema));
   const options = schemas
     .filter((schema) => schema.id !== activeSchema.id)
-    .map((schema) => ({ value: getAnchorId(schema), label: getAnchorId(schema) }))
-    .filter((option) => option.value && option.value !== activeId);
+    .map((schema) => ({ value: schema.id, label: getAnchorLabel(schema) }))
+    .filter((option) => option.value && !activeIds.has(option.value));
 
-  if (currentTarget && !options.some((option) => option.value === currentTarget)) {
+  const currentTargetResolved = currentTarget
+    ? schemas.some((schema) => getAnchorIds(schema).includes(currentTarget))
+    : false;
+  if (currentTarget && !currentTargetResolved && !options.some((option) => option.value === currentTarget)) {
     return [{ value: currentTarget, label: currentTarget }, ...options];
   }
 
@@ -164,6 +173,12 @@ const AnchorLayoutWidget = (props: PropPanelWidgetProps) => {
   schemas.forEach((schema) => {
     getAnchorIds(schema).forEach((id) => targetLookup.set(id, schema));
   });
+  const resolveTargetId = (targetId: string | null): string | null =>
+    targetId ? targetLookup.get(targetId)?.id ?? targetId : null;
+  const getTargetLabel = (targetId: string): string =>
+    targetLookup.get(targetId)?.name || targetLookup.get(targetId)?.id || targetId;
+  const xTarget = resolveTargetId(getHorizontalTarget(anchoredLayout.x));
+  const yTarget = resolveTargetId(getVerticalTarget(anchoredLayout.y));
   const xTargetOptions = buildTargetOptions(
     activeSchema,
     schemas,
@@ -237,7 +252,7 @@ const AnchorLayoutWidget = (props: PropPanelWidgetProps) => {
       x: createHorizontalRule(
         mode,
         current.x,
-        firstTargetId(xTargetOptions, getHorizontalTarget(current.x)),
+        firstTargetId(xTargetOptions, resolveTargetId(getHorizontalTarget(current.x))),
       ),
     }));
   };
@@ -245,7 +260,11 @@ const AnchorLayoutWidget = (props: PropPanelWidgetProps) => {
   const setVerticalMode = (mode: VerticalMode) => {
     updateAnchoredLayout((current) => ({
       ...current,
-      y: createVerticalRule(mode, current.y, firstTargetId(yTargetOptions, getVerticalTarget(current.y))),
+      y: createVerticalRule(
+        mode,
+        current.y,
+        firstTargetId(yTargetOptions, resolveTargetId(getVerticalTarget(current.y))),
+      ),
     }));
   };
 
@@ -269,8 +288,8 @@ const AnchorLayoutWidget = (props: PropPanelWidgetProps) => {
       {isAnchored ? (
         <div style={cardStyle}>
           <div style={summaryStyle}>
-            <span>{formatHorizontalRule(anchoredLayout.x)}</span>
-            <span>{formatVerticalRule(anchoredLayout.y)}</span>
+            <span>{formatHorizontalRule(anchoredLayout.x, getTargetLabel)}</span>
+            <span>{formatVerticalRule(anchoredLayout.y, getTargetLabel)}</span>
           </div>
 
           <div style={fieldGridStyle}>
@@ -297,7 +316,7 @@ const AnchorLayoutWidget = (props: PropPanelWidgetProps) => {
                 X target
                 <select
                   style={controlStyle}
-                  value={anchoredLayout.x.ref.schemaId}
+                  value={xTarget ?? anchoredLayout.x.ref.schemaId}
                   aria-label={`${activeSchema.name} horizontal anchor target`}
                   onChange={(event) =>
                     updateAnchoredLayout((current) => ({
@@ -342,7 +361,7 @@ const AnchorLayoutWidget = (props: PropPanelWidgetProps) => {
                 Y target
                 <select
                   style={controlStyle}
-                  value={anchoredLayout.y.ref.schemaId}
+                  value={yTarget ?? anchoredLayout.y.ref.schemaId}
                   aria-label={`${activeSchema.name} vertical anchor target`}
                   onChange={(event) =>
                     updateAnchoredLayout((current) => ({

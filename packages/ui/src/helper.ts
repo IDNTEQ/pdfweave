@@ -271,14 +271,52 @@ export const arrayBufferToBase64 = (arrayBuffer: ArrayBuffer): string => {
   }
 };
 
+const getPersistedSchemaId = (schema: SchemaForUI | Template['schemas'][number][number]): string | null => {
+  const id = (schema as { id?: unknown }).id;
+  return typeof id === 'string' && id.length > 0 ? id : null;
+};
+
+const isAnchoredLayoutRule = (layout: unknown): layout is Extract<SchemaLayoutRule, { mode: 'anchored' }> =>
+  typeof layout === 'object' &&
+  layout !== null &&
+  (layout as { mode?: unknown }).mode === 'anchored';
+
+const normalizeAnchorRefsForUI = (page: SchemaForUI[]): void => {
+  const lookup = new Map<string, SchemaForUI>();
+  page.forEach((schema) => {
+    [schema.name, schema.id]
+      .filter((id): id is string => typeof id === 'string' && id.length > 0)
+      .forEach((id) => lookup.set(id, schema));
+  });
+
+  page.forEach((schema) => {
+    const layout = (schema as SchemaForUI & { layout?: SchemaLayoutRule }).layout;
+    if (!isAnchoredLayoutRule(layout)) return;
+
+    if (layout.x.mode !== 'pageLeft') {
+      const target = lookup.get(layout.x.ref.schemaId);
+      if (target) layout.x.ref.schemaId = target.id;
+    }
+    if (layout.y.mode !== 'pageTop') {
+      const target = lookup.get(layout.y.ref.schemaId);
+      if (target) layout.y.ref.schemaId = target.id;
+    }
+  });
+};
+
 const convertSchemasForUI = (template: Template): SchemaForUI[][] => {
+  const seenIds = new Set<string>();
   template.schemas.forEach((page) => {
     page.forEach((schema) => {
-      (schema as SchemaForUI).id = uuid();
+      const existingId = getPersistedSchemaId(schema);
+      const id = existingId && !seenIds.has(existingId) ? existingId : uuid();
+      seenIds.add(id);
+      (schema as SchemaForUI).id = id;
       (schema as SchemaForUI).content = schema.content || '';
       schema.readOnly = true;
       schema.required = false;
     });
+    normalizeAnchorRefsForUI(page as SchemaForUI[]);
   });
 
   return template.schemas as SchemaForUI[][];
@@ -330,8 +368,6 @@ export const template2SchemasList = async (_template: Template) => {
 export const schemasList2template = (schemasList: SchemaForUI[][], basePdf: BasePdf): Template => ({
   schemas: cloneDeep(schemasList).map((page) =>
     page.map((schema) => {
-      // @ts-expect-error Property 'id' is used only in UI
-      delete schema.id;
       schema.readOnly = true;
       schema.required = false;
       return schema;
