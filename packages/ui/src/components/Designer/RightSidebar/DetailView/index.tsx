@@ -18,6 +18,7 @@ import { DESIGNER_CLASSNAME } from '../../../../constants.js';
 import { theme, Typography, Button, Divider } from 'antd';
 import AlignWidget from './AlignWidget.js';
 import AnchorLayoutWidget from './AnchorLayoutWidget.js';
+import BindingWidget from './BindingWidget.js';
 import WidgetRenderer from './WidgetRenderer.js';
 import ButtonGroupWidget from './ButtonGroupWidget.js';
 import { InternalNamePath, ValidateErrorEntity } from 'rc-field-form/es/interface.js';
@@ -70,6 +71,7 @@ const DetailView = (props: DetailViewProps) => {
     const newWidgets: WidgetMap = {
       AlignWidget: (p) => <AlignWidget {...p} {...props} options={options} />,
       AnchorLayoutWidget: (p) => <AnchorLayoutWidget {...p} {...props} options={options} />,
+      BindingWidget: (p) => <BindingWidget {...p} {...props} options={options} />,
       Divider: () => (
         <Divider style={{ marginTop: token.marginXS, marginBottom: token.marginXS }} />
       ),
@@ -256,6 +258,9 @@ const DetailView = (props: DetailViewProps) => {
   const isPositionDerivedFromAnchor = isAnchoredLayout(
     (activeSchema as SchemaForUI & { layout?: unknown }).layout,
   );
+  const hasDataBinding = Boolean(
+    (activeSchema as SchemaForUI & { binding?: { path?: string } }).binding?.path,
+  );
 
   // Create a type-safe schema object
   const propPanelSchema: PropPanelSchema = {
@@ -287,16 +292,21 @@ const DetailView = (props: DetailViewProps) => {
         title: typedI18n('editable'),
         type: 'boolean',
         span: 8,
-        hidden: typeof defaultSchema.readOnly !== 'undefined',
+        hidden: hasDataBinding || typeof defaultSchema.readOnly !== 'undefined',
       },
       required: {
         title: typedI18n('required'),
         type: 'boolean',
         span: 16,
-        hidden: '{{!formData.editable}}',
+        hidden: hasDataBinding ? true : '{{!formData.editable}}',
       },
       '-': { type: 'void', widget: 'Divider' },
       align: { title: typedI18n('align'), type: 'void', widget: 'AlignWidget' },
+      dataBinding: {
+        type: 'void',
+        widget: 'BindingWidget',
+        span: 24,
+      },
       anchorLayout: {
         type: 'void',
         widget: 'AnchorLayoutWidget',
