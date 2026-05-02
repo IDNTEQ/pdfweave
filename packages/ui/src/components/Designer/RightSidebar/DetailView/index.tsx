@@ -101,12 +101,7 @@ const DetailView = (props: DetailViewProps) => {
   useEffect(() => form.resetFields(), [activeSchema.id, form]);
 
   useEffect(() => {
-    // Create a type-safe copy of the schema with editable property
-    const values: Record<string, unknown> = { ...activeSchema };
-    // Safely access and set properties
-    const readOnly = typeof values.readOnly === 'boolean' ? values.readOnly : false;
-    values.editable = !readOnly;
-    form.setValues(values);
+    form.setValues({ ...activeSchema });
   }, [activeSchema, form]);
 
   useEffect(() => {
@@ -181,20 +176,6 @@ const DetailView = (props: DetailViewProps) => {
           value = undefined;
         }
 
-        if (key === 'editable') {
-          const readOnlyValue = !value;
-          changes.push({ key: 'readOnly', value: readOnlyValue, schemaId: activeSchema.id });
-          if (readOnlyValue) {
-            changes.push({ key: 'required', value: false, schemaId: activeSchema.id });
-          } else if (
-            activeSchema.type === 'text' &&
-            (activeSchema as Record<string, unknown>).textFormat === 'inline-markdown'
-          ) {
-            changes.push({ key: 'textFormat', value: 'plain', schemaId: activeSchema.id });
-          }
-          continue;
-        }
-
         changes.push({ key, value, schemaId: activeSchema.id });
       }
     }
@@ -258,9 +239,6 @@ const DetailView = (props: DetailViewProps) => {
   const isPositionDerivedFromAnchor = isAnchoredLayout(
     (activeSchema as SchemaForUI & { layout?: unknown }).layout,
   );
-  const hasDataBinding = Boolean(
-    (activeSchema as SchemaForUI & { binding?: { path?: string } }).binding?.path,
-  );
 
   // Create a type-safe schema object
   const propPanelSchema: PropPanelSchema = {
@@ -287,18 +265,6 @@ const DetailView = (props: DetailViewProps) => {
           },
         ],
         props: { autoComplete: 'off' },
-      },
-      editable: {
-        title: typedI18n('editable'),
-        type: 'boolean',
-        span: 8,
-        hidden: hasDataBinding || typeof defaultSchema.readOnly !== 'undefined',
-      },
-      required: {
-        title: typedI18n('required'),
-        type: 'boolean',
-        span: 16,
-        hidden: hasDataBinding ? true : '{{!formData.editable}}',
       },
       '-': { type: 'void', widget: 'Divider' },
       align: { title: typedI18n('align'), type: 'void', widget: 'AlignWidget' },

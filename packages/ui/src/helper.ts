@@ -276,6 +276,8 @@ const convertSchemasForUI = (template: Template): SchemaForUI[][] => {
     page.forEach((schema) => {
       (schema as SchemaForUI).id = uuid();
       (schema as SchemaForUI).content = schema.content || '';
+      schema.readOnly = true;
+      schema.required = false;
     });
   });
 
@@ -330,6 +332,8 @@ export const schemasList2template = (schemasList: SchemaForUI[][], basePdf: Base
     page.map((schema) => {
       // @ts-expect-error Property 'id' is used only in UI
       delete schema.id;
+      schema.readOnly = true;
+      schema.required = false;
       return schema;
     }),
   ),
@@ -645,7 +649,7 @@ const handleTypeChange = (
   pluginsRegistry: PluginRegistry,
 ) => {
   if (key !== 'type') return;
-  const keysToKeep = ['id', 'name', 'type', 'position', 'required'];
+  const keysToKeep = ['id', 'name', 'type', 'position'];
   Object.keys(schema).forEach((key) => {
     if (!keysToKeep.includes(key)) {
       delete schema[key as keyof typeof schema];
@@ -670,9 +674,8 @@ const handleTypeChange = (
       }
     }
   }
-  if (schema.readOnly) {
-    schema.required = false;
-  }
+  schema.readOnly = true;
+  schema.required = false;
 };
 
 export const changeSchemas = (args: {

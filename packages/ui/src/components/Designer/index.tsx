@@ -270,6 +270,7 @@ const TemplateEditor = ({
       id: uuid(),
       ...defaultSchema,
       name: requestedName,
+      readOnly: true,
       position: {
         x: ensureMiddleValue(
           paddingLeft,
@@ -282,9 +283,7 @@ const TemplateEditor = ({
           pageSize.height - paddingBottom - defaultSchema.height,
         ),
       },
-      required: defaultSchema.readOnly
-        ? false
-        : options.requiredByDefault || defaultSchema.required || false,
+      required: false,
     } as SchemaForUI;
 
     if (defaultSchema.position.y === 0) {
