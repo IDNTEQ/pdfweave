@@ -64,7 +64,7 @@ const scalarSchemaFromVariable = (defaultSchema: Schema, variable: DesignDataVar
   const formatKind = typeof variable.format === 'string' ? variable.format : variable.format?.kind;
   return {
     ...defaultSchema,
-    name: variable.path,
+    name: variable.label,
     content: variable.formattedSample,
     width: defaultSchema.width || 70,
     height: defaultSchema.height || 9,
@@ -87,7 +87,7 @@ const tableSchemaFromVariable = (defaultSchema: Schema, variable: DesignDataVari
     : [{ path: '', label: 'Value', widthPercentage: 100 }];
   return {
     ...defaultSchema,
-    name: variable.path,
+    name: variable.label,
     content: JSON.stringify(getTableBindingPreview(variable.sample, columns)),
     width: defaultSchema.width || 150,
     height: defaultSchema.height || 20,

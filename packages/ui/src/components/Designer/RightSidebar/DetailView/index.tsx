@@ -239,6 +239,7 @@ const DetailView = (props: DetailViewProps) => {
   const isPositionDerivedFromAnchor = isAnchoredLayout(
     (activeSchema as SchemaForUI & { layout?: unknown }).layout,
   );
+  const supportsDataBinding = activeSchema.type === 'text' || activeSchema.type === 'table';
 
   // Create a type-safe schema object
   const propPanelSchema: PropPanelSchema = {
@@ -268,11 +269,15 @@ const DetailView = (props: DetailViewProps) => {
       },
       '-': { type: 'void', widget: 'Divider' },
       align: { title: typedI18n('align'), type: 'void', widget: 'AlignWidget' },
-      dataBinding: {
-        type: 'void',
-        widget: 'BindingWidget',
-        span: 24,
-      },
+      ...(supportsDataBinding
+        ? {
+            dataBinding: {
+              type: 'void',
+              widget: 'BindingWidget',
+              span: 24,
+            },
+          }
+        : {}),
       anchorLayout: {
         type: 'void',
         widget: 'AnchorLayoutWidget',

@@ -249,22 +249,23 @@ const TemplateEditor = ({
       : [0, 0, 0, 0];
     const pageSize = pageSizes[pageCursor];
 
-    const newSchemaName = (prefix: string) => {
-      let index = schemasList.reduce((acc, page) => acc + page.length, 1);
-      let newName = prefix + index;
-      while (schemasList.some((page) => page.find((s) => s.name === newName))) {
+    const existingNames = new Set(schemasList.flat().map((schema) => schema.name));
+    const uniqueSchemaName = (name: string | undefined) => {
+      const baseName = name?.trim() || i18n('field');
+      if (!existingNames.has(baseName)) return baseName;
+
+      let index = 1;
+      let candidate = `${baseName}_${index}`;
+      while (existingNames.has(candidate)) {
         index++;
-        newName = prefix + index;
+        candidate = `${baseName}_${index}`;
       }
-      return newName;
+      return candidate;
     };
     const ensureMiddleValue = (min: number, value: number, max: number) =>
       Math.min(Math.max(min, value), max);
 
-    const requestedName =
-      defaultSchema.name && !schemasList.some((page) => page.find((s) => s.name === defaultSchema.name))
-        ? defaultSchema.name
-        : newSchemaName(i18n('field'));
+    const requestedName = uniqueSchemaName(defaultSchema.name);
 
     const s = {
       id: uuid(),
