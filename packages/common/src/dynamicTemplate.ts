@@ -8,6 +8,7 @@ import {
   SchemaLayoutRule,
 } from './types.js';
 import { cloneDeep, isBlankPdf } from './helper.js';
+import { resolveSchemaValue } from './dataBinding.js';
 
 /** Floating point tolerance for comparisons */
 const EPSILON = 0.01;
@@ -148,8 +149,8 @@ const getContentHeight = (basePdf: BlankPdf): number =>
   basePdf.height - basePdf.padding[0] - basePdf.padding[2];
 
 /** Get the input value for a schema */
-const getSchemaValue = (schema: Schema, input: Record<string, string>): string =>
-  (schema.readOnly ? schema.content : input?.[schema.name]) || '';
+const getSchemaValue = (schema: Schema, input: Record<string, string>, pageSchemas: Schema[]): string =>
+  resolveSchemaValue({ schema, input, schemas: [pageSchemas] });
 
 /**
  * Normalize schemas within a single page into layout items.
@@ -390,7 +391,7 @@ export const getDynamicTemplate = async (
       const chunk = items.slice(i, i + PARALLEL_LIMIT);
       const chunkResults = await Promise.all(
         chunk.map((item) => {
-          const value = getSchemaValue(item.schema, input);
+          const value = getSchemaValue(item.schema, input, pageSchemas);
           const measureArgs = {
             schema: item.schema,
             basePdf,

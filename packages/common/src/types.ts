@@ -19,6 +19,7 @@ import {
   UIProps,
   PreviewProps,
   DesignerProps,
+  SchemaBinding as SchemaBindingSchema,
   ColorType,
   LegacySchemaPageArray,
   SchemaPageArray,
@@ -95,6 +96,71 @@ export type VerticalAnchorRule =
 export type SchemaLayoutRule =
   | { mode: 'absolute' }
   | { mode: 'anchored'; x: HorizontalAnchorRule; y: VerticalAnchorRule };
+
+export type DataFormatHint =
+  | string
+  | {
+      kind?: 'text' | 'number' | 'currency' | 'date' | 'boolean';
+      locale?: string;
+      currency?: string;
+      minimumFractionDigits?: number;
+      maximumFractionDigits?: number;
+      dateStyle?: 'full' | 'long' | 'medium' | 'short';
+      timeStyle?: 'full' | 'long' | 'medium' | 'short';
+      trueLabel?: string;
+      falseLabel?: string;
+      [key: string]: unknown;
+    };
+
+export type DesignDataField = {
+  type?: 'string' | 'number' | 'boolean' | 'date' | 'array' | 'object' | 'unknown' | string;
+  label?: string;
+  description?: string;
+  sample?: unknown;
+  format?: DataFormatHint;
+  fields?: Record<string, DesignDataField>;
+  itemFields?: Record<string, DesignDataField>;
+  [key: string]: unknown;
+};
+
+export type DesignDataSchema = {
+  version?: number;
+  fields?: Record<string, DesignDataField>;
+  [key: string]: unknown;
+};
+
+export type DesignDataPackage = {
+  data?: unknown;
+  schema?: unknown;
+  [key: string]: unknown;
+};
+
+export type SchemaBindingColumn = {
+  path: string;
+  label?: string;
+  format?: DataFormatHint;
+  widthPercentage?: number;
+  [key: string]: unknown;
+};
+
+export type SchemaBinding = z.infer<typeof SchemaBindingSchema> & {
+  path: string;
+  format?: DataFormatHint;
+  columns?: SchemaBindingColumn[];
+};
+
+export type DesignDataVariable = {
+  path: string;
+  label: string;
+  type: string;
+  kind: 'scalar' | 'table';
+  sample: unknown;
+  formattedSample: string;
+  format?: DataFormatHint;
+  description?: string;
+  itemFields?: Record<string, DesignDataField>;
+  columns?: SchemaBindingColumn[];
+};
 
 export type LayoutAnchorPoint = {
   x: number;
@@ -288,7 +354,10 @@ export type Template = z.infer<typeof Template>;
 export type CommonOptions = z.infer<typeof CommonOptions>;
 export type GeneratorOptions = z.infer<typeof GeneratorOptions>;
 export type GenerateProps = Omit<z.infer<typeof GenerateProps>, 'plugins'> & { plugins?: Plugins };
-export type UIOptions = z.infer<typeof UIOptions> & { theme?: UIOptionsTheme };
+export type UIOptions = z.infer<typeof UIOptions> & {
+  theme?: UIOptionsTheme;
+  designData?: DesignDataPackage;
+};
 export type UIProps = Omit<z.infer<typeof UIProps>, 'plugins'> & { plugins?: Plugins };
 export type PreviewProps = Omit<z.infer<typeof PreviewProps>, 'plugins'> & { plugins?: Plugins };
 export type DesignerProps = Omit<z.infer<typeof DesignerProps>, 'plugins'> & { plugins?: Plugins };

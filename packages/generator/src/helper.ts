@@ -12,6 +12,7 @@ import {
   mm2pt,
   pluginRegistry,
   BasePdf,
+  getValueByPath,
 } from '@pdfme/common';
 import { builtInPlugins } from '@pdfme/schemas/builtins';
 import { PDFPage, PDFDocument, PDFEmbeddedPage, TransformationMatrix } from '@pdfme/pdf-lib';
@@ -64,9 +65,17 @@ export const getEmbedPdfPages = async (arg: { template: Template; pdfDoc: PDFDoc
 export const validateRequiredFields = (template: Template, inputs: Record<string, unknown>[]) => {
   template.schemas.forEach((schemaPage: Schema[]) =>
     schemaPage.forEach((schema: Schema) => {
-      if (schema.required && !schema.readOnly && !inputs.some((input) => input[schema.name])) {
+      const inputPath = schema.binding?.path || schema.name;
+      if (
+        schema.required &&
+        !schema.readOnly &&
+        !inputs.some((input) => {
+          const value = getValueByPath(input, inputPath);
+          return value !== undefined && value !== null && value !== '';
+        })
+      ) {
         throw new Error(
-          `[@pdfme/generator] input for '${schema.name}' is required to generate this PDF`,
+          `[@pdfme/generator] input for '${inputPath}' is required to generate this PDF`,
         );
       }
     }),

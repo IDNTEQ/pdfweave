@@ -1,4 +1,4 @@
-import type { SchemaForUI, Size, ChangeSchemas, BasePdf } from '@pdfme/common';
+import type { Schema, SchemaForUI, Size, ChangeSchemas, BasePdf } from '@pdfme/common';
 
 export type SidebarProps = {
   height: number;
@@ -11,6 +11,7 @@ export type SidebarProps = {
   schemas: SchemaForUI[];
   schemasList: SchemaForUI[][];
   onSortEnd: (sortedSchemas: SchemaForUI[]) => void;
+  addSchema: (schema: Schema) => void;
   onEdit: (id: string) => void;
   onEditEnd: () => void;
   changeSchemas: ChangeSchemas;

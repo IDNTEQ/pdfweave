@@ -18,9 +18,11 @@ import {
   ChangeSchemas,
   BasePdf,
   isBlankPdf,
+  getDesignDataInput,
   replacePlaceholders,
+  resolveSchemaValue,
 } from '@pdfme/common';
-import { PluginsRegistry } from '../../../contexts.js';
+import { OptionsContext, PluginsRegistry } from '../../../contexts.js';
 import { X } from 'lucide-react';
 import { RULER_HEIGHT, RIGHT_SIDEBAR_WIDTH, DESIGNER_CLASSNAME } from '../../../constants.js';
 import { usePrevious } from '../../../hooks.js';
@@ -121,6 +123,8 @@ const Canvas = (props: Props, ref: Ref<HTMLDivElement>) => {
   } = props;
   const { token } = theme.useToken();
   const pluginsRegistry = useContext(PluginsRegistry);
+  const options = useContext(OptionsContext);
+  const designDataInput = getDesignDataInput(options.designData);
   const verticalGuides = useRef<GuidesInterface[]>([]);
   const horizontalGuides = useRef<GuidesInterface[]>([]);
   const moveable = useRef<MoveableComponent>(null);
@@ -480,24 +484,30 @@ const Canvas = (props: Props, ref: Ref<HTMLDivElement>) => {
               ? 'designer'
               : 'viewer';
 
-          const content = schema.content || '';
-          let value = content;
-
-          if (mode !== 'designer' && schema.readOnly) {
-            const variables = {
-              ...schemasList.flat().reduce(
-                (acc, currSchema) => {
-                  acc[currSchema.name] = currSchema.content || '';
-                  return acc;
-                },
-                {} as Record<string, string>,
-              ),
-              totalPages: schemasList.length,
-              currentPage: index + 1,
-            };
-
-            value = replacePlaceholders({ content, variables, schemas: schemasList });
-          }
+          const value = schema.binding
+            ? resolveSchemaValue({
+                schema,
+                input: designDataInput,
+                schemas: schemasList,
+                totalPages: schemasList.length,
+                currentPage: index + 1,
+              })
+            : (() => {
+                const content = schema.content || '';
+                if (mode === 'designer' || !schema.readOnly) return content;
+                const variables = {
+                  ...schemasList.flat().reduce(
+                    (acc, currSchema) => {
+                      acc[currSchema.name] = currSchema.content || '';
+                      return acc;
+                    },
+                    {} as Record<string, string>,
+                  ),
+                  totalPages: schemasList.length,
+                  currentPage: index + 1,
+                };
+                return replacePlaceholders({ content, variables, schemas: schemasList });
+              })();
 
           return (
             <Renderer

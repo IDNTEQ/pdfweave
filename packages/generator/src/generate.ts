@@ -5,6 +5,7 @@ import {
   getDynamicTemplate,
   isBlankPdf,
   replacePlaceholders,
+  resolveSchemaValue,
   pt2mm,
   cloneDeep,
 } from '@pdfme/common';
@@ -133,13 +134,13 @@ const generate = async (props: GenerateProps): Promise<Uint8Array<ArrayBuffer>> 
         if (!render) {
           continue;
         }
-        const value: string = schema.readOnly
-          ? replacePlaceholders({
-              content: schema.content || '',
-              variables: { ...input, totalPages: basePages.length, currentPage: j + 1 },
-              schemas: schemas, // Use the properly typed schemas variable
-            })
-          : ((input[name] || '') as string);
+        const value = resolveSchemaValue({
+          schema,
+          input,
+          schemas,
+          totalPages: basePages.length,
+          currentPage: j + 1,
+        });
 
         schema.position = {
           x: schema.position.x + boundingBoxLeft,

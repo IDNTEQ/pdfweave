@@ -3,7 +3,7 @@ import { theme, Button } from 'antd';
 import type { SidebarProps } from '../../../types.js';
 import { RIGHT_SIDEBAR_WIDTH, DESIGNER_CLASSNAME } from '../../../constants.js';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
-import ListView from './ListView/index.js';
+import NoSelectionSidebar from './NoSelectionSidebar.js';
 import DetailView from './DetailView/index.js';
 
 const Sidebar = (props: SidebarProps) => {
@@ -60,7 +60,7 @@ const Sidebar = (props: SidebarProps) => {
         }}
       >
         {getActiveSchemas().length === 0 ? (
-          <ListView {...props} />
+          <NoSelectionSidebar {...props} />
         ) : (
           <DetailView {...props} activeSchema={getLastActiveSchema()} />
         )}

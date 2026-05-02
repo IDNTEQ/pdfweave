@@ -5,7 +5,7 @@ import {
   PreviewProps,
   Size,
   getDynamicTemplate,
-  replacePlaceholders,
+  resolveSchemaValue,
 } from '@pdfme/common';
 import UnitPager from './UnitPager.js';
 import Root from './Root.js';
@@ -219,13 +219,13 @@ const Preview = ({
           pageSizes={pageSizes}
           backgrounds={backgrounds}
           renderSchema={({ schema, index }) => {
-            const value = schema.readOnly
-              ? replacePlaceholders({
-                  content: schema.content || '',
-                  variables: { ...input, totalPages: schemasList.length, currentPage: index + 1 },
-                  schemas: schemasList,
-                })
-              : String((input && input[schema.name]) || '');
+            const value = resolveSchemaValue({
+              schema,
+              input,
+              schemas: schemasList,
+              totalPages: schemasList.length,
+              currentPage: index + 1,
+            });
             return (
               <Renderer
                 key={schema.id}

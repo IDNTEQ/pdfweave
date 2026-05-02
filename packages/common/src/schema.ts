@@ -127,6 +127,23 @@ const SchemaLayoutRule = z.discriminatedUnion('mode', [
   z.object({ mode: z.literal('anchored'), x: HorizontalAnchorRule, y: VerticalAnchorRule }),
 ]);
 
+export const SchemaBindingColumn = z
+  .object({
+    path: z.string(),
+    label: z.string().optional(),
+    format: z.unknown().optional(),
+    widthPercentage: z.number().optional(),
+  })
+  .passthrough();
+
+export const SchemaBinding = z
+  .object({
+    path: z.string(),
+    format: z.unknown().optional(),
+    columns: z.array(SchemaBindingColumn).optional(),
+  })
+  .passthrough();
+
 export const Schema = z
   .object({
     name: z.string(),
@@ -139,6 +156,7 @@ export const Schema = z
     opacity: z.number().optional(),
     readOnly: z.boolean().optional(),
     required: z.boolean().optional(),
+    binding: SchemaBinding.optional(),
     layout: SchemaLayoutRule.optional(),
     __bodyRange: z.object({ start: z.number(), end: z.number().optional() }).optional(),
     __isSplit: z.boolean().optional(),
@@ -230,11 +248,19 @@ export const GenerateProps = CommonProps.extend({
 
 // ---------------------ui------------------------
 
+const DesignDataPackage = z
+  .object({
+    data: z.unknown().optional(),
+    schema: z.unknown().optional(),
+  })
+  .passthrough();
+
 export const UIOptions = CommonOptions.extend({
   lang: Lang.optional(),
   labels: z.record(z.string(), z.string()).optional(),
   theme: z.record(z.string(), z.unknown()).optional(),
   icons: z.record(z.string(), z.string()).optional(),
+  designData: DesignDataPackage.optional(),
   requiredByDefault: z.boolean().optional(),
   maxZoom: z.number().optional(),
   sidebarOpen: z.boolean().optional(),

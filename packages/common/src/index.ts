@@ -25,6 +25,13 @@ import type {
   HorizontalAnchorRule,
   VerticalAnchorRule,
   AnchorRef,
+  DataFormatHint,
+  DesignDataField,
+  DesignDataPackage,
+  DesignDataSchema,
+  DesignDataVariable,
+  SchemaBinding,
+  SchemaBindingColumn,
   Mode,
   UIRenderProps,
   Plugin,
@@ -75,6 +82,14 @@ import {
 import { getDynamicTemplate } from './dynamicTemplate.js';
 import { replacePlaceholders } from './expression.js';
 import { pluginRegistry } from './pluginRegistry.js';
+import {
+  formatDesignDataValue,
+  getDesignDataInput,
+  getDesignDataVariables,
+  getTableBindingPreview,
+  getValueByPath,
+  resolveSchemaValue,
+} from './dataBinding.js';
 
 export {
   PDFME_VERSION,
@@ -99,6 +114,12 @@ export {
   getInputFromTemplate,
   isBlankPdf,
   getDynamicTemplate,
+  formatDesignDataValue,
+  getDesignDataInput,
+  getDesignDataVariables,
+  getTableBindingPreview,
+  getValueByPath,
+  resolveSchemaValue,
   replacePlaceholders,
   checkFont,
   checkInputs,
@@ -149,6 +170,13 @@ export type {
   HorizontalAnchorRule,
   VerticalAnchorRule,
   AnchorRef,
+  DataFormatHint,
+  DesignDataField,
+  DesignDataPackage,
+  DesignDataSchema,
+  DesignDataVariable,
+  SchemaBinding,
+  SchemaBindingColumn,
   UIRenderProps,
   Mode,
 };

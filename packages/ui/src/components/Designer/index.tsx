@@ -261,10 +261,15 @@ const TemplateEditor = ({
     const ensureMiddleValue = (min: number, value: number, max: number) =>
       Math.min(Math.max(min, value), max);
 
+    const requestedName =
+      defaultSchema.name && !schemasList.some((page) => page.find((s) => s.name === defaultSchema.name))
+        ? defaultSchema.name
+        : newSchemaName(i18n('field'));
+
     const s = {
       id: uuid(),
       ...defaultSchema,
-      name: newSchemaName(i18n('field')),
+      name: requestedName,
       position: {
         x: ensureMiddleValue(
           paddingLeft,
@@ -432,6 +437,7 @@ const TemplateEditor = ({
             schemasList={schemasList}
             schemas={schemasList[pageCursor] ?? []}
             changeSchemas={changeSchemas}
+            addSchema={addSchema}
             onSortEnd={onSortEnd}
             onEdit={(id) => {
               const editingElem = document.getElementById(id);

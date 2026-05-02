@@ -18,7 +18,7 @@ const ListView = (
     | 'hoveringSchemaId'
     | 'onChangeHoveringSchemaId'
     | 'changeSchemas'
-  >,
+  > & { headerContent?: React.ReactNode },
 ) => {
   const { schemas, onSortEnd, onEdit, hoveringSchemaId, onChangeHoveringSchemaId, changeSchemas } =
     props;
@@ -50,9 +50,11 @@ const ListView = (
   return (
     <SidebarFrame className={DESIGNER_CLASSNAME + 'list-view'}>
       <SidebarHeader>
-        <Text strong style={{ textAlign: 'center', width: '100%' }}>
-          {i18n('fieldsList')}
-        </Text>
+        {props.headerContent ?? (
+          <Text strong style={{ textAlign: 'center', width: '100%' }}>
+            {i18n('fieldsList')}
+          </Text>
+        )}
       </SidebarHeader>
       <SidebarBody>
         {isBulkUpdateFieldNamesMode ? (
