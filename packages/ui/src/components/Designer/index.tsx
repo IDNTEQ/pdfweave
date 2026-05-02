@@ -15,6 +15,7 @@ import {
   ChangeSchemas,
   DesignerProps,
   Size,
+  SchemaLayoutRule,
   isBlankPdf,
   px2mm,
 } from '@pdfme/common';
@@ -49,6 +50,46 @@ import {
 import Root from '../Root.js';
 import ErrorScreen from '../ErrorScreen.js';
 import CtlBar from '../CtlBar.js';
+
+type AnchoredLayoutRule = Extract<SchemaLayoutRule, { mode: 'anchored' }>;
+
+const isAnchoredLayoutRule = (layout: unknown): layout is AnchoredLayoutRule =>
+  typeof layout === 'object' &&
+  layout !== null &&
+  (layout as { mode?: unknown }).mode === 'anchored';
+
+const schemaAnchorIds = (schema: SchemaForUI): string[] =>
+  Array.from(new Set([schema.id, schema.name].filter((id): id is string => Boolean(id))));
+
+const repairAnchorsAfterRemove = (
+  schemas: SchemaForUI[],
+  removedSchemas: SchemaForUI[],
+): SchemaForUI[] => {
+  const removedIds = new Set(removedSchemas.flatMap(schemaAnchorIds));
+  if (removedIds.size === 0) return schemas;
+
+  return schemas.map((schema) => {
+    const layout = (schema as SchemaForUI & { layout?: SchemaLayoutRule }).layout;
+    if (!isAnchoredLayoutRule(layout)) return schema;
+
+    let nextLayout: AnchoredLayoutRule = layout;
+    if (layout.x.mode !== 'pageLeft' && removedIds.has(layout.x.ref.schemaId)) {
+      nextLayout = {
+        ...nextLayout,
+        x: { mode: 'pageLeft', offsetMm: round(schema.position.x, 2) },
+      };
+    }
+    if (layout.y.mode !== 'pageTop' && removedIds.has(layout.y.ref.schemaId)) {
+      nextLayout = {
+        ...nextLayout,
+        y: { mode: 'pageTop', offsetMm: round(schema.position.y, 2) },
+      };
+    }
+
+    if (nextLayout === layout) return schema;
+    return { ...schema, layout: nextLayout };
+  });
+};
 
 /**
  * When the canvas scales there is a displacement of the starting position of the dragged schema.
@@ -169,12 +210,12 @@ const TemplateEditor = ({
 
   const removeSchemas = useCallback(
     (ids: string[]) => {
-      commitSchemas(
-        schemasList[pageCursor].filter((schema) => !ids.includes(schema.id)),
-      );
+      const removedSchemas = schemasList[pageCursor].filter((schema) => ids.includes(schema.id));
+      const remainingSchemas = schemasList[pageCursor].filter((schema) => !ids.includes(schema.id));
+      commitSchemas(repairAnchorsAfterRemove(remainingSchemas, removedSchemas));
       onEditEnd();
     },
-    [schemasList, pageCursor, commitSchemas],
+    [schemasList, pageCursor, commitSchemas, onEditEnd],
   );
 
   const changeSchemas: ChangeSchemas = useCallback(

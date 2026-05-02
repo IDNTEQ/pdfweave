@@ -101,8 +101,66 @@ const errorStyle: React.CSSProperties = {
   lineHeight: 1.35,
 };
 
+const warningStyle: React.CSSProperties = {
+  color: '#92400e',
+  background: '#fffbeb',
+  border: '1px solid #fcd34d',
+  borderRadius: 6,
+  padding: '6px 8px',
+  fontSize: 11,
+  lineHeight: 1.35,
+};
+
+const columnsStyle: React.CSSProperties = {
+  display: 'grid',
+  gap: 8,
+};
+
+const columnRowStyle: React.CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'auto minmax(0, 1.2fr) minmax(58px, 0.7fr) minmax(0, 0.9fr) minmax(0, 0.9fr) auto auto',
+  gap: 6,
+  alignItems: 'end',
+  padding: 8,
+  border: '1px solid #e5e7eb',
+  borderRadius: 6,
+  background: '#ffffff',
+};
+
+const miniControlStyle: React.CSSProperties = {
+  ...controlStyle,
+  height: 28,
+  padding: '0 6px',
+};
+
+const iconButtonStyle: React.CSSProperties = {
+  width: 28,
+  height: 28,
+  border: '1px solid #d1d5db',
+  borderRadius: 6,
+  background: '#ffffff',
+  color: '#374151',
+  cursor: 'pointer',
+};
+
 const fallbackColumns = (): SchemaBindingColumn[] => [
   { path: '', label: 'Value', widthPercentage: 100 },
+];
+
+const formatOptions = [
+  { label: 'Default', value: '' },
+  { label: 'Text', value: 'text' },
+  { label: 'Number', value: 'number' },
+  { label: 'Currency', value: 'currency' },
+  { label: 'Date', value: 'date' },
+  { label: 'Boolean', value: 'boolean' },
+];
+
+const alignmentOptions = [
+  { label: 'Default', value: '' },
+  { label: 'Left', value: 'left' },
+  { label: 'Center', value: 'center' },
+  { label: 'Right', value: 'right' },
 ];
 
 const titleFromPath = (path: string): string =>
@@ -135,11 +193,97 @@ const widthPercentages = (columns: SchemaBindingColumn[]) => {
   });
 };
 
+const normalizeColumnWidths = (columns: SchemaBindingColumn[]): SchemaBindingColumn[] => {
+  const widths = widthPercentages(columns);
+  return columns.map((column, index) => ({
+    ...column,
+    widthPercentage: widths[index],
+  })) as SchemaBindingColumn[];
+};
+
 const getBinding = (schema: SchemaForUI): SchemaBinding | undefined =>
   (schema as SchemaForUI & { binding?: SchemaBinding }).binding;
 
 const formatKind = (variable?: DesignDataVariable): string | undefined =>
   typeof variable?.format === 'string' ? variable.format : variable?.format?.kind;
+
+const formatKindFromColumn = (column?: SchemaBindingColumn): string =>
+  typeof column?.format === 'string' ? column.format : column?.format?.kind || '';
+
+const formatHintFromKind = (kind: string): SchemaBindingColumn['format'] | undefined => {
+  if (!kind) return undefined;
+  if (kind === 'currency') return { kind: 'currency', currency: 'USD' };
+  if (kind === 'date') return { kind: 'date', dateStyle: 'medium' };
+  if (kind === 'number' || kind === 'boolean' || kind === 'text') return { kind };
+  return kind;
+};
+
+const defaultAlignmentForColumn = (column: SchemaBindingColumn): string =>
+  ['currency', 'number'].includes(formatKindFromColumn(column)) ? 'right' : '';
+
+const columnKey = (column: SchemaBindingColumn): string => column.path || '__value__';
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+
+const inferColumnsFromSample = (sample: unknown): SchemaBindingColumn[] => {
+  if (!Array.isArray(sample)) return [];
+
+  const firstRecord = sample.find(isRecord);
+  if (firstRecord) {
+    const width = Object.keys(firstRecord).length > 0 ? 100 / Object.keys(firstRecord).length : 100;
+    return Object.keys(firstRecord).map((path, index, paths) => ({
+      path,
+      label: titleFromPath(path),
+      widthPercentage:
+        index === paths.length - 1 ? Number((100 - width * (paths.length - 1)).toFixed(4)) : width,
+    }));
+  }
+
+  const firstArray = sample.find(Array.isArray) as unknown[] | undefined;
+  if (firstArray) {
+    const width = firstArray.length > 0 ? 100 / firstArray.length : 100;
+    return firstArray.map((_, index) => ({
+      path: String(index),
+      label: `Column ${index + 1}`,
+      widthPercentage:
+        index === firstArray.length - 1
+          ? Number((100 - width * (firstArray.length - 1)).toFixed(4))
+          : width,
+    }));
+  }
+
+  return fallbackColumns();
+};
+
+const mergeAvailableColumns = (
+  variable: DesignDataVariable | undefined,
+  sample: unknown,
+  bindingColumns: SchemaBindingColumn[] | undefined,
+): SchemaBindingColumn[] => {
+  const columnsByPath = new Map<string, SchemaBindingColumn>();
+  const add = (columns: SchemaBindingColumn[] | undefined) => {
+    columns?.forEach((column) => {
+      const key = columnKey(column);
+      if (!columnsByPath.has(key)) columnsByPath.set(key, { ...column });
+    });
+  };
+
+  add(variable?.columns);
+  add(inferColumnsFromSample(sample));
+  add(bindingColumns);
+
+  return Array.from(columnsByPath.values());
+};
+
+const getColumnStyles = (schema: SchemaForUI): Record<string, unknown> =>
+  ((schema as SchemaForUI & { columnStyles?: Record<string, unknown> }).columnStyles ?? {}) as Record<
+    string,
+    unknown
+  >;
+
+const getColumnAlignments = (schema: SchemaForUI): Record<string, string> =>
+  (getColumnStyles(schema).alignment ?? {}) as Record<string, string>;
 
 const compatibleVariables = (
   variables: DesignDataVariable[],
@@ -168,6 +312,14 @@ const BindingWidget = (props: PropPanelWidgetProps) => {
     selectedVariable?.sample ?? (bindingPath ? getValueByPath(dataInput, bindingPath) : undefined);
   const isTable = activeSchema.type === 'table';
   const pathListId = `binding-paths-${activeSchema.id}`;
+  const tableColumns: SchemaBindingColumn[] = isTable ? binding?.columns ?? [] : [];
+  const dataColumns: SchemaBindingColumn[] = isTable
+    ? mergeAvailableColumns(selectedVariable, sample, undefined)
+    : [];
+  const availableColumns: SchemaBindingColumn[] = isTable
+    ? mergeAvailableColumns(selectedVariable, sample, binding?.columns)
+    : [];
+  const columnAlignments = getColumnAlignments(activeSchema);
 
   React.useEffect(() => {
     setPathDraft(bindingPath);
@@ -178,6 +330,98 @@ const BindingWidget = (props: PropPanelWidgetProps) => {
     setPathDraft('');
     setPathError('');
     changeSchemas([{ key: 'binding', value: undefined, schemaId: activeSchema.id }]);
+  };
+
+  const applyTableColumns = (
+    nextColumnsInput: SchemaBindingColumn[],
+    alignmentOverrides: Record<string, string | undefined> = {},
+  ) => {
+    if (!bindingPath) return;
+
+    const nextColumns = normalizeColumnWidths(nextColumnsInput);
+    const previousAlignmentByPath = new Map(
+      tableColumns.map((column, index) => [columnKey(column), columnAlignments[index]]),
+    );
+    const nextAlignment = nextColumns.reduce<Record<number, string>>((acc, column, index) => {
+      const key = columnKey(column);
+      const alignment =
+        Object.prototype.hasOwnProperty.call(alignmentOverrides, key)
+          ? alignmentOverrides[key]
+          : previousAlignmentByPath.get(key) || defaultAlignmentForColumn(column);
+      if (alignment) acc[index] = alignment;
+      return acc;
+    }, {});
+    const currentColumnStyles = getColumnStyles(activeSchema);
+    const nextColumnStyles = {
+      ...currentColumnStyles,
+      alignment: nextAlignment,
+    };
+
+    changeSchemas([
+      {
+        key: 'binding',
+        value: { ...binding, path: bindingPath, columns: nextColumns },
+        schemaId: activeSchema.id,
+      },
+      {
+        key: 'content',
+        value: JSON.stringify(getTableBindingPreview(sample, nextColumns)),
+        schemaId: activeSchema.id,
+      },
+      {
+        key: 'head',
+        value: nextColumns.map((column) => column.label || titleFromPath(column.path)),
+        schemaId: activeSchema.id,
+      },
+      {
+        key: 'headWidthPercentages',
+        value: widthPercentages(nextColumns),
+        schemaId: activeSchema.id,
+      },
+      {
+        key: 'columnStyles',
+        value: nextColumnStyles,
+        schemaId: activeSchema.id,
+      },
+      { key: 'showHead', value: true, schemaId: activeSchema.id },
+      { key: 'readOnly', value: true, schemaId: activeSchema.id },
+      { key: 'required', value: false, schemaId: activeSchema.id },
+    ]);
+  };
+
+  const updateColumn = (index: number, patch: Partial<SchemaBindingColumn>) => {
+    applyTableColumns(
+      tableColumns.map((column, columnIndex) =>
+        columnIndex === index ? ({ ...column, ...patch } as SchemaBindingColumn) : column,
+      ) as SchemaBindingColumn[],
+    );
+  };
+
+  const toggleColumn = (column: SchemaBindingColumn, shouldInclude: boolean) => {
+    const key = columnKey(column);
+    const currentIndex = tableColumns.findIndex((item) => columnKey(item) === key);
+    if (shouldInclude && currentIndex === -1) {
+      applyTableColumns(tableColumns.concat({ ...column } as SchemaBindingColumn));
+      return;
+    }
+
+    if (!shouldInclude && currentIndex !== -1 && tableColumns.length > 1) {
+      applyTableColumns(tableColumns.filter((item) => columnKey(item) !== key) as SchemaBindingColumn[]);
+    }
+  };
+
+  const moveColumn = (index: number, direction: -1 | 1) => {
+    const nextIndex = index + direction;
+    if (nextIndex < 0 || nextIndex >= tableColumns.length) return;
+
+    const nextColumns = [...tableColumns];
+    const [column] = nextColumns.splice(index, 1);
+    nextColumns.splice(nextIndex, 0, column);
+    applyTableColumns(nextColumns);
+  };
+
+  const updateColumnAlignment = (column: SchemaBindingColumn, alignment: string) => {
+    applyTableColumns(tableColumns, { [columnKey(column)]: alignment || undefined });
   };
 
   const commitPath = (pathValue: string) => {
@@ -267,6 +511,29 @@ const BindingWidget = (props: PropPanelWidgetProps) => {
     changeSchemas(changes);
   };
 
+  const bindingWarning = (() => {
+    if (!bindingPath) return '';
+    if (!selectedVariable && typeof sample === 'undefined') {
+      return `Binding path "${bindingPath}" was not found in the current data sample.`;
+    }
+    if (isTable && !Array.isArray(sample)) {
+      return `Binding path "${bindingPath}" is not an array in the current data sample.`;
+    }
+    if (!isTable && Array.isArray(sample)) {
+      return `Binding path "${bindingPath}" is an array; use a table field for this data.`;
+    }
+    if (isTable && tableColumns.length > 0) {
+      const dataKeys = new Set(dataColumns.map(columnKey));
+      const missingColumns = tableColumns.filter((column) => !dataKeys.has(columnKey(column)));
+      if (missingColumns.length > 0) {
+        return `Missing table column data: ${missingColumns
+          .map((column) => column.label || column.path || 'Value')
+          .join(', ')}.`;
+      }
+    }
+    return '';
+  })();
+
   const sampleText = isTable
     ? selectedVariable?.formattedSample ??
       (Array.isArray(sample) ? `${sample.length} rows` : bindingPath ? 'No sample' : '')
@@ -321,6 +588,11 @@ const BindingWidget = (props: PropPanelWidgetProps) => {
             {pathError}
           </div>
         ) : null}
+        {bindingWarning ? (
+          <div style={warningStyle} role="alert">
+            {bindingWarning}
+          </div>
+        ) : null}
         <datalist id={pathListId}>
           {variablesForField.map((variable) => (
             <option key={variable.path} value={variable.path} label={variable.label} />
@@ -335,6 +607,141 @@ const BindingWidget = (props: PropPanelWidgetProps) => {
               {sampleText ? <span>{sampleText}</span> : null}
               {columnText ? <span>{columnText}</span> : null}
             </div>
+            {isTable && binding?.columns?.length ? (
+              <div style={columnsStyle} role="group" aria-label={`${activeSchema.name} binding columns`}>
+                <span style={titleStyle}>Columns</span>
+                {availableColumns.map((availableColumn) => {
+                  const key = columnKey(availableColumn);
+                  const selectedIndex = tableColumns.findIndex((column) => columnKey(column) === key);
+                  const selectedColumn =
+                    selectedIndex >= 0 ? tableColumns[selectedIndex] : availableColumn;
+                  const isSelected = selectedIndex >= 0;
+                  const alignment =
+                    isSelected
+                      ? columnAlignments[selectedIndex] || defaultAlignmentForColumn(selectedColumn)
+                      : defaultAlignmentForColumn(selectedColumn);
+
+                  return (
+                    <div style={columnRowStyle} key={key}>
+                      <label style={{ ...labelStyle, alignItems: 'center' }}>
+                        <span>Use</span>
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          disabled={isSelected && tableColumns.length === 1}
+                          aria-label={`${activeSchema.name} include ${
+                            availableColumn.label || titleFromPath(availableColumn.path)
+                          } column`}
+                          onChange={(event) => toggleColumn(availableColumn, event.currentTarget.checked)}
+                        />
+                      </label>
+                      <label style={labelStyle}>
+                        Label
+                        <input
+                          style={miniControlStyle}
+                          value={selectedColumn.label || titleFromPath(selectedColumn.path)}
+                          disabled={!isSelected}
+                          aria-label={`${activeSchema.name} ${
+                            availableColumn.label || titleFromPath(availableColumn.path)
+                          } column label`}
+                          onChange={(event) =>
+                            selectedIndex >= 0
+                              ? updateColumn(selectedIndex, { label: event.currentTarget.value })
+                              : undefined
+                          }
+                        />
+                      </label>
+                      <label style={labelStyle}>
+                        Width
+                        <input
+                          style={miniControlStyle}
+                          type="number"
+                          min="1"
+                          max="100"
+                          step="1"
+                          value={selectedColumn.widthPercentage ?? ''}
+                          disabled={!isSelected}
+                          aria-label={`${activeSchema.name} ${
+                            availableColumn.label || titleFromPath(availableColumn.path)
+                          } column width`}
+                          onChange={(event) =>
+                            selectedIndex >= 0
+                              ? updateColumn(selectedIndex, {
+                                  widthPercentage: Number(event.currentTarget.value),
+                                })
+                              : undefined
+                          }
+                        />
+                      </label>
+                      <label style={labelStyle}>
+                        Format
+                        <select
+                          style={miniControlStyle}
+                          value={formatKindFromColumn(selectedColumn)}
+                          disabled={!isSelected}
+                          aria-label={`${activeSchema.name} ${
+                            availableColumn.label || titleFromPath(availableColumn.path)
+                          } column format`}
+                          onChange={(event) =>
+                            selectedIndex >= 0
+                              ? updateColumn(selectedIndex, {
+                                  format: formatHintFromKind(event.currentTarget.value),
+                                })
+                              : undefined
+                          }
+                        >
+                          {formatOptions.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label style={labelStyle}>
+                        Align
+                        <select
+                          style={miniControlStyle}
+                          value={alignment}
+                          disabled={!isSelected}
+                          aria-label={`${activeSchema.name} ${
+                            availableColumn.label || titleFromPath(availableColumn.path)
+                          } column alignment`}
+                          onChange={(event) => updateColumnAlignment(selectedColumn, event.currentTarget.value)}
+                        >
+                          {alignmentOptions.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <button
+                        type="button"
+                        style={iconButtonStyle}
+                        disabled={!isSelected || selectedIndex <= 0}
+                        aria-label={`${activeSchema.name} move ${
+                          availableColumn.label || titleFromPath(availableColumn.path)
+                        } column up`}
+                        onClick={() => moveColumn(selectedIndex, -1)}
+                      >
+                        ↑
+                      </button>
+                      <button
+                        type="button"
+                        style={iconButtonStyle}
+                        disabled={!isSelected || selectedIndex === tableColumns.length - 1}
+                        aria-label={`${activeSchema.name} move ${
+                          availableColumn.label || titleFromPath(availableColumn.path)
+                        } column down`}
+                        onClick={() => moveColumn(selectedIndex, 1)}
+                      >
+                        ↓
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : null}
             <button
               type="button"
               style={clearButtonStyle}

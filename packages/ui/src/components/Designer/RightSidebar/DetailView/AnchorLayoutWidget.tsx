@@ -82,6 +82,16 @@ const cardStyle: React.CSSProperties = {
   background: '#fbfdff',
 };
 
+const warningStyle: React.CSSProperties = {
+  color: '#92400e',
+  background: '#fffbeb',
+  border: '1px solid #fcd34d',
+  borderRadius: 6,
+  padding: '6px 8px',
+  fontSize: 11,
+  lineHeight: 1.35,
+};
+
 const getAnchorLabel = (schema: SchemaForUI): string => schema.name || schema.id;
 
 const getAnchorIds = (schema: SchemaForUI): string[] =>
@@ -177,8 +187,12 @@ const AnchorLayoutWidget = (props: PropPanelWidgetProps) => {
     targetId ? targetLookup.get(targetId)?.id ?? targetId : null;
   const getTargetLabel = (targetId: string): string =>
     targetLookup.get(targetId)?.name || targetLookup.get(targetId)?.id || targetId;
-  const xTarget = resolveTargetId(getHorizontalTarget(anchoredLayout.x));
-  const yTarget = resolveTargetId(getVerticalTarget(anchoredLayout.y));
+  const rawXTarget = getHorizontalTarget(anchoredLayout.x);
+  const rawYTarget = getVerticalTarget(anchoredLayout.y);
+  const xTarget = resolveTargetId(rawXTarget);
+  const yTarget = resolveTargetId(rawYTarget);
+  const missingXTarget = Boolean(rawXTarget && !targetLookup.has(rawXTarget));
+  const missingYTarget = Boolean(rawYTarget && !targetLookup.has(rawYTarget));
   const xTargetOptions = buildTargetOptions(
     activeSchema,
     schemas,
@@ -291,6 +305,15 @@ const AnchorLayoutWidget = (props: PropPanelWidgetProps) => {
             <span>{formatHorizontalRule(anchoredLayout.x, getTargetLabel)}</span>
             <span>{formatVerticalRule(anchoredLayout.y, getTargetLabel)}</span>
           </div>
+          {missingXTarget || missingYTarget ? (
+            <div style={warningStyle} role="alert">
+              Missing anchor target
+              {missingXTarget ? ` for X: ${rawXTarget}` : ''}
+              {missingXTarget && missingYTarget ? ';' : ''}
+              {missingYTarget ? ` for Y: ${rawYTarget}` : ''}. Choose a new target or switch the axis
+              to the page origin.
+            </div>
+          ) : null}
 
           <div style={fieldGridStyle}>
             <label style={labelStyle}>
