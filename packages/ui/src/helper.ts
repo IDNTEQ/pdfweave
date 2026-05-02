@@ -12,6 +12,11 @@ import {
   isBlankPdf,
   PluginRegistry,
 } from '@pdfme/common';
+import type {
+  HorizontalAnchorRule,
+  SchemaLayoutRule,
+  VerticalAnchorRule,
+} from '@pdfme/common';
 import { pdf2size } from '@pdfme/converter';
 import { DEFAULT_MAX_ZOOM, RULER_HEIGHT } from './constants.js';
 import { OptionsContext } from './contexts.js';
@@ -443,6 +448,196 @@ const handlePositionSizeChange = (
   }
 };
 
+type AnchoredLayoutRule = Extract<SchemaLayoutRule, { mode: 'anchored' }>;
+
+export const isAnchoredLayout = (layout: unknown): layout is AnchoredLayoutRule =>
+  typeof layout === 'object' &&
+  layout !== null &&
+  (layout as { mode?: unknown }).mode === 'anchored';
+
+const getSchemaLayout = (schema: SchemaForUI): SchemaLayoutRule | undefined =>
+  (schema as SchemaForUI & { layout?: SchemaLayoutRule }).layout;
+
+const setSchemaLayout = (schema: SchemaForUI, layout: SchemaLayoutRule) => {
+  (schema as SchemaForUI & { layout?: SchemaLayoutRule }).layout = layout;
+};
+
+const getSchemaAnchorIds = (schema: SchemaForUI): string[] => {
+  const ids = [schema.name, schema.id].filter((id): id is string => Boolean(id));
+  return Array.from(new Set(ids));
+};
+
+const buildAnchorLookup = (schemas: SchemaForUI[]): Map<string, SchemaForUI> => {
+  const lookup = new Map<string, SchemaForUI>();
+  schemas.forEach((schema) => {
+    getSchemaAnchorIds(schema).forEach((id) => lookup.set(id, schema));
+  });
+  return lookup;
+};
+
+const finiteOrZero = (value: number | undefined): number =>
+  typeof value === 'number' && Number.isFinite(value) ? value : 0;
+
+const roundOffset = (value: number): number => round(value, 2);
+
+const resolveAnchoredXValue = (
+  schema: SchemaForUI,
+  rule: HorizontalAnchorRule,
+  lookup: Map<string, SchemaForUI>,
+): number | null => {
+  if (rule.mode === 'pageLeft') {
+    return rule.offsetMm;
+  }
+
+  const target = lookup.get(rule.ref.schemaId);
+  if (!target) return null;
+
+  const targetRight = target.position.x + target.width;
+  if (rule.mode === 'afterRightEdge') {
+    return targetRight + rule.offsetMm;
+  }
+
+  return targetRight - schema.width + finiteOrZero(rule.offsetMm);
+};
+
+const resolveAnchoredYValue = (
+  rule: VerticalAnchorRule,
+  lookup: Map<string, SchemaForUI>,
+): number | null => {
+  if (rule.mode === 'pageTop') {
+    return rule.offsetMm;
+  }
+
+  const target = lookup.get(rule.ref.schemaId);
+  if (!target) return null;
+
+  return target.position.y + target.height + rule.offsetMm;
+};
+
+const resolveAnchoredSchemas = (
+  schemas: SchemaForUI[],
+  basePdf: BasePdf,
+  pageSize: Size,
+): void => {
+  const lookup = buildAnchorLookup(schemas);
+
+  for (let pass = 0; pass < schemas.length; pass += 1) {
+    let changed = false;
+
+    schemas.forEach((schema) => {
+      const layout = getSchemaLayout(schema);
+      if (!isAnchoredLayout(layout)) return;
+
+      const nextX = resolveAnchoredXValue(schema, layout.x, lookup);
+      const nextY = resolveAnchoredYValue(layout.y, lookup);
+      const previousX = schema.position.x;
+      const previousY = schema.position.y;
+
+      if (typeof nextX === 'number') {
+        handlePositionSizeChange(schema, 'position.x', round(nextX, 2), basePdf, pageSize);
+      }
+      if (typeof nextY === 'number') {
+        handlePositionSizeChange(schema, 'position.y', round(nextY, 2), basePdf, pageSize);
+      }
+
+      if (
+        Math.abs(previousX - schema.position.x) > 0.01 ||
+        Math.abs(previousY - schema.position.y) > 0.01
+      ) {
+        changed = true;
+      }
+    });
+
+    if (!changed) return;
+  }
+};
+
+const reverseHorizontalAnchorOffset = (
+  schema: SchemaForUI,
+  layout: AnchoredLayoutRule,
+  lookup: Map<string, SchemaForUI>,
+): HorizontalAnchorRule => {
+  const { x } = layout;
+  if (x.mode === 'pageLeft') {
+    return { ...x, offsetMm: roundOffset(schema.position.x) };
+  }
+
+  const target = lookup.get(x.ref.schemaId);
+  if (!target) return x;
+
+  const targetRight = target.position.x + target.width;
+  if (x.mode === 'afterRightEdge') {
+    return { ...x, offsetMm: roundOffset(schema.position.x - targetRight) };
+  }
+
+  return { ...x, offsetMm: roundOffset(schema.position.x + schema.width - targetRight) };
+};
+
+const reverseVerticalAnchorOffset = (
+  schema: SchemaForUI,
+  layout: AnchoredLayoutRule,
+  lookup: Map<string, SchemaForUI>,
+): VerticalAnchorRule => {
+  const { y } = layout;
+  if (y.mode === 'pageTop') {
+    return { ...y, offsetMm: roundOffset(schema.position.y) };
+  }
+
+  const target = lookup.get(y.ref.schemaId);
+  if (!target) return y;
+
+  const targetBottom = target.position.y + target.height;
+  return { ...y, offsetMm: roundOffset(schema.position.y - targetBottom) };
+};
+
+const reverseAnchoredOffsets = (
+  schemas: SchemaForUI[],
+  axesBySchemaId: Map<string, Set<'x' | 'y'>>,
+): void => {
+  if (axesBySchemaId.size === 0) return;
+
+  const lookup = buildAnchorLookup(schemas);
+  axesBySchemaId.forEach((axes, schemaId) => {
+    const schema = schemas.find((s) => s.id === schemaId);
+    if (!schema) return;
+
+    const layout = getSchemaLayout(schema);
+    if (!isAnchoredLayout(layout)) return;
+
+    let nextLayout: AnchoredLayoutRule = layout;
+    if (axes.has('x')) {
+      nextLayout = {
+        ...nextLayout,
+        x: reverseHorizontalAnchorOffset(schema, nextLayout, lookup),
+      };
+    }
+    if (axes.has('y')) {
+      nextLayout = {
+        ...nextLayout,
+        y: reverseVerticalAnchorOffset(schema, nextLayout, lookup),
+      };
+    }
+
+    setSchemaLayout(schema, nextLayout);
+  });
+};
+
+const markAnchoredPositionChange = (
+  axesBySchemaId: Map<string, Set<'x' | 'y'>>,
+  schema: SchemaForUI,
+  key: string,
+) => {
+  const layout = getSchemaLayout(schema);
+  if (!isAnchoredLayout(layout)) return;
+
+  const axis = key === 'position.x' ? 'x' : key === 'position.y' ? 'y' : null;
+  if (!axis) return;
+
+  const axes = axesBySchemaId.get(schema.id) ?? new Set<'x' | 'y'>();
+  axes.add(axis);
+  axesBySchemaId.set(schema.id, axes);
+};
+
 const handleTypeChange = (
   schema: SchemaForUI,
   key: string,
@@ -489,6 +684,7 @@ export const changeSchemas = (args: {
   commitSchemas: (newSchemas: SchemaForUI[]) => void;
 }) => {
   const { objs, schemas, basePdf, pluginsRegistry, pageSize, commitSchemas } = args;
+  const anchoredPositionChanges = new Map<string, Set<'x' | 'y'>>();
   const newSchemas = objs.reduce((acc, { key, value, schemaId }) => {
     const tgt = acc.find((s) => s.id === schemaId);
     if (!tgt) return acc;
@@ -499,10 +695,13 @@ export const changeSchemas = (args: {
       handleTypeChange(tgt, key, value, pluginsRegistry);
     } else if (['position.x', 'position.y', 'width', 'height'].includes(key)) {
       handlePositionSizeChange(tgt, key, value, basePdf, pageSize);
+      markAnchoredPositionChange(anchoredPositionChanges, tgt, key);
     }
 
     return acc;
   }, cloneDeep(schemas));
+  reverseAnchoredOffsets(newSchemas, anchoredPositionChanges);
+  resolveAnchoredSchemas(newSchemas, basePdf, pageSize);
   commitSchemas(newSchemas);
 };
 

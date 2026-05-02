@@ -13,7 +13,7 @@ import { isBlankPdf } from '@pdfme/common';
 import type { SidebarProps } from '../../../../types.js';
 import { Menu } from 'lucide-react';
 import { I18nContext, PluginsRegistry, OptionsContext } from '../../../../contexts.js';
-import { debounce } from '../../../../helper.js';
+import { debounce, isAnchoredLayout } from '../../../../helper.js';
 import { DESIGNER_CLASSNAME } from '../../../../constants.js';
 import { theme, Typography, Button, Divider } from 'antd';
 import AlignWidget from './AlignWidget.js';
@@ -253,6 +253,9 @@ const DetailView = (props: DetailViewProps) => {
   // Calculate max values considering padding
   const maxWidth = pageSize.width - paddingLeft - paddingRight;
   const maxHeight = pageSize.height - paddingTop - paddingBottom;
+  const isPositionDerivedFromAnchor = isAnchoredLayout(
+    (activeSchema as SchemaForUI & { layout?: unknown }).layout,
+  );
 
   // Create a type-safe schema object
   const propPanelSchema: PropPanelSchema = {
@@ -308,9 +311,15 @@ const DetailView = (props: DetailViewProps) => {
             type: 'number',
             widget: 'inputNumber',
             required: true,
+            disabled: isPositionDerivedFromAnchor,
             span: 8,
             min: paddingLeft,
             max: pageSize.width - paddingRight,
+            props: {
+              disabled: isPositionDerivedFromAnchor,
+              min: paddingLeft,
+              max: pageSize.width - paddingRight,
+            },
             rules: [
               {
                 validator: (_: unknown, value: number) => validatePosition(_, value, 'x'),
@@ -323,9 +332,15 @@ const DetailView = (props: DetailViewProps) => {
             type: 'number',
             widget: 'inputNumber',
             required: true,
+            disabled: isPositionDerivedFromAnchor,
             span: 8,
             min: paddingTop,
             max: pageSize.height - paddingBottom,
+            props: {
+              disabled: isPositionDerivedFromAnchor,
+              min: paddingTop,
+              max: pageSize.height - paddingBottom,
+            },
             rules: [
               {
                 validator: (_: unknown, value: number) => validatePosition(_, value, 'y'),
