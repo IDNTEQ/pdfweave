@@ -163,6 +163,9 @@ const alignmentOptions = [
   { label: 'Right', value: 'right' },
 ];
 
+const MIN_REENABLED_COLUMN_WIDTH = 12;
+const MAX_REENABLED_COLUMN_WIDTH = 45;
+
 const titleFromPath = (path: string): string =>
   path
     .split('.')
@@ -171,25 +174,42 @@ const titleFromPath = (path: string): string =>
     .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
     .replace(/^./, (char) => char.toUpperCase()) || path;
 
+const coerceWidthPercentage = (value: unknown): number | undefined => {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return undefined;
+  return Number(Math.min(100, Math.max(1, value)).toFixed(4));
+};
+
 const widthPercentages = (columns: SchemaBindingColumn[]) => {
   if (columns.length === 0) return [100];
-  const explicitTotal = columns.reduce(
-    (sum, column) =>
-      typeof column.widthPercentage === 'number' ? sum + column.widthPercentage : sum,
+  const explicitWidths = columns.map((column) => coerceWidthPercentage(column.widthPercentage));
+  const explicitTotal = explicitWidths.reduce<number>(
+    (sum, width) => sum + (typeof width === 'number' ? width : 0),
     0,
   );
-  const missingCount = columns.filter((column) => typeof column.widthPercentage !== 'number').length;
+  const missingCount = explicitWidths.filter((width) => typeof width !== 'number').length;
   const fallbackWidth =
-    missingCount > 0 ? Number(Math.max(0, (100 - explicitTotal) / missingCount).toFixed(4)) : 0;
+    missingCount > 0
+      ? explicitTotal < 100
+        ? (100 - explicitTotal) / missingCount
+        : 100 / columns.length
+      : 0;
+  const widths = explicitWidths.map((width) =>
+    typeof width === 'number' ? width : fallbackWidth,
+  );
+  const total = widths.reduce((sum, width) => sum + width, 0);
+  const adjustedWidths =
+    total > 100
+      ? widths.map((width) => (width / total) * 100)
+      : missingCount === 0 && total < 100
+        ? widths.map((width, index) => (index === widths.length - 1 ? width + (100 - total) : width))
+        : widths;
   let assigned = 0;
 
-  return columns.map((column, index) => {
-    const isLast = index === columns.length - 1;
-    const width =
-      typeof column.widthPercentage === 'number' ? column.widthPercentage : fallbackWidth;
+  return adjustedWidths.map((width, index) => {
+    const isLast = index === adjustedWidths.length - 1;
     if (isLast) return Number((100 - assigned).toFixed(4));
     assigned += width;
-    return width;
+    return Number(width.toFixed(4));
   });
 };
 
@@ -199,6 +219,64 @@ const normalizeColumnWidths = (columns: SchemaBindingColumn[]): SchemaBindingCol
     ...column,
     widthPercentage: widths[index],
   })) as SchemaBindingColumn[];
+};
+
+const rebalanceEditedColumnWidth = (
+  columns: SchemaBindingColumn[],
+  editedIndex: number,
+  requestedWidth: number | undefined,
+): SchemaBindingColumn[] => {
+  if (columns.length === 0) return [];
+  if (columns.length === 1) return [{ ...columns[0], widthPercentage: 100 }];
+
+  const normalizedColumns = normalizeColumnWidths(columns);
+  const currentWidths = widthPercentages(normalizedColumns);
+  const otherIndexes = normalizedColumns
+    .map((_, index) => index)
+    .filter((index) => index !== editedIndex);
+  const maxEditedWidth = Math.max(1, 100 - otherIndexes.length);
+  const editedWidth = Math.min(maxEditedWidth, requestedWidth ?? 100 / normalizedColumns.length);
+  const remainingWidth = 100 - editedWidth;
+  const otherTotal = otherIndexes.reduce((sum, index) => sum + currentWidths[index], 0) || 1;
+  let assignedOtherWidth = 0;
+
+  return normalizedColumns.map((column, index) => {
+    if (index === editedIndex) return { ...column, widthPercentage: editedWidth };
+
+    const isLastOther = index === otherIndexes[otherIndexes.length - 1];
+    const width = isLastOther
+      ? Number((remainingWidth - assignedOtherWidth).toFixed(4))
+      : Number(((currentWidths[index] / otherTotal) * remainingWidth).toFixed(4));
+    assignedOtherWidth += width;
+    return { ...column, widthPercentage: width };
+  });
+};
+
+const appendColumnWithBalancedWidth = (
+  columns: SchemaBindingColumn[],
+  columnToAdd: SchemaBindingColumn,
+): SchemaBindingColumn[] => {
+  if (columns.length === 0) return normalizeColumnWidths([{ ...columnToAdd }]);
+
+  const nextColumnCount = columns.length + 1;
+  const defaultWidth = Math.max(MIN_REENABLED_COLUMN_WIDTH, 100 / nextColumnCount);
+  const requestedWidth = coerceWidthPercentage(columnToAdd.widthPercentage);
+  const targetAddedWidth =
+    typeof requestedWidth === 'number' && requestedWidth < 100
+      ? Math.min(MAX_REENABLED_COLUMN_WIDTH, Math.max(MIN_REENABLED_COLUMN_WIDTH, requestedWidth))
+      : defaultWidth;
+  const currentWidths = widthPercentages(columns);
+  const currentTotal = currentWidths.reduce((sum, width) => sum + width, 0) || 100;
+  const remainingWidth = Math.max(0, 100 - targetAddedWidth);
+  const nextColumns = columns.map((column, index) => ({
+    ...column,
+    widthPercentage: Number(((currentWidths[index] / currentTotal) * remainingWidth).toFixed(4)),
+  }));
+
+  return normalizeColumnWidths([
+    ...nextColumns,
+    { ...columnToAdd, widthPercentage: targetAddedWidth },
+  ]);
 };
 
 const getBinding = (schema: SchemaForUI): SchemaBinding | undefined =>
@@ -215,7 +293,7 @@ const formatHintFromKind = (kind: string): SchemaBindingColumn['format'] | undef
   if (kind === 'currency') return { kind: 'currency', currency: 'USD' };
   if (kind === 'date') return { kind: 'date', dateStyle: 'medium' };
   if (kind === 'number' || kind === 'boolean' || kind === 'text') return { kind };
-  return kind;
+  return undefined;
 };
 
 const defaultAlignmentForColumn = (column: SchemaBindingColumn): string =>
@@ -265,7 +343,7 @@ const mergeAvailableColumns = (
   const add = (columns: SchemaBindingColumn[] | undefined) => {
     columns?.forEach((column) => {
       const key = columnKey(column);
-      if (!columnsByPath.has(key)) columnsByPath.set(key, { ...column });
+      columnsByPath.set(key, { ...columnsByPath.get(key), ...column });
     });
   };
 
@@ -334,7 +412,7 @@ const BindingWidget = (props: PropPanelWidgetProps) => {
 
   const applyTableColumns = (
     nextColumnsInput: SchemaBindingColumn[],
-    alignmentOverrides: Record<string, string | undefined> = {},
+    alignmentOverrides: Record<string, string | null> = {},
   ) => {
     if (!bindingPath) return;
 
@@ -344,10 +422,14 @@ const BindingWidget = (props: PropPanelWidgetProps) => {
     );
     const nextAlignment = nextColumns.reduce<Record<number, string>>((acc, column, index) => {
       const key = columnKey(column);
+      const hasAlignmentOverride = Object.prototype.hasOwnProperty.call(alignmentOverrides, key);
+      const hasPreviousAlignment = previousAlignmentByPath.has(key);
       const alignment =
-        Object.prototype.hasOwnProperty.call(alignmentOverrides, key)
-          ? alignmentOverrides[key]
-          : previousAlignmentByPath.get(key) || defaultAlignmentForColumn(column);
+        hasAlignmentOverride
+          ? (alignmentOverrides[key] ?? '')
+          : hasPreviousAlignment
+            ? previousAlignmentByPath.get(key)
+            : defaultAlignmentForColumn(column);
       if (alignment) acc[index] = alignment;
       return acc;
     }, {});
@@ -383,9 +465,6 @@ const BindingWidget = (props: PropPanelWidgetProps) => {
         value: nextColumnStyles,
         schemaId: activeSchema.id,
       },
-      { key: 'showHead', value: true, schemaId: activeSchema.id },
-      { key: 'readOnly', value: true, schemaId: activeSchema.id },
-      { key: 'required', value: false, schemaId: activeSchema.id },
     ]);
   };
 
@@ -397,11 +476,15 @@ const BindingWidget = (props: PropPanelWidgetProps) => {
     );
   };
 
+  const updateColumnWidth = (index: number, width: number | undefined) => {
+    applyTableColumns(rebalanceEditedColumnWidth(tableColumns, index, width));
+  };
+
   const toggleColumn = (column: SchemaBindingColumn, shouldInclude: boolean) => {
     const key = columnKey(column);
     const currentIndex = tableColumns.findIndex((item) => columnKey(item) === key);
     if (shouldInclude && currentIndex === -1) {
-      applyTableColumns(tableColumns.concat({ ...column } as SchemaBindingColumn));
+      applyTableColumns(appendColumnWithBalancedWidth(tableColumns, column));
       return;
     }
 
@@ -421,7 +504,7 @@ const BindingWidget = (props: PropPanelWidgetProps) => {
   };
 
   const updateColumnAlignment = (column: SchemaBindingColumn, alignment: string) => {
-    applyTableColumns(tableColumns, { [columnKey(column)]: alignment || undefined });
+    applyTableColumns(tableColumns, { [columnKey(column)]: alignment || null });
   };
 
   const commitPath = (pathValue: string) => {
@@ -522,7 +605,7 @@ const BindingWidget = (props: PropPanelWidgetProps) => {
     if (!isTable && Array.isArray(sample)) {
       return `Binding path "${bindingPath}" is an array; use a table field for this data.`;
     }
-    if (isTable && tableColumns.length > 0) {
+    if (isTable && tableColumns.length > 0 && !(Array.isArray(sample) && sample.length === 0)) {
       const dataKeys = new Set(dataColumns.map(columnKey));
       const missingColumns = tableColumns.filter((column) => !dataKeys.has(columnKey(column)));
       if (missingColumns.length > 0) {
@@ -616,10 +699,7 @@ const BindingWidget = (props: PropPanelWidgetProps) => {
                   const selectedColumn =
                     selectedIndex >= 0 ? tableColumns[selectedIndex] : availableColumn;
                   const isSelected = selectedIndex >= 0;
-                  const alignment =
-                    isSelected
-                      ? columnAlignments[selectedIndex] || defaultAlignmentForColumn(selectedColumn)
-                      : defaultAlignmentForColumn(selectedColumn);
+                  const alignment = isSelected ? columnAlignments[selectedIndex] ?? '' : '';
 
                   return (
                     <div style={columnRowStyle} key={key}>
@@ -664,13 +744,14 @@ const BindingWidget = (props: PropPanelWidgetProps) => {
                           aria-label={`${activeSchema.name} ${
                             availableColumn.label || titleFromPath(availableColumn.path)
                           } column width`}
-                          onChange={(event) =>
-                            selectedIndex >= 0
-                              ? updateColumn(selectedIndex, {
-                                  widthPercentage: Number(event.currentTarget.value),
-                                })
-                              : undefined
-                          }
+                          onChange={(event) => {
+                            if (selectedIndex < 0) return;
+                            const rawValue = event.currentTarget.value;
+                            updateColumnWidth(
+                              selectedIndex,
+                              rawValue === '' ? undefined : coerceWidthPercentage(Number(rawValue)),
+                            );
+                          }}
                         />
                       </label>
                       <label style={labelStyle}>
