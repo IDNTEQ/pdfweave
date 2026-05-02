@@ -7,7 +7,6 @@ import {
   getDynamicTemplate,
   replacePlaceholders,
 } from '@pdfme/common';
-import { getDynamicHeightsForTable } from '@pdfme/schemas/tables';
 import UnitPager from './UnitPager.js';
 import Root from './Root.js';
 import StaticSchema from './StaticSchema.js';
@@ -16,7 +15,7 @@ import CtlBar from './CtlBar.js';
 import Paper from './Paper.js';
 import Renderer from './Renderer.js';
 import { useUIPreProcessor, useScrollPageCursor } from '../hooks.js';
-import { FontContext, OptionsContext } from '../contexts.js';
+import { FontContext, OptionsContext, PluginsRegistry } from '../contexts.js';
 import { template2SchemasList, getPagesScrollTopByIndex, useMaxZoom } from '../helper.js';
 import { theme } from 'antd';
 
@@ -37,6 +36,7 @@ const Preview = ({
 
   const font = useContext(FontContext);
   const options = useContext(OptionsContext);
+  const pluginsRegistry = useContext(PluginsRegistry);
   const maxZoom = useMaxZoom();
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -60,6 +60,7 @@ const Preview = ({
   const latestFontRef = useRef(font);
   const latestInputRef = useRef(input);
   const latestRefreshRef = useRef(refresh);
+  const latestPluginsRegistryRef = useRef(pluginsRegistry);
   const isMountedRef = useRef(true);
   const initRequestIdRef = useRef(0);
 
@@ -74,6 +75,10 @@ const Preview = ({
   useEffect(() => {
     latestRefreshRef.current = refresh;
   }, [refresh]);
+
+  useEffect(() => {
+    latestPluginsRegistryRef.current = pluginsRegistry;
+  }, [pluginsRegistry]);
 
   useEffect(
     () => () => {
@@ -92,13 +97,18 @@ const Preview = ({
       input: currentInput,
       options,
       _cache,
-      getDynamicHeights: (value, args) => {
-        switch (args.schema.type) {
-          case 'table':
-            return getDynamicHeightsForTable(value, args);
-          default:
-            return Promise.resolve([args.schema.height]);
+      getDynamicLayout: (value, args) => {
+        const plugin = latestPluginsRegistryRef.current.findByType(args.schema.type);
+
+        if (plugin?.measure) {
+          return Promise.resolve(plugin.measure({ value, ...args }));
         }
+
+        return Promise.resolve({
+          width: args.schema.width,
+          height: args.schema.height,
+          dynamicHeights: [args.schema.height],
+        });
       },
     })
       .then(async (dynamicTemplate) => {

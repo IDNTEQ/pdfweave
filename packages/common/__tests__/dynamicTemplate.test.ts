@@ -126,6 +126,7 @@ describe('getDynamicTemplate', () => {
         ],
         basePdf: { width: 100, height: 100, padding: [padding, padding, padding, padding] },
       };
+      const originalTemplateJson = JSON.stringify(anchoredTemplate);
 
       const dynamicTemplate = await getDynamicTemplate({
         template: anchoredTemplate,
@@ -147,6 +148,7 @@ describe('getDynamicTemplate', () => {
       expect(total?.position.y).toBe(70);
       expect(qr?.position.x).toBe(75);
       expect(qr?.position.y).toBe(12);
+      expect(JSON.stringify(anchoredTemplate)).toBe(originalTemplateJson);
     });
   });
 

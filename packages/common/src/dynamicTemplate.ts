@@ -45,10 +45,7 @@ interface LayoutItem {
 }
 
 const getSchemaAnchorId = (schema: Schema): string => {
-  const schemaWithId = schema as Schema & { id?: unknown };
-  return typeof schemaWithId.id === 'string' && schemaWithId.id.length > 0
-    ? schemaWithId.id
-    : schema.name;
+  return schema.name;
 };
 
 const getSchemaLayout = (schema: Schema): SchemaLayoutRule | undefined =>
@@ -122,7 +119,11 @@ function resolveAnchoredSchemas(pageSchemas: Schema[]): void {
       }
     });
 
-    if (!changed) break;
+    if (!changed) return;
+
+    if (pass === pageSchemas.length - 1) {
+      throw new Error('[@pdfme/common] Circular or non-converging anchor layout detected.');
+    }
   }
 }
 
@@ -363,12 +364,12 @@ export const getDynamicTemplate = async (
   arg: ModifyTemplateForDynamicTableArg,
 ): Promise<Template> => {
   const { template, input, options, _cache, getDynamicLayout, getDynamicHeights } = arg;
-  const basePdf = template.basePdf;
+  const workingTemplate = cloneDeep(template);
+  const basePdf = workingTemplate.basePdf;
 
   if (!isBlankPdf(basePdf)) {
-    const resolvedTemplate = cloneDeep(template);
-    resolvedTemplate.schemas.forEach(resolveAnchoredSchemas);
-    return resolvedTemplate;
+    workingTemplate.schemas.forEach(resolveAnchoredSchemas);
+    return workingTemplate;
   }
 
   const contentHeight = getContentHeight(basePdf);
@@ -377,8 +378,8 @@ export const getDynamicTemplate = async (
   const PARALLEL_LIMIT = 10;
 
   // Process each template page independently
-  for (let pageIndex = 0; pageIndex < template.schemas.length; pageIndex++) {
-    const pageSchemas = template.schemas[pageIndex];
+  for (let pageIndex = 0; pageIndex < workingTemplate.schemas.length; pageIndex++) {
+    const pageSchemas = workingTemplate.schemas[pageIndex];
     resolveAnchoredSchemas(pageSchemas);
 
     // Normalize this page's schemas
