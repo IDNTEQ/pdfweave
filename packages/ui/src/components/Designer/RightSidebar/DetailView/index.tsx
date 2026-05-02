@@ -8,6 +8,7 @@ import type {
   PropPanelWidgetProps,
   PropPanelSchema,
   Schema,
+  SchemaLayoutRule,
 } from '@pdfme/common';
 import { isBlankPdf } from '@pdfme/common';
 import type { SidebarProps } from '../../../../types.js';
@@ -44,6 +45,40 @@ type DetailViewProps = Pick<
 };
 
 type WidgetMap = Record<string, (props: PropPanelWidgetProps) => React.JSX.Element>;
+
+type AnchoredLayoutRule = Extract<SchemaLayoutRule, { mode: 'anchored' }>;
+type Axis = 'x' | 'y';
+
+const getAnchoredLayout = (schema: SchemaForUI): AnchoredLayoutRule | null => {
+  const layout = (schema as SchemaForUI & { layout?: SchemaLayoutRule }).layout;
+  return isAnchoredLayout(layout) ? layout : null;
+};
+
+const finiteOffset = (value: number | undefined): number =>
+  typeof value === 'number' && Number.isFinite(value) ? value : 0;
+
+const getAnchoredPositionValue = (layout: AnchoredLayoutRule, axis: Axis): number =>
+  axis === 'x' ? finiteOffset(layout.x.offsetMm) : finiteOffset(layout.y.offsetMm);
+
+const getSchemaValuesForForm = (schema: SchemaForUI): SchemaForUI => {
+  const layout = getAnchoredLayout(schema);
+  const values = {
+    ...schema,
+    position: { ...schema.position },
+  };
+
+  if (layout) {
+    values.position.x = getAnchoredPositionValue(layout, 'x');
+    values.position.y = getAnchoredPositionValue(layout, 'y');
+  }
+
+  return values;
+};
+
+const getPositionAxisValue = (position: unknown, axis: Axis): unknown =>
+  typeof position === 'object' && position !== null
+    ? (position as Partial<Record<Axis, unknown>>)[axis]
+    : undefined;
 
 const DetailView = (props: DetailViewProps) => {
   const { token } = theme.useToken();
@@ -100,9 +135,11 @@ const DetailView = (props: DetailViewProps) => {
 
   useEffect(() => form.resetFields(), [activeSchema.id, form]);
 
+  const schemaValuesForForm = useMemo(() => getSchemaValuesForForm(activeSchema), [activeSchema]);
+
   useEffect(() => {
-    form.setValues({ ...activeSchema });
-  }, [activeSchema, form]);
+    form.setValues(schemaValuesForForm);
+  }, [schemaValuesForForm, form]);
 
   useEffect(() => {
     uniqueSchemaName.current = (value: string): boolean => {
@@ -131,6 +168,8 @@ const DetailView = (props: DetailViewProps) => {
 
   // Cross-field validation: only checks when both fields are individually valid
   const validatePosition = (_: unknown, value: number, fieldName: string): boolean => {
+    if (getAnchoredLayout(activeSchema)) return true;
+
     const formValues = form.getValues() as Record<string, unknown>;
     const position = formValues.position as { x: number; y: number } | undefined;
     const width = formValues.width as number | undefined;
@@ -158,6 +197,8 @@ const DetailView = (props: DetailViewProps) => {
   // Use explicit type for debounce function that matches the expected signature
   const handleWatch = debounce(function (...args: unknown[]) {
     const formSchema = args[0] as Record<string, unknown>;
+    const activeLayout = getAnchoredLayout(activeSchema);
+    const displaySchema = getSchemaValuesForForm(activeSchema) as unknown as Record<string, unknown>;
     const formAndSchemaValuesDiffer = (formValue: unknown, schemaValue: unknown): boolean => {
       if (typeof formValue === 'object' && formValue !== null) {
         return JSON.stringify(formValue) !== JSON.stringify(schemaValue);
@@ -166,11 +207,35 @@ const DetailView = (props: DetailViewProps) => {
     };
 
     let changes: ChangeSchemaItem[] = [];
+    const addPositionAxisChange = (axis: Axis, value: unknown) => {
+      if (typeof value === 'undefined') return;
+
+      const baseline = getPositionAxisValue(displaySchema.position, axis);
+      if (!formAndSchemaValuesDiffer(value, baseline)) return;
+
+      changes.push({
+        key: activeLayout ? `layout.${axis}.offsetMm` : `position.${axis}`,
+        value,
+        schemaId: activeSchema.id,
+      });
+    };
+
     for (const key in formSchema) {
       if (['id', 'content'].includes(key)) continue;
 
       let value = formSchema[key];
-      if (formAndSchemaValuesDiffer(value, (activeSchema as Record<string, unknown>)[key])) {
+      if (key === 'position') {
+        addPositionAxisChange('x', getPositionAxisValue(value, 'x'));
+        addPositionAxisChange('y', getPositionAxisValue(value, 'y'));
+        continue;
+      }
+
+      if (key === 'position.x' || key === 'position.y') {
+        addPositionAxisChange(key === 'position.x' ? 'x' : 'y', value);
+        continue;
+      }
+
+      if (formAndSchemaValuesDiffer(value, displaySchema[key])) {
         // FIXME memo: https://github.com/pdfme/pdfme/pull/367#issuecomment-1857468274
         if (value === null && ['rotate', 'opacity'].includes(key)) {
           value = undefined;
@@ -240,6 +305,12 @@ const DetailView = (props: DetailViewProps) => {
     (activeSchema as SchemaForUI & { layout?: unknown }).layout,
   );
   const supportsDataBinding = activeSchema.type === 'text' || activeSchema.type === 'table';
+  const xBounds = isPositionDerivedFromAnchor
+    ? {}
+    : { min: paddingLeft, max: pageSize.width - paddingRight };
+  const yBounds = isPositionDerivedFromAnchor
+    ? {}
+    : { min: paddingTop, max: pageSize.height - paddingBottom };
 
   // Create a type-safe schema object
   const propPanelSchema: PropPanelSchema = {
@@ -292,15 +363,9 @@ const DetailView = (props: DetailViewProps) => {
             type: 'number',
             widget: 'inputNumber',
             required: true,
-            disabled: isPositionDerivedFromAnchor,
             span: 8,
-            min: paddingLeft,
-            max: pageSize.width - paddingRight,
-            props: {
-              disabled: isPositionDerivedFromAnchor,
-              min: paddingLeft,
-              max: pageSize.width - paddingRight,
-            },
+            ...xBounds,
+            props: xBounds,
             rules: [
               {
                 validator: (_: unknown, value: number) => validatePosition(_, value, 'x'),
@@ -313,15 +378,9 @@ const DetailView = (props: DetailViewProps) => {
             type: 'number',
             widget: 'inputNumber',
             required: true,
-            disabled: isPositionDerivedFromAnchor,
             span: 8,
-            min: paddingTop,
-            max: pageSize.height - paddingBottom,
-            props: {
-              disabled: isPositionDerivedFromAnchor,
-              min: paddingTop,
-              max: pageSize.height - paddingBottom,
-            },
+            ...yBounds,
+            props: yBounds,
             rules: [
               {
                 validator: (_: unknown, value: number) => validatePosition(_, value, 'y'),

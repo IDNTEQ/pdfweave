@@ -84,6 +84,9 @@ const cardStyle: React.CSSProperties = {
 
 const getAnchorId = (schema: SchemaForUI): string => schema.name || schema.id;
 
+const getAnchorIds = (schema: SchemaForUI): string[] =>
+  Array.from(new Set([schema.name, schema.id].filter((id): id is string => Boolean(id))));
+
 const isAnchoredLayout = (layout: unknown): layout is AnchoredLayoutRule =>
   typeof layout === 'object' && layout !== null && (layout as { mode?: unknown }).mode === 'anchored';
 
@@ -104,6 +107,8 @@ const getVerticalOffset = (rule: VerticalAnchorRule): number =>
 
 const formatMm = (value: number): string => `${Number(value.toFixed(2))}mm`;
 
+const roundMm = (value: number): number => Number(value.toFixed(2));
+
 const formatHorizontalRule = (rule: HorizontalAnchorRule): string => {
   if (rule.mode === 'pageLeft') return `X: page left + ${formatMm(rule.offsetMm)}`;
   if (rule.mode === 'afterRightEdge') {
@@ -115,11 +120,6 @@ const formatHorizontalRule = (rule: HorizontalAnchorRule): string => {
 const formatVerticalRule = (rule: VerticalAnchorRule): string => {
   if (rule.mode === 'pageTop') return `Y: page top + ${formatMm(rule.offsetMm)}`;
   return `Y: below ${rule.ref.schemaId} + ${formatMm(rule.offsetMm)}`;
-};
-
-const numberFromInput = (value: string, fallback: number): number => {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : fallback;
 };
 
 const firstTargetId = (
@@ -152,34 +152,18 @@ const buildTargetOptions = (
 
 const createFallbackLayout = (activeSchema: SchemaForUI): AnchoredLayoutRule => ({
   mode: 'anchored',
-  x: { mode: 'pageLeft', offsetMm: activeSchema.position.x },
-  y: { mode: 'pageTop', offsetMm: activeSchema.position.y },
+  x: { mode: 'pageLeft', offsetMm: roundMm(activeSchema.position.x) },
+  y: { mode: 'pageTop', offsetMm: roundMm(activeSchema.position.y) },
 });
-
-const createHorizontalRule = (
-  mode: HorizontalMode,
-  previousRule: HorizontalAnchorRule,
-  targetId: string | null,
-): HorizontalAnchorRule => {
-  const offsetMm = getHorizontalOffset(previousRule);
-  if (mode === 'pageLeft' || !targetId) return { mode: 'pageLeft', offsetMm };
-  return { mode, ref: { schemaId: targetId }, offsetMm };
-};
-
-const createVerticalRule = (
-  mode: VerticalMode,
-  previousRule: VerticalAnchorRule,
-  targetId: string | null,
-): VerticalAnchorRule => {
-  const offsetMm = getVerticalOffset(previousRule);
-  if (mode === 'pageTop' || !targetId) return { mode: 'pageTop', offsetMm };
-  return { mode, ref: { schemaId: targetId }, offsetMm };
-};
 
 const AnchorLayoutWidget = (props: PropPanelWidgetProps) => {
   const { activeSchema, changeSchemas, schemas } = props;
   const layout = getLayout(activeSchema);
   const anchoredLayout = isAnchoredLayout(layout) ? layout : createFallbackLayout(activeSchema);
+  const targetLookup = new Map<string, SchemaForUI>();
+  schemas.forEach((schema) => {
+    getAnchorIds(schema).forEach((id) => targetLookup.set(id, schema));
+  });
   const xTargetOptions = buildTargetOptions(
     activeSchema,
     schemas,
@@ -194,6 +178,57 @@ const AnchorLayoutWidget = (props: PropPanelWidgetProps) => {
 
   const updateAnchoredLayout = (updater: (current: AnchoredLayoutRule) => AnchoredLayoutRule) => {
     commitLayout(updater(anchoredLayout));
+  };
+
+  const calculateHorizontalOffset = (
+    mode: HorizontalMode,
+    targetId: string | null,
+    fallbackOffset: number,
+  ): number => {
+    if (mode === 'pageLeft' || !targetId) return roundMm(activeSchema.position.x);
+
+    const target = targetLookup.get(targetId);
+    if (!target) return fallbackOffset;
+
+    const targetRight = target.position.x + target.width;
+    if (mode === 'afterRightEdge') {
+      return roundMm(activeSchema.position.x - targetRight);
+    }
+
+    return roundMm(activeSchema.position.x + activeSchema.width - targetRight);
+  };
+
+  const calculateVerticalOffset = (
+    mode: VerticalMode,
+    targetId: string | null,
+    fallbackOffset: number,
+  ): number => {
+    if (mode === 'pageTop' || !targetId) return roundMm(activeSchema.position.y);
+
+    const target = targetLookup.get(targetId);
+    if (!target) return fallbackOffset;
+
+    return roundMm(activeSchema.position.y - (target.position.y + target.height));
+  };
+
+  const createHorizontalRule = (
+    mode: HorizontalMode,
+    previousRule: HorizontalAnchorRule,
+    targetId: string | null,
+  ): HorizontalAnchorRule => {
+    const offsetMm = calculateHorizontalOffset(mode, targetId, getHorizontalOffset(previousRule));
+    if (mode === 'pageLeft' || !targetId) return { mode: 'pageLeft', offsetMm };
+    return { mode, ref: { schemaId: targetId }, offsetMm };
+  };
+
+  const createVerticalRule = (
+    mode: VerticalMode,
+    previousRule: VerticalAnchorRule,
+    targetId: string | null,
+  ): VerticalAnchorRule => {
+    const offsetMm = calculateVerticalOffset(mode, targetId, getVerticalOffset(previousRule));
+    if (mode === 'pageTop' || !targetId) return { mode: 'pageTop', offsetMm };
+    return { mode, ref: { schemaId: targetId }, offsetMm };
   };
 
   const setHorizontalMode = (mode: HorizontalMode) => {
@@ -270,7 +305,11 @@ const AnchorLayoutWidget = (props: PropPanelWidgetProps) => {
                       x:
                         current.x.mode === 'pageLeft'
                           ? current.x
-                          : { ...current.x, ref: { schemaId: event.currentTarget.value } },
+                          : createHorizontalRule(
+                              current.x.mode,
+                              current.x,
+                              event.currentTarget.value,
+                            ),
                     }))
                   }
                 >
@@ -282,29 +321,6 @@ const AnchorLayoutWidget = (props: PropPanelWidgetProps) => {
                 </select>
               </label>
             )}
-
-            <label style={labelStyle}>
-              X offset
-              <input
-                style={controlStyle}
-                type="number"
-                step="0.5"
-                value={getHorizontalOffset(anchoredLayout.x)}
-                aria-label={`${activeSchema.name} horizontal anchor offset`}
-                onChange={(event) =>
-                  updateAnchoredLayout((current) => ({
-                    ...current,
-                    x: {
-                      ...current.x,
-                      offsetMm: numberFromInput(
-                        event.currentTarget.value,
-                        getHorizontalOffset(current.x),
-                      ),
-                    },
-                  }))
-                }
-              />
-            </label>
 
             <label style={labelStyle}>
               Y mode
@@ -334,7 +350,7 @@ const AnchorLayoutWidget = (props: PropPanelWidgetProps) => {
                       y:
                         current.y.mode === 'pageTop'
                           ? current.y
-                          : { ...current.y, ref: { schemaId: event.currentTarget.value } },
+                          : createVerticalRule(current.y.mode, current.y, event.currentTarget.value),
                     }))
                   }
                 >
@@ -346,26 +362,6 @@ const AnchorLayoutWidget = (props: PropPanelWidgetProps) => {
                 </select>
               </label>
             )}
-
-            <label style={labelStyle}>
-              Y offset
-              <input
-                style={controlStyle}
-                type="number"
-                step="0.5"
-                value={getVerticalOffset(anchoredLayout.y)}
-                aria-label={`${activeSchema.name} vertical anchor offset`}
-                onChange={(event) =>
-                  updateAnchoredLayout((current) => ({
-                    ...current,
-                    y: {
-                      ...current.y,
-                      offsetMm: numberFromInput(event.currentTarget.value, getVerticalOffset(current.y)),
-                    },
-                  }))
-                }
-              />
-            </label>
           </div>
         </div>
       ) : null}
