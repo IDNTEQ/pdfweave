@@ -79,6 +79,51 @@ export type UITheme = {
   colorWhite: string;
 };
 
+export type AnchorRef = {
+  schemaId: string;
+};
+
+export type HorizontalAnchorRule =
+  | { mode: 'pageLeft'; offsetMm: number }
+  | { mode: 'afterRightEdge'; ref: AnchorRef; offsetMm: number }
+  | { mode: 'alignRightEdge'; ref: AnchorRef; offsetMm?: number };
+
+export type VerticalAnchorRule =
+  | { mode: 'pageTop'; offsetMm: number }
+  | { mode: 'belowBottomEdge'; ref: AnchorRef; offsetMm: number };
+
+export type SchemaLayoutRule =
+  | { mode: 'absolute' }
+  | { mode: 'anchored'; x: HorizontalAnchorRule; y: VerticalAnchorRule };
+
+export type LayoutAnchorPoint = {
+  x: number;
+  y: number;
+};
+
+export type LayoutFragment = {
+  width: number;
+  height: number;
+  anchors?: Record<string, LayoutAnchorPoint>;
+  pluginData?: unknown;
+};
+
+export type LayoutMeasureResult = {
+  width?: number;
+  height?: number;
+  anchors?: Record<string, LayoutAnchorPoint>;
+  fragments?: LayoutFragment[];
+  dynamicHeights?: number[];
+};
+
+export type LayoutMeasureProps<T extends Schema> = {
+  value: string;
+  schema: T;
+  basePdf: BasePdf;
+  options: CommonOptions;
+  _cache: Map<string | number, unknown>;
+};
+
 /**
  * Properties used for PDF rendering.
  * @template T Type of the extended Schema object.
@@ -204,6 +249,7 @@ export interface Plugin<T extends Schema = Schema> {
   pdf(arg: PDFRenderProps<T & Schema>): Promise<void> | void;
   ui(arg: UIRenderProps<T & Schema>): Promise<void> | void;
   propPanel: PropPanel<T & Schema>;
+  measure?(arg: LayoutMeasureProps<T & Schema>): Promise<LayoutMeasureResult> | LayoutMeasureResult;
   icon?: string;
   uninterruptedEditMode?: boolean;
 }

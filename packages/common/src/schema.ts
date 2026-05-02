@@ -109,6 +109,24 @@ export const ColorType = z.enum(['rgb', 'cmyk']).optional();
 
 export const Size = z.object({ height: z.number(), width: z.number() });
 
+const AnchorRef = z.object({ schemaId: z.string() });
+
+const HorizontalAnchorRule = z.discriminatedUnion('mode', [
+  z.object({ mode: z.literal('pageLeft'), offsetMm: z.number() }),
+  z.object({ mode: z.literal('afterRightEdge'), ref: AnchorRef, offsetMm: z.number() }),
+  z.object({ mode: z.literal('alignRightEdge'), ref: AnchorRef, offsetMm: z.number().optional() }),
+]);
+
+const VerticalAnchorRule = z.discriminatedUnion('mode', [
+  z.object({ mode: z.literal('pageTop'), offsetMm: z.number() }),
+  z.object({ mode: z.literal('belowBottomEdge'), ref: AnchorRef, offsetMm: z.number() }),
+]);
+
+const SchemaLayoutRule = z.discriminatedUnion('mode', [
+  z.object({ mode: z.literal('absolute') }),
+  z.object({ mode: z.literal('anchored'), x: HorizontalAnchorRule, y: VerticalAnchorRule }),
+]);
+
 export const Schema = z
   .object({
     name: z.string(),
@@ -121,6 +139,7 @@ export const Schema = z
     opacity: z.number().optional(),
     readOnly: z.boolean().optional(),
     required: z.boolean().optional(),
+    layout: SchemaLayoutRule.optional(),
     __bodyRange: z.object({ start: z.number(), end: z.number().optional() }).optional(),
     __isSplit: z.boolean().optional(),
   })

@@ -1,4 +1,12 @@
-import { Schema, Template, BasePdf, BlankPdf, CommonOptions } from './types.js';
+import {
+  Schema,
+  Template,
+  BasePdf,
+  BlankPdf,
+  CommonOptions,
+  LayoutMeasureResult,
+  SchemaLayoutRule,
+} from './types.js';
 import { cloneDeep, isBlankPdf } from './helper.js';
 
 /** Floating point tolerance for comparisons */
@@ -9,7 +17,16 @@ interface ModifyTemplateForDynamicTableArg {
   input: Record<string, string>;
   _cache: Map<string | number, unknown>;
   options: CommonOptions;
-  getDynamicHeights: (
+  getDynamicLayout?: (
+    value: string,
+    args: {
+      schema: Schema;
+      basePdf: BasePdf;
+      options: CommonOptions;
+      _cache: Map<string | number, unknown>;
+    },
+  ) => Promise<LayoutMeasureResult>;
+  getDynamicHeights?: (
     value: string,
     args: {
       schema: Schema;
@@ -25,6 +42,104 @@ interface LayoutItem {
   baseY: number;
   height: number;
   dynamicHeights: number[];
+}
+
+const getSchemaAnchorId = (schema: Schema): string => {
+  const schemaWithId = schema as Schema & { id?: unknown };
+  return typeof schemaWithId.id === 'string' && schemaWithId.id.length > 0
+    ? schemaWithId.id
+    : schema.name;
+};
+
+const getSchemaLayout = (schema: Schema): SchemaLayoutRule | undefined =>
+  (schema as Schema & { layout?: SchemaLayoutRule }).layout;
+
+function buildSchemaLookup(pageSchemas: Schema[]): Map<string, Schema> {
+  const lookup = new Map<string, Schema>();
+  pageSchemas.forEach((schema) => {
+    const id = getSchemaAnchorId(schema);
+    if (id) lookup.set(id, schema);
+  });
+  return lookup;
+}
+
+function resolveAnchoredX(schema: Schema, layout: SchemaLayoutRule, lookup: Map<string, Schema>) {
+  if (layout.mode !== 'anchored') return;
+
+  const { x } = layout;
+  if (x.mode === 'pageLeft') {
+    schema.position.x = x.offsetMm;
+    return;
+  }
+
+  const target = lookup.get(x.ref.schemaId);
+  if (!target) return;
+
+  const targetRight = target.position.x + target.width;
+  if (x.mode === 'afterRightEdge') {
+    schema.position.x = targetRight + x.offsetMm;
+    return;
+  }
+
+  schema.position.x = targetRight - schema.width + (x.offsetMm ?? 0);
+}
+
+function resolveAnchoredY(schema: Schema, layout: SchemaLayoutRule, lookup: Map<string, Schema>) {
+  if (layout.mode !== 'anchored') return;
+
+  const { y } = layout;
+  if (y.mode === 'pageTop') {
+    schema.position.y = y.offsetMm;
+    return;
+  }
+
+  const target = lookup.get(y.ref.schemaId);
+  if (!target) return;
+
+  schema.position.y = target.position.y + target.height + y.offsetMm;
+}
+
+function resolveAnchoredSchemas(pageSchemas: Schema[]): void {
+  const lookup = buildSchemaLookup(pageSchemas);
+
+  for (let pass = 0; pass < pageSchemas.length; pass += 1) {
+    let changed = false;
+
+    pageSchemas.forEach((schema) => {
+      const layout = getSchemaLayout(schema);
+      if (!layout || layout.mode !== 'anchored') return;
+
+      const previousX = schema.position.x;
+      const previousY = schema.position.y;
+      resolveAnchoredX(schema, layout, lookup);
+      resolveAnchoredY(schema, layout, lookup);
+
+      if (
+        Math.abs(previousX - schema.position.x) > EPSILON ||
+        Math.abs(previousY - schema.position.y) > EPSILON
+      ) {
+        changed = true;
+      }
+    });
+
+    if (!changed) break;
+  }
+}
+
+function getDynamicHeightsFromLayoutResult(schema: Schema, result: LayoutMeasureResult): number[] {
+  if (result.dynamicHeights && result.dynamicHeights.length > 0) {
+    return result.dynamicHeights;
+  }
+
+  if (result.fragments && result.fragments.length > 0) {
+    return result.fragments.map((fragment) => fragment.height);
+  }
+
+  if (typeof result.height === 'number') {
+    return [result.height];
+  }
+
+  return [schema.height];
 }
 
 /** Calculate the content height of a page (drawable area excluding padding) */
@@ -247,11 +362,13 @@ function processDynamicPage(
 export const getDynamicTemplate = async (
   arg: ModifyTemplateForDynamicTableArg,
 ): Promise<Template> => {
-  const { template, input, options, _cache, getDynamicHeights } = arg;
+  const { template, input, options, _cache, getDynamicLayout, getDynamicHeights } = arg;
   const basePdf = template.basePdf;
 
   if (!isBlankPdf(basePdf)) {
-    return template;
+    const resolvedTemplate = cloneDeep(template);
+    resolvedTemplate.schemas.forEach(resolveAnchoredSchemas);
+    return resolvedTemplate;
   }
 
   const contentHeight = getContentHeight(basePdf);
@@ -262,6 +379,7 @@ export const getDynamicTemplate = async (
   // Process each template page independently
   for (let pageIndex = 0; pageIndex < template.schemas.length; pageIndex++) {
     const pageSchemas = template.schemas[pageIndex];
+    resolveAnchoredSchemas(pageSchemas);
 
     // Normalize this page's schemas
     const { items, orderMap } = normalizePageSchemas(pageSchemas, paddingTop);
@@ -272,12 +390,27 @@ export const getDynamicTemplate = async (
       const chunkResults = await Promise.all(
         chunk.map((item) => {
           const value = getSchemaValue(item.schema, input);
-          return getDynamicHeights(value, {
+          const measureArgs = {
             schema: item.schema,
             basePdf,
             options,
             _cache,
-          }).then((heights) => (heights.length === 0 ? [0] : heights));
+          };
+
+          if (getDynamicLayout) {
+            return getDynamicLayout(value, measureArgs).then((result) => {
+              const heights = getDynamicHeightsFromLayoutResult(item.schema, result);
+              return heights.length === 0 ? [0] : heights;
+            });
+          }
+
+          if (getDynamicHeights) {
+            return getDynamicHeights(value, measureArgs).then((heights) =>
+              heights.length === 0 ? [0] : heights,
+            );
+          }
+
+          return Promise.resolve([item.schema.height]);
         }),
       );
       // Update items with calculated heights
@@ -306,6 +439,7 @@ export const getDynamicTemplate = async (
         const result = resultPages[i][j];
         if (
           Math.abs(orig.height - result.height) > EPSILON ||
+          Math.abs(orig.position.x - result.position.x) > EPSILON ||
           Math.abs(orig.position.y - result.position.y) > EPSILON
         ) {
           unchanged = false;

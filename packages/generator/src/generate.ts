@@ -8,7 +8,6 @@ import {
   pt2mm,
   cloneDeep,
 } from '@pdfme/common';
-import { getDynamicHeightsForTable } from '@pdfme/schemas/tables';
 import {
   insertPage,
   preprocessing,
@@ -32,7 +31,7 @@ const generate = async (props: GenerateProps): Promise<Uint8Array<ArrayBuffer>> 
 
   validateRequiredFields(template, inputs);
 
-  const { pdfDoc, renderObj } = await preprocessing({ template, userPlugins });
+  const { pdfDoc, renderObj, measureObj } = await preprocessing({ template, userPlugins });
 
   const _cache = new Map<string, unknown>();
 
@@ -45,13 +44,18 @@ const generate = async (props: GenerateProps): Promise<Uint8Array<ArrayBuffer>> 
       input,
       options,
       _cache,
-      getDynamicHeights: (value, args) => {
-        switch (args.schema.type) {
-          case 'table':
-            return getDynamicHeightsForTable(value, args);
-          default:
-            return Promise.resolve([args.schema.height]);
+      getDynamicLayout: async (value, args) => {
+        const measure = measureObj[args.schema.type];
+
+        if (measure) {
+          return measure({ value, ...args });
         }
+
+        return Promise.resolve({
+          width: args.schema.width,
+          height: args.schema.height,
+          dynamicHeights: [args.schema.height],
+        });
       },
     });
     const { basePages, embedPdfBoxes } = await getEmbedPdfPages({

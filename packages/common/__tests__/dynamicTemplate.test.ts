@@ -83,6 +83,71 @@ describe('getDynamicTemplate', () => {
       );
       expect(dynamicTemplate.schemas[0][1].name).toEqual('b');
     });
+
+    test('should resolve bounded two-axis anchors before dynamic height offsets', async () => {
+      const anchoredTemplate: Template = {
+        schemas: [
+          [
+            {
+              name: 'table',
+              content: 'table',
+              type: 'table',
+              position: { x: 20, y: 20 },
+              width: 50,
+              height: 10,
+            },
+            {
+              name: 'total',
+              content: 'total',
+              type: 'text',
+              position: { x: 0, y: 0 },
+              width: 20,
+              height: 10,
+              layout: {
+                mode: 'anchored',
+                x: { mode: 'alignRightEdge', ref: { schemaId: 'table' } },
+                y: { mode: 'belowBottomEdge', ref: { schemaId: 'table' }, offsetMm: 10 },
+              },
+            },
+            {
+              name: 'qr',
+              content: 'qr',
+              type: 'text',
+              position: { x: 0, y: 0 },
+              width: 8,
+              height: 8,
+              layout: {
+                mode: 'anchored',
+                x: { mode: 'afterRightEdge', ref: { schemaId: 'total' }, offsetMm: 5 },
+                y: { mode: 'pageTop', offsetMm: 12 },
+              },
+            },
+          ],
+        ],
+        basePdf: { width: 100, height: 100, padding: [padding, padding, padding, padding] },
+      };
+
+      const dynamicTemplate = await getDynamicTemplate({
+        template: anchoredTemplate,
+        input: { table: 'table', total: 'total', qr: 'qr' },
+        options,
+        _cache,
+        getDynamicLayout: async (_value: string, args: { schema: Schema }) => {
+          if (args.schema.type === 'table') {
+            return { dynamicHeights: [10, 10, 10, 10], height: 40 };
+          }
+          return { width: args.schema.width, height: args.schema.height };
+        },
+      });
+
+      const total = dynamicTemplate.schemas[0].find((schema) => schema.name === 'total');
+      const qr = dynamicTemplate.schemas[0].find((schema) => schema.name === 'qr');
+
+      expect(total?.position.x).toBe(50);
+      expect(total?.position.y).toBe(70);
+      expect(qr?.position.x).toBe(75);
+      expect(qr?.position.y).toBe(12);
+    });
   });
 
   describe('Multiple page scenarios', () => {

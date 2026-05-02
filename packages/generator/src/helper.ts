@@ -5,6 +5,8 @@ import {
   GeneratorOptions,
   Template,
   PDFRenderProps,
+  LayoutMeasureProps,
+  LayoutMeasureResult,
   getB64BasePdf,
   isBlankPdf,
   mm2pt,
@@ -121,7 +123,38 @@ Check this document: https://pdfme.com/docs/custom-schemas`);
     >,
   );
 
-  return { pdfDoc, renderObj };
+  const measureObj = schemaTypes.reduce(
+    (
+      acc: Record<
+        string,
+        (arg: LayoutMeasureProps<Schema & { [key: string]: unknown }>) =>
+          | Promise<LayoutMeasureResult>
+          | LayoutMeasureResult
+      >,
+      type: string,
+    ) => {
+      const plugin = plugins.findByType(type);
+
+      if (!plugin || !plugin.measure) {
+        return acc;
+      }
+
+      return {
+        ...acc,
+        [type]: plugin.measure as (
+          arg: LayoutMeasureProps<Schema & { [key: string]: unknown }>,
+        ) => Promise<LayoutMeasureResult> | LayoutMeasureResult,
+      };
+    },
+    {} as Record<
+      string,
+      (arg: LayoutMeasureProps<Schema & { [key: string]: unknown }>) =>
+        | Promise<LayoutMeasureResult>
+        | LayoutMeasureResult
+    >,
+  );
+
+  return { pdfDoc, renderObj, measureObj };
 };
 
 export const postProcessing = (props: { pdfDoc: PDFDocument; options: GeneratorOptions }) => {
