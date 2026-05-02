@@ -124,7 +124,7 @@ const TemplateDataPanel = (
       variable.kind === 'table'
         ? tableSchemaFromVariable(defaultSchema, variable)
         : scalarSchemaFromVariable(defaultSchema, variable);
-    props.addSchema(withPosition(schema, props));
+    props.addSchema(withPosition(schema, props), { select: false });
   };
 
   return (

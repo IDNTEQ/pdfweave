@@ -241,7 +241,7 @@ const TemplateEditor = ({
     [pageSizes, scale],
   );
 
-  const addSchema = (defaultSchema: Schema) => {
+  const addSchema = (defaultSchema: Schema, options?: { select?: boolean }) => {
     const [paddingTop, paddingRight, paddingBottom, paddingLeft] = isBlankPdf(
       template.basePdf,
     )
@@ -295,7 +295,9 @@ const TemplateEditor = ({
     }
 
     commitSchemas(schemasList[pageCursor].concat(s));
-    setTimeout(() => onEdit([document.getElementById(s.id)]));
+    if (options?.select !== false) {
+      setTimeout(() => onEdit([document.getElementById(s.id)]));
+    }
   };
 
   const onSortEnd = (sortedSchemas: SchemaForUI[]) => {

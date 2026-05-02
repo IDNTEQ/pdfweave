@@ -11,7 +11,7 @@ export type SidebarProps = {
   schemas: SchemaForUI[];
   schemasList: SchemaForUI[][];
   onSortEnd: (sortedSchemas: SchemaForUI[]) => void;
-  addSchema: (schema: Schema) => void;
+  addSchema: (schema: Schema, options?: { select?: boolean }) => void;
   onEdit: (id: string) => void;
   onEditEnd: () => void;
   changeSchemas: ChangeSchemas;
