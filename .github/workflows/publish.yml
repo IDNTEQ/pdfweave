@@ -1,10 +1,14 @@
 # .github/workflows/publish.yml
 name: Publish
 
+# Manual-only until publishing pipeline is reviewed for PDFweave. The
+# inherited dev-build-on-push behaviour from upstream pdfme could publish
+# to npm on every commit to main — disabled here because (a) we want
+# explicit release control while pre-1.0 and (b) we haven't reviewed the
+# `scripts/increment-version.sh` logic for our renamed packages yet.
 on:
+  workflow_dispatch:
   push:
-    branches:
-      - main
     tags:
       - '[0-9]+.[0-9]+.[0-9]+*'
 

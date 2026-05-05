@@ -1,5 +1,8 @@
 blank_issues_enabled: false
 contact_links:
-  - name: Ask a Question
+  - name: Ask a question (PDFweave)
+    url: https://github.com/IDNTEQ/pdfweave/discussions
+    about: Use Discussions for questions, design feedback, and "is this the right tool" conversations.
+  - name: Question about upstream pdfme
     url: https://github.com/pdfme/pdfme/discussions
-    about: I have questions about pdfme. Please ask and answer questions at https://github.com/pdfme/pdfme/discussions
+    about: For questions about features that exist in upstream pdfme too, ask there — they have a larger community.
