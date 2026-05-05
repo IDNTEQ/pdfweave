@@ -35,6 +35,7 @@ import Guides from './Guides.js';
 import Mask from './Mask.js';
 import Padding from './Padding.js';
 import StaticSchema from '../../StaticSchema.js';
+import ContextMenu, { type DesignerContextMenuAction } from './ContextMenu.js';
 
 const mm2px = (mm: number) => mm * 3.7795275591;
 
@@ -99,6 +100,16 @@ interface Props {
   onEdit: (targets: HTMLElement[]) => void;
   changeSchemas: ChangeSchemas;
   removeSchemas: (ids: string[]) => void;
+  designerActions: {
+    copy: (ids?: string[]) => void;
+    cut: (ids?: string[]) => void;
+    paste: () => void;
+    duplicate: (ids?: string[]) => void;
+    remove: (ids?: string[]) => void;
+    bringToFront: (ids?: string[]) => void;
+    sendToBack: (ids?: string[]) => void;
+    canPaste: () => boolean;
+  };
   paperRefs: MutableRefObject<HTMLDivElement[]>;
   sidebarOpen: boolean;
 }
@@ -117,6 +128,7 @@ const Canvas = (props: Props, ref: Ref<HTMLDivElement>) => {
     onEdit,
     changeSchemas,
     removeSchemas,
+    designerActions,
     onChangeHoveringSchemaId,
     paperRefs,
     sidebarOpen,
@@ -131,6 +143,11 @@ const Canvas = (props: Props, ref: Ref<HTMLDivElement>) => {
 
   const [isPressShiftKey, setIsPressShiftKey] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;
+    y: number;
+    schemaIds: string[];
+  } | null>(null);
 
   const prevSchemas = usePrevious(schemasList[pageCursor]);
 
@@ -348,6 +365,45 @@ const Canvas = (props: Props, ref: Ref<HTMLDivElement>) => {
     setEditing(true);
   };
 
+  const activeIds = useMemo(() => activeElements.map((ae) => ae.id), [activeElements]);
+
+  const selectContextTargets = (schema: SchemaForUI, target: HTMLElement) => {
+    if (activeIds.includes(schema.id)) {
+      return activeElements;
+    }
+    return [target];
+  };
+
+  const onContextMenuAction = (action: DesignerContextMenuAction) => {
+    const ids = contextMenu?.schemaIds ?? [];
+    switch (action) {
+      case 'copy':
+        designerActions.copy(ids);
+        break;
+      case 'cut':
+        designerActions.cut(ids);
+        break;
+      case 'paste':
+        designerActions.paste();
+        break;
+      case 'duplicate':
+        designerActions.duplicate(ids);
+        break;
+      case 'delete':
+        designerActions.remove(ids);
+        break;
+      case 'bringToFront':
+        designerActions.bringToFront(ids);
+        break;
+      case 'sendToBack':
+        designerActions.sendToBack(ids);
+        break;
+      default:
+        break;
+    }
+    setContextMenu(null);
+  };
+
   const rotatable = useMemo(() => {
     const selectedSchemas = (schemasList[pageCursor] || []).filter((s) =>
       activeElements.map((ae) => ae.id).includes(s.id),
@@ -400,6 +456,12 @@ const Canvas = (props: Props, ref: Ref<HTMLDivElement>) => {
   return (
     <div
       className={DESIGNER_CLASSNAME + 'canvas'}
+      onContextMenu={(event) => {
+        if (event.currentTarget === event.target) {
+          event.preventDefault();
+          setContextMenu(null);
+        }
+      }}
       style={{
         position: 'relative',
         overflow: 'auto',
@@ -589,9 +651,29 @@ const Canvas = (props: Props, ref: Ref<HTMLDivElement>) => {
                   : token.colorPrimary
               }`}
               scale={scale}
+              onContextMenu={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                setEditing(false);
+                const targets = selectContextTargets(schema, event.currentTarget);
+                onEdit(targets);
+                setContextMenu({
+                  x: event.clientX,
+                  y: event.clientY,
+                  schemaIds: targets.map((target) => target.id),
+                });
+              }}
             />
           );
         }}
+      />
+      <ContextMenu
+        open={Boolean(contextMenu)}
+        x={contextMenu?.x ?? 0}
+        y={contextMenu?.y ?? 0}
+        canPaste={designerActions.canPaste()}
+        onAction={onContextMenuAction}
+        onClose={() => setContextMenu(null)}
       />
     </div>
   );

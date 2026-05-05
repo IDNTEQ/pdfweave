@@ -25,6 +25,7 @@ type RendererProps = Omit<
   onChangeHoveringSchemaId?: (id: string | null) => void;
   scale: number;
   selectable?: boolean;
+  onContextMenu?: (event: React.MouseEvent<HTMLDivElement>) => void;
 };
 
 type ReRenderCheckProps = {
@@ -61,11 +62,13 @@ const Wrapper = ({
   onChangeHoveringSchemaId,
   schema,
   selectable = true,
+  onContextMenu,
 }: RendererProps & { children: ReactNode }) => (
   <div
     title={schema.name}
     onMouseEnter={() => onChangeHoveringSchemaId && onChangeHoveringSchemaId(schema.id)}
     onMouseLeave={() => onChangeHoveringSchemaId && onChangeHoveringSchemaId(null)}
+    onContextMenu={onContextMenu}
     className={selectable ? SELECTABLE_CLASSNAME : ''}
     id={schema.id}
     style={{
