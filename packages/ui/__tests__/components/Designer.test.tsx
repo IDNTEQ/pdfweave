@@ -141,3 +141,54 @@ test('Designer opens a schema context menu and duplicates through the shared han
   const nextTemplate = onChangeTemplate.mock.calls.at(-1)?.[0];
   expect(nextTemplate.schemas[0]).toHaveLength(3);
 });
+
+test('Designer groups and ungroups selected schemas from the context menu', async () => {
+  setupUIMock();
+  const onChangeTemplate = vi.fn();
+  const { container } = render(
+    <I18nContext.Provider value={i18n}>
+      <FontContext.Provider value={getDefaultFont()}>
+        <PluginsRegistry.Provider value={pluginRegistry(plugins)}>
+          <Designer
+            template={getSampleTemplate()}
+            onSaveTemplate={console.log}
+            onChangeTemplate={onChangeTemplate}
+            size={{ width: 1200, height: 1200 }}
+            onPageCursorChange={() => undefined}
+          />
+        </PluginsRegistry.Provider>
+      </FontContext.Provider>
+    </I18nContext.Provider>,
+  );
+
+  await waitFor(() => {
+    expect(container.getElementsByClassName(SELECTABLE_CLASSNAME).length).toBeGreaterThan(1);
+  });
+
+  fireEvent.keyDown(document, { key: 'a', code: 'KeyA', ctrlKey: true });
+  fireEvent.contextMenu(container.getElementsByClassName(SELECTABLE_CLASSNAME)[0], {
+    clientX: 120,
+    clientY: 140,
+  });
+  fireEvent.click(screen.getByRole('menuitem', { name: 'Group' }));
+
+  await waitFor(() => {
+    const nextTemplate = onChangeTemplate.mock.calls.at(-1)?.[0];
+    expect(nextTemplate.schemas[0].every((schema: { group?: string }) => Boolean(schema.group))).toBe(true);
+  });
+
+  const groupedTemplate = onChangeTemplate.mock.calls.at(-1)?.[0];
+  const groupIds = new Set(groupedTemplate.schemas[0].map((schema: { group?: string }) => schema.group));
+  expect(groupIds.size).toBe(1);
+
+  fireEvent.contextMenu(container.getElementsByClassName(SELECTABLE_CLASSNAME)[0], {
+    clientX: 120,
+    clientY: 140,
+  });
+  fireEvent.click(screen.getByRole('menuitem', { name: 'Ungroup' }));
+
+  await waitFor(() => {
+    const nextTemplate = onChangeTemplate.mock.calls.at(-1)?.[0];
+    expect(nextTemplate.schemas[0].every((schema: { group?: string }) => !schema.group)).toBe(true);
+  });
+});

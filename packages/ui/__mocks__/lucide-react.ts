@@ -14,6 +14,8 @@ export const Copy = () => 'Copy';
 export const Scissors = () => 'Scissors';
 export const Clipboard = () => 'Clipboard';
 export const CopyPlus = () => 'CopyPlus';
+export const Group = () => 'Group';
+export const Ungroup = () => 'Ungroup';
 export const Trash2 = () => 'Trash2';
 export const BringToFront = () => 'BringToFront';
 export const SendToBack = () => 'SendToBack';

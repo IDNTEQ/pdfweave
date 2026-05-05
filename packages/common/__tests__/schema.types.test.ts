@@ -12,8 +12,22 @@ import { BLANK_A4_PDF, type Template } from '../src/index.js';
 // `tsc -p tsconfig.build.json`.
 describe('Template type inference (pdfme#1021)', () => {
   it('Template literal assignment compiles clean', () => {
-    const t: Template = { basePdf: BLANK_A4_PDF, schemas: [] };
-    expect(t.schemas).toEqual([]);
+    const t: Template = {
+      basePdf: BLANK_A4_PDF,
+      schemas: [
+        [
+          {
+            name: 'groupedField',
+            type: 'text',
+            position: { x: 0, y: 0 },
+            width: 10,
+            height: 10,
+            group: 'group-1',
+          },
+        ],
+      ],
+    };
+    expect(t.schemas[0][0].group).toBe('group-1');
     expect(t.basePdf).toBe(BLANK_A4_PDF);
   });
 });

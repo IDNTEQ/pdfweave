@@ -13,13 +13,8 @@ export const setupUIMock = () => {
     error: null,
     refresh: () => Promise.resolve(),
   }));
-  vi
-    .spyOn(helper, 'uuid')
-    .mockReturnValueOnce('1')
-    .mockReturnValueOnce('2')
-    .mockReturnValueOnce('3')
-    .mockReturnValueOnce('4')
-    .mockReturnValueOnce('5');
+  let uuidCounter = 1;
+  vi.spyOn(helper, 'uuid').mockImplementation(() => String(uuidCounter++));
   const FontFace = vi.fn().mockReturnValue({ load: () => Promise.resolve() });
   global.window.FontFace = FontFace;
 };
