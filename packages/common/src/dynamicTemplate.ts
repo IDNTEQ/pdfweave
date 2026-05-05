@@ -15,6 +15,25 @@ import { resolveSchemaValue } from './dataBinding.js';
 /** Floating point tolerance for comparisons */
 const EPSILON = 0.01;
 
+/**
+ * Schema type marker for the built-in page-break primitive.
+ *
+ * A pageBreak schema is a layout-engine marker (CSS `break-before: page`
+ * analogue): it has zero rendered output and forces subsequent schemas to
+ * start on a new page during the dynamic reflow pass. Width/height are
+ * nominal; only the position (and the type tag) is used by the engine.
+ *
+ * The render-time plugin (a no-op) lives in `@pdfweave/schemas` and is
+ * shipped in a follow-up batch — this module owns only the layout-engine
+ * support and the type tag.
+ *
+ * Original upstream issue: https://github.com/pdfme/pdfme/issues/637
+ */
+export const PAGE_BREAK_SCHEMA_TYPE = 'pageBreak';
+
+const isPageBreakSchema = (schema: Schema): boolean =>
+  schema.type === PAGE_BREAK_SCHEMA_TYPE;
+
 interface ModifyTemplateForDynamicTableArg {
   template: Template;
   input: Record<string, string>;
@@ -452,6 +471,27 @@ function processDynamicPage(
   let totalYOffset = 0;
 
   for (const item of items) {
+    // pageBreak primitive (pdfme#637): force everything that follows onto
+    // the next page regardless of remaining vertical space. We don't emit
+    // the marker in the output (zero render footprint); we just advance
+    // totalYOffset so the next item's currentGlobalStartY rounds up to a
+    // page boundary.
+    if (isPageBreakSchema(item.schema)) {
+      const currentGlobalStartY = item.baseY + totalYOffset;
+      const currentPageIndex = Math.floor(currentGlobalStartY / contentHeight);
+      const currentYInPage = currentGlobalStartY - currentPageIndex * contentHeight;
+      // Snap to the start of the next page only if we're not already
+      // exactly at one — back-to-back page breaks shouldn't double-skip.
+      if (currentYInPage > EPSILON) {
+        const nextPageStart = (currentPageIndex + 1) * contentHeight;
+        totalYOffset += nextPageStart - currentGlobalStartY;
+      }
+      // Ensure the (now-next) page exists so subsequent layout has a slot.
+      const targetPageIndex = Math.floor((item.baseY + totalYOffset) / contentHeight);
+      while (pages.length <= targetPageIndex) pages.push([]);
+      continue;
+    }
+
     const currentGlobalStartY = item.baseY + totalYOffset;
 
     const actualGlobalEndY = placeRowsOnPages(
@@ -512,6 +552,10 @@ export const getDynamicTemplate = async (
     for (const schema of pageSchemas) {
       const layoutMode = (schema as Schema & { layout?: SchemaLayoutRule }).layout?.mode;
       if (layoutMode === 'anchored') continue;
+      // pageBreak markers (pdfme#637) carry a nominal position that may
+      // legitimately sit above paddingTop; the layout engine reads only
+      // their type tag, never their final y. Skip them here.
+      if (isPageBreakSchema(schema)) continue;
       if (schema.position.y < declaredPaddingTop - EPSILON) {
         throw new Error(
           `[@pdfweave/common] Schema "${schema.name}" position.y (${schema.position.y}) ` +

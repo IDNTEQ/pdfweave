@@ -82,7 +82,11 @@ import {
   treatsLikeBlank,
   isUrlSafeToFetch,
 } from './helper.js';
-import { getDynamicTemplate, getDynamicHeights } from './dynamicTemplate.js';
+import {
+  getDynamicTemplate,
+  getDynamicHeights,
+  PAGE_BREAK_SCHEMA_TYPE,
+} from './dynamicTemplate.js';
 import { replacePlaceholders } from './expression.js';
 import type { ReplacePlaceholdersOptions } from './expression.js';
 import { pluginRegistry } from './pluginRegistry.js';
@@ -121,6 +125,7 @@ export {
   treatsLikeBlank,
   getDynamicTemplate,
   getDynamicHeights,
+  PAGE_BREAK_SCHEMA_TYPE,
   formatDesignDataValue,
   getDesignDataInput,
   getDesignDataVariables,

@@ -1,7 +1,11 @@
 import { readFileSync } from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { getDynamicTemplate, getDynamicHeights } from '../src/dynamicTemplate.js';
+import {
+  getDynamicTemplate,
+  getDynamicHeights,
+  PAGE_BREAK_SCHEMA_TYPE,
+} from '../src/dynamicTemplate.js';
 import { Template, Schema, Font, Plugin, BasePdf } from '../src/index.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -826,5 +830,71 @@ describe('getDynamicTemplate staticSchema-aware reflow (pdfme#1434)', () => {
     expect(dynamicTemplate.schemas.length).toBe(2);
     // Reflowed first row stays at the original padding-derived top (5).
     expect(dynamicTemplate.schemas[0][0].position.y).toBe(5);
+  });
+});
+
+describe('pageBreak schema type (pdfme#637)', () => {
+  // Reproduces upstream pdfme#637: a built-in primitive that forces
+  // subsequent schemas onto a new page during the dynamic reflow pass —
+  // CSS `break-before: page`. The layout engine recognises the type tag
+  // and emits no rendered output for the marker itself; the paired
+  // render-time plugin (a no-op) ships in @pdfweave/schemas.
+  test('exports the type marker constant', () => {
+    expect(PAGE_BREAK_SCHEMA_TYPE).toBe('pageBreak');
+  });
+
+  test('a [text, pageBreak, text] template puts the second text on page 2', async () => {
+    const template: Template = {
+      schemas: [
+        [
+          {
+            name: 'first',
+            type: 'text',
+            content: 'first',
+            position: { x: 10, y: 10 },
+            width: 80,
+            height: 10,
+          },
+          {
+            name: 'br',
+            type: PAGE_BREAK_SCHEMA_TYPE,
+            content: '',
+            position: { x: 0, y: 30 },
+            width: 0,
+            height: 0,
+          },
+          {
+            name: 'second',
+            type: 'text',
+            content: 'second',
+            position: { x: 10, y: 50 },
+            width: 80,
+            height: 10,
+          },
+        ],
+      ],
+      basePdf: { width: 100, height: 100, padding: [10, 10, 10, 10] },
+    };
+
+    const dynamicTemplate = await getDynamicTemplate({
+      template,
+      input: { first: 'first', second: 'second' },
+      options: {},
+      _cache: new Map(),
+    });
+
+    // Two pages: first text on page 1, second text on page 2.
+    // The pageBreak itself is not emitted to the rendered output.
+    expect(dynamicTemplate.schemas.length).toBe(2);
+    expect(dynamicTemplate.schemas[0].some((s) => s.name === 'first')).toBe(true);
+    expect(dynamicTemplate.schemas[0].some((s) => s.name === 'second')).toBe(false);
+    expect(dynamicTemplate.schemas[1].some((s) => s.name === 'second')).toBe(true);
+
+    // No pageBreak markers leak into the rendered output.
+    for (const page of dynamicTemplate.schemas) {
+      for (const schema of page) {
+        expect(schema.type).not.toBe(PAGE_BREAK_SCHEMA_TYPE);
+      }
+    }
   });
 });
