@@ -21,76 +21,151 @@ import { PDFPage, PDFDocument, PDFEmbeddedPage, TransformationMatrix } from '@pd
 import { TOOL_NAME } from './constants.js';
 import type { EmbedPdfBox } from './types.js';
 
-export const getEmbedPdfPages = async (arg: { template: Template; pdfDoc: PDFDocument }) => {
-  const {
-    template: { schemas, basePdf },
-    pdfDoc,
-  } = arg as { template: { schemas: Schema[][]; basePdf: BasePdf }; pdfDoc: PDFDocument };
-  let basePages: (PDFEmbeddedPage | PDFPage)[] = [];
-  let embedPdfBoxes: EmbedPdfBox[] = [];
+/**
+ * Resources produced by the one-time basePdf embed step. Lives for a single
+ * generate() invocation and is reused for every input row.
+ *
+ * - For a custom PDF basePdf, this captures the already-embedded source pages
+ *   plus their boxes — so the same PDF parse + embedPages() call doesn't run
+ *   per-input (see pdfme#729 — O(N) re-parsing of the same basePdf was the
+ *   bottleneck for batch generation against a heavy basePdf).
+ * - For a StationeryPdf, this captures the single embedded stationery page
+ *   that gets `drawPage`d onto a fresh blank page per dynamic-schema page.
+ * - For a BlankPdf, no resources are captured: page creation is already cheap.
+ */
+export type BasePdfResources =
+  | {
+      kind: 'blank';
+      width: number;
+      height: number;
+    }
+  | {
+      kind: 'stationery';
+      width: number;
+      height: number;
+      embeddedStationery: PDFEmbeddedPage;
+    }
+  | {
+      kind: 'custom';
+      basePages: PDFEmbeddedPage[];
+      embedPdfBoxes: EmbedPdfBox[];
+    };
+
+/**
+ * Performs the expensive basePdf parse + embed exactly once per generate()
+ * call. The returned BasePdfResources is then handed to materializeBasePages()
+ * for each input row — see pdfme#729 for the original perf report.
+ */
+export const prepareBasePdfResources = async (arg: {
+  basePdf: BasePdf;
+  pdfDoc: PDFDocument;
+}): Promise<BasePdfResources> => {
+  const { basePdf, pdfDoc } = arg;
 
   if (isStationeryPdf(basePdf)) {
-    const { width: _width, height: _height } = basePdf;
-    const width = mm2pt(_width);
-    const height = mm2pt(_height);
+    const width = mm2pt(basePdf.width);
+    const height = mm2pt(basePdf.height);
     const willLoadPdf = await getB64BasePdf(basePdf.stationeryPdf);
     const stationeryDoc = await PDFDocument.load(willLoadPdf);
     const stationeryPages = stationeryDoc.getPages();
     if (stationeryPages.length === 0) {
       throw new Error('[@pdfweave/generator] StationeryPdf has no pages.');
     }
-    const firstPage = stationeryPages[0];
-    const [embeddedStationery] = await pdfDoc.embedPages([firstPage]);
-    basePages = schemas.map(() => {
+    const [embeddedStationery] = await pdfDoc.embedPages([stationeryPages[0]]);
+    return { kind: 'stationery', width, height, embeddedStationery };
+  }
+
+  if (isBlankPdf(basePdf)) {
+    return { kind: 'blank', width: mm2pt(basePdf.width), height: mm2pt(basePdf.height) };
+  }
+
+  const willLoadPdf = await getB64BasePdf(basePdf);
+  const embedPdf = await PDFDocument.load(willLoadPdf);
+  const embedPdfPages = embedPdf.getPages();
+  const embedPdfBoxes: EmbedPdfBox[] = embedPdfPages.map((p) => ({
+    mediaBox: p.getMediaBox(),
+    bleedBox: p.getBleedBox(),
+    trimBox: p.getTrimBox(),
+    // Only record the CropBox when the source page actually authored one.
+    // pdf-lib's getCropBox() falls back to MediaBox when absent, so we use
+    // hasCropBox() to disambiguate "explicit crop" from "inherited default"
+    // — the latter must remain a no-op for schema positioning to preserve
+    // existing behavior. See pdfme/pdfme#623.
+    cropBox: p.hasCropBox() ? p.getCropBox() : undefined,
+  }));
+  const boundingBoxes = embedPdfPages.map((p) => {
+    const { x, y, width, height } = p.getMediaBox();
+    return { left: x, bottom: y, right: width, top: height + y };
+  });
+  const transformationMatrices = embedPdfPages.map(
+    () => [1, 0, 0, 1, 0, 0] as TransformationMatrix,
+  );
+  const basePages = await pdfDoc.embedPages(embedPdfPages, boundingBoxes, transformationMatrices);
+  return { kind: 'custom', basePages, embedPdfBoxes };
+};
+
+/**
+ * Builds the per-input basePages array from the cached resources. Custom-PDF
+ * embedded pages are reused as-is (the embed has happened once); blank /
+ * stationery variants still produce fresh PDFPage instances per dynamic
+ * schema page since dynamic content varies per input.
+ */
+export const materializeBasePages = (arg: {
+  template: Template;
+  pdfDoc: PDFDocument;
+  resources: BasePdfResources;
+}): { basePages: (PDFEmbeddedPage | PDFPage)[]; embedPdfBoxes: EmbedPdfBox[] } => {
+  const { template, pdfDoc, resources } = arg;
+  const schemas = (template as { schemas: Schema[][] }).schemas;
+
+  if (resources.kind === 'stationery') {
+    const { width, height, embeddedStationery } = resources;
+    const basePages = schemas.map(() => {
       const page = PDFPage.create(pdfDoc);
       page.setSize(width, height);
       page.drawPage(embeddedStationery, { x: 0, y: 0, width, height });
       return page;
     });
-    embedPdfBoxes = schemas.map(() => ({
+    const embedPdfBoxes = schemas.map(() => ({
       mediaBox: { x: 0, y: 0, width, height },
       bleedBox: { x: 0, y: 0, width, height },
       trimBox: { x: 0, y: 0, width, height },
     }));
-  } else if (isBlankPdf(basePdf)) {
-    const { width: _width, height: _height } = basePdf;
-    const width = mm2pt(_width);
-    const height = mm2pt(_height);
-    basePages = schemas.map(() => {
+    return { basePages, embedPdfBoxes };
+  }
+
+  if (resources.kind === 'blank') {
+    const { width, height } = resources;
+    const basePages = schemas.map(() => {
       const page = PDFPage.create(pdfDoc);
       page.setSize(width, height);
       return page;
     });
-    embedPdfBoxes = schemas.map(() => ({
+    const embedPdfBoxes = schemas.map(() => ({
       mediaBox: { x: 0, y: 0, width, height },
       bleedBox: { x: 0, y: 0, width, height },
       trimBox: { x: 0, y: 0, width, height },
     }));
-  } else {
-    const willLoadPdf = await getB64BasePdf(basePdf);
-    const embedPdf = await PDFDocument.load(willLoadPdf);
-    const embedPdfPages = embedPdf.getPages();
-    embedPdfBoxes = embedPdfPages.map((p) => ({
-      mediaBox: p.getMediaBox(),
-      bleedBox: p.getBleedBox(),
-      trimBox: p.getTrimBox(),
-      // Only record the CropBox when the source page actually authored one.
-      // pdf-lib's getCropBox() falls back to MediaBox when absent, so we use
-      // hasCropBox() to disambiguate "explicit crop" from "inherited default"
-      // — the latter must remain a no-op for schema positioning to preserve
-      // existing behavior. See pdfme/pdfme#623.
-      cropBox: p.hasCropBox() ? p.getCropBox() : undefined,
-    }));
-    const boundingBoxes = embedPdfPages.map((p) => {
-      const { x, y, width, height } = p.getMediaBox();
-      return { left: x, bottom: y, right: width, top: height + y };
-    });
-    const transformationMatrices = embedPdfPages.map(
-      () => [1, 0, 0, 1, 0, 0] as TransformationMatrix,
-    );
-    basePages = await pdfDoc.embedPages(embedPdfPages, boundingBoxes, transformationMatrices);
+    return { basePages, embedPdfBoxes };
   }
-  return { basePages, embedPdfBoxes };
+
+  // Custom PDF: page count is fixed by the source PDF, not the dynamic
+  // schemas. Reuse the cached embedded pages directly.
+  return { basePages: resources.basePages, embedPdfBoxes: resources.embedPdfBoxes };
+};
+
+/**
+ * Backwards-compatible wrapper that runs the prepare + materialize steps in a
+ * single call. Retained so external consumers (and pre-existing tests) still
+ * work, but generate() no longer uses it — the perf fix from pdfme#729 lives
+ * in the caller, which calls prepareBasePdfResources() once and
+ * materializeBasePages() per input.
+ */
+export const getEmbedPdfPages = async (arg: { template: Template; pdfDoc: PDFDocument }) => {
+  const { template, pdfDoc } = arg;
+  const basePdf = (template as { basePdf: BasePdf }).basePdf;
+  const resources = await prepareBasePdfResources({ basePdf, pdfDoc });
+  return materializeBasePages({ template, pdfDoc, resources });
 };
 
 export const validateRequiredFields = (template: Template, inputs: Record<string, unknown>[]) => {

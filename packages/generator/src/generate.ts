@@ -13,7 +13,8 @@ import {
   insertPage,
   preprocessing,
   postProcessing,
-  getEmbedPdfPages,
+  prepareBasePdfResources,
+  materializeBasePages,
   getPageContentOffset,
   validateRequiredFields,
 } from './helper.js';
@@ -36,6 +37,13 @@ const generate = async (props: GenerateProps): Promise<Uint8Array<ArrayBuffer>> 
   const { pdfDoc, renderObj, measureObj } = await preprocessing({ template, userPlugins });
 
   const _cache = new Map<string, unknown>();
+
+  // pdfme#729: parse + embed the basePdf exactly once, then reuse the
+  // resulting resources for every input. For a custom-PDF basePdf this
+  // eliminates the O(N) re-parse that previously dominated batch runs;
+  // for a stationery PDF the single embedded stationery page is shared
+  // across the per-input PDFPage instances.
+  const baseResources = await prepareBasePdfResources({ basePdf, pdfDoc });
 
   for (let i = 0; i < inputs.length; i += 1) {
     const input = inputs[i];
@@ -60,9 +68,10 @@ const generate = async (props: GenerateProps): Promise<Uint8Array<ArrayBuffer>> 
         });
       },
     });
-    const { basePages, embedPdfBoxes } = await getEmbedPdfPages({
+    const { basePages, embedPdfBoxes } = materializeBasePages({
       template: dynamicTemplate,
       pdfDoc,
+      resources: baseResources,
     });
 
     const schemas = dynamicTemplate.schemas;
