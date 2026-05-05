@@ -30,7 +30,13 @@ import {
   DEFAULT_FONT_VALUE,
 } from './constants.js';
 
-export const cloneDeep = structuredClone;
+// Wrap structuredClone in an arrow rather than re-exporting the bare reference.
+// Assigning `structuredClone` directly unbinds it from `globalThis`, which trips
+// "Illegal invocation" in some bundlers (notably farmfe and certain Vite
+// configurations) when the function is later invoked through the unbound alias.
+// Wrapping preserves the call-site binding everywhere.
+// Original upstream issue: https://github.com/pdfme/pdfme/issues/1120
+export const cloneDeep = <T>(v: T): T => structuredClone(v);
 
 const uniq = <T>(array: Array<T>) => Array.from(new Set(array));
 
