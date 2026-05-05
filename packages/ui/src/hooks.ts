@@ -155,6 +155,16 @@ type ScrollPageCursorProps = {
   onChangePageCursor: (page: number) => void;
 };
 
+/**
+ * Buffer applied before switching to the next page during scroll.
+ *
+ * pdfme#1240: at high zoom the cursor would flip to the next page the instant
+ * scrollTop crossed the boundary, even though most of the visible viewport
+ * still showed the previous page. We now require the user to scroll a quarter
+ * of the viewport past the boundary before flipping.
+ */
+const PAGE_SWITCH_BUFFER_RATIO = 0.25;
+
 export const useScrollPageCursor = ({
   ref,
   pageSizes,
@@ -168,6 +178,8 @@ export const useScrollPageCursor = ({
     }
 
     const scroll = ref.current.scrollTop;
+    const viewportHeight = ref.current.clientHeight || 0;
+    const switchBuffer = viewportHeight * PAGE_SWITCH_BUFFER_RATIO;
     const { top } = ref.current.getBoundingClientRect();
     const pageHeights = pageSizes.reduce((acc, cur, i) => {
       let value = (cur.height * ZOOM + RULER_HEIGHT) * scale;
@@ -181,7 +193,7 @@ export const useScrollPageCursor = ({
     }, [] as number[]);
     let _pageCursor = 0;
     pageHeights.forEach((ph, i) => {
-      if (scroll > ph) {
+      if (scroll > ph + switchBuffer) {
         _pageCursor = i + 1 >= pageHeights.length ? pageHeights.length - 1 : i + 1;
       }
     });

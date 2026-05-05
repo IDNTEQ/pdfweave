@@ -497,6 +497,54 @@ export const getPagesScrollTopByIndex = (pageSizes: Size[], index: number, scale
     .reduce((acc, cur) => acc + (cur.height * ZOOM + RULER_HEIGHT * scale) * scale, 0);
 };
 
+/**
+ * Computes the axis-aligned bounding box of a rectangle that has been rotated
+ * about its center. The returned values are offsets from the un-rotated
+ * top-left corner: e.g. `minX` is negative when the rotated box pokes past the
+ * left edge of the original rectangle.
+ *
+ * pdfme#284: positions for rotated schemas are still stored as the un-rotated
+ * top-left corner. The bounds check therefore needs to know how much extra
+ * space the rotation consumes on each side so it can let the un-rotated
+ * top-left go negative without dropping the visible content off-canvas.
+ */
+export const getRotatedBoundingBoxOffsets = (
+  width: number,
+  height: number,
+  rotateDegrees: number,
+) => {
+  const rotation = ((rotateDegrees % 360) + 360) % 360;
+  if (rotation === 0) {
+    return { minX: 0, minY: 0, maxX: width, maxY: height };
+  }
+  const radians = (rotation * Math.PI) / 180;
+  const cos = Math.cos(radians);
+  const sin = Math.sin(radians);
+  const cx = width / 2;
+  const cy = height / 2;
+  const corners = [
+    { x: 0, y: 0 },
+    { x: width, y: 0 },
+    { x: width, y: height },
+    { x: 0, y: height },
+  ].map((p) => {
+    const dx = p.x - cx;
+    const dy = p.y - cy;
+    return {
+      x: cx + dx * cos - dy * sin,
+      y: cy + dx * sin + dy * cos,
+    };
+  });
+  const xs = corners.map((c) => c.x);
+  const ys = corners.map((c) => c.y);
+  return {
+    minX: Math.min(...xs),
+    minY: Math.min(...ys),
+    maxX: Math.max(...xs),
+    maxY: Math.max(...ys),
+  };
+};
+
 const handlePositionSizeChange = (
   schema: SchemaForUI,
   key: string,

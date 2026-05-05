@@ -108,6 +108,7 @@ const TemplateEditor = ({
   onSaveTemplate,
   onChangeTemplate,
   onPageCursorChange,
+  requestedPageCursor,
 }: Omit<DesignerProps, 'domContainer'> & {
   size: Size;
   onSaveTemplate: (t: Template) => void;
@@ -115,6 +116,12 @@ const TemplateEditor = ({
 } & {
   onChangeTemplate: (t: Template) => void;
   onPageCursorChange: (newPageCursor: number, totalPages: number) => void;
+  /**
+   * Page cursor requested by the parent class wrapper (e.g. via
+   * `Designer.updateTemplate(template, { page })`). When provided this is
+   * applied after the next template-driven re-render. See pdfme#1235.
+   */
+  requestedPageCursor?: number | null;
 }) => {
   const past = useRef<SchemaForUI[][]>([]);
   const future = useRef<SchemaForUI[][]>([]);
@@ -257,10 +264,27 @@ const TemplateEditor = ({
   });
 
   const updateTemplate = useCallback(
-    async (newTemplate: Template, preservePage = false) => {
+    async (newTemplate: Template, opts?: { preservePage?: boolean; targetPage?: number }) => {
+      const { preservePage = false, targetPage } = opts ?? {};
       const sl = await template2SchemasList(newTemplate);
       setSchemasList(sl);
       onEditEnd();
+      const lastValidPage = Math.max(0, sl.length - 1);
+
+      if (typeof targetPage === 'number') {
+        // Explicit page request from `Designer.updateTemplate(template, { page })`
+        // takes priority over the legacy "reset/preserve" behaviour. pdfme#1235.
+        const clamped = Math.min(Math.max(0, targetPage), lastValidPage);
+        setPageCursor(clamped);
+        if (canvasRef.current?.scroll) {
+          canvasRef.current.scroll({
+            top: getPagesScrollTopByIndex(pageSizes, clamped, scale),
+            behavior: 'smooth',
+          });
+        }
+        return;
+      }
+
       if (!preservePage) {
         setPageCursor(0);
         if (canvasRef.current?.scroll) {
@@ -268,7 +292,7 @@ const TemplateEditor = ({
         }
       } else {
         setPageCursor((prev) => {
-          const clamped = Math.min(prev, sl.length - 1);
+          const clamped = Math.min(prev, lastValidPage);
           if (clamped !== prev && canvasRef.current) {
             canvasRef.current.scroll({
               top: getPagesScrollTopByIndex(pageSizes, clamped, scale),
@@ -353,7 +377,7 @@ const TemplateEditor = ({
     setPageCursor(newPageCursor);
     const newTemplate = schemasList2template(sl, template.basePdf);
     onChangeTemplate(newTemplate);
-    await updateTemplate(newTemplate, true);
+    await updateTemplate(newTemplate, { preservePage: true });
     void refresh(newTemplate);
 
     // Notify page change with updated total pages
@@ -388,7 +412,13 @@ const TemplateEditor = ({
 
   if (prevTemplate !== template) {
     setPrevTemplate(template);
-    void updateTemplate(template, true);
+    // Honour an explicit page request from the wrapper class. When none is
+    // given we preserve the current page (clamped) rather than resetting to
+    // page 0 — see pdfme#1235.
+    void updateTemplate(template, {
+      preservePage: true,
+      targetPage: typeof requestedPageCursor === 'number' ? requestedPageCursor : undefined,
+    });
   }
 
   const canvasWidth = size.width - LEFT_SIDEBAR_WIDTH;

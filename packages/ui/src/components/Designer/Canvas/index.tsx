@@ -26,7 +26,7 @@ import { OptionsContext, PluginsRegistry } from '../../../contexts.js';
 import { X } from 'lucide-react';
 import { RULER_HEIGHT, RIGHT_SIDEBAR_WIDTH, DESIGNER_CLASSNAME } from '../../../constants.js';
 import { usePrevious } from '../../../hooks.js';
-import { round, flatten, uuid } from '../../../helper.js';
+import { round, flatten, uuid, getRotatedBoundingBoxOffsets } from '../../../helper.js';
 import Paper from '../../Paper.js';
 import Renderer from '../../Renderer.js';
 import Selecto from './Selecto.js';
@@ -173,7 +173,7 @@ const Canvas = (props: Props, ref: Ref<HTMLDivElement>) => {
   }, [pageCursor, schemasList, prevSchemas]);
 
   const onDrag = ({ target, top, left }: OnDrag) => {
-    const { width: _width, height: _height } = target.style;
+    const { width: _width, height: _height, transform } = target.style;
     const targetWidth = fmt(_width);
     const targetHeight = fmt(_height);
     const actualTop = top / ZOOM;
@@ -192,16 +192,34 @@ const Canvas = (props: Props, ref: Ref<HTMLDivElement>) => {
       leftPadding = l * ZOOM;
     }
 
-    if (actualTop + targetHeight > pageHeight - bottomPadding) {
-      target.style.top = `${(pageHeight - targetHeight - bottomPadding) * ZOOM}px`;
+    // pdfme#284: a schema's stored position is its un-rotated top-left, but
+    // the visible bounding box is the rotated one. When rotation pushes the
+    // visible box past the un-rotated origin we must let position values go
+    // negative (or beyond pageWidth/pageHeight) so the rotated box can reach
+    // the canvas edge.
+    const rotateMatch = transform?.match(/rotate\((-?\d+(?:\.\d+)?)deg\)/);
+    const rotation = rotateMatch ? Number(rotateMatch[1]) : 0;
+    const rotatedBox = getRotatedBoundingBoxOffsets(targetWidth, targetHeight, rotation);
+    const overflowLeft = -rotatedBox.minX; // mm by which the rotated box pokes past the left edge
+    const overflowTop = -rotatedBox.minY;
+    const rotatedWidth = rotatedBox.maxX - rotatedBox.minX;
+    const rotatedHeight = rotatedBox.maxY - rotatedBox.minY;
+
+    const minTop = (topPadding / ZOOM - overflowTop) * ZOOM;
+    const minLeft = (leftPadding / ZOOM - overflowLeft) * ZOOM;
+    const maxTopMm = pageHeight - bottomPadding - rotatedHeight + overflowTop;
+    const maxLeftMm = pageWidth - rightPadding - rotatedWidth + overflowLeft;
+
+    if (actualTop > maxTopMm) {
+      target.style.top = `${maxTopMm * ZOOM}px`;
     } else {
-      target.style.top = `${top < topPadding ? topPadding : top}px`;
+      target.style.top = `${top < minTop ? minTop : top}px`;
     }
 
-    if (actualLeft + targetWidth > pageWidth - rightPadding) {
-      target.style.left = `${(pageWidth - targetWidth - rightPadding) * ZOOM}px`;
+    if (actualLeft > maxLeftMm) {
+      target.style.left = `${maxLeftMm * ZOOM}px`;
     } else {
-      target.style.left = `${left < leftPadding ? leftPadding : left}px`;
+      target.style.left = `${left < minLeft ? minLeft : left}px`;
     }
   };
 
@@ -353,6 +371,32 @@ const Canvas = (props: Props, ref: Ref<HTMLDivElement>) => {
     });
   }, [activeElements, pageCursor, schemasList, pluginsRegistry]);
 
+  /**
+   * pdfme#284: react-moveable's `bounds` prop hard-rejects positions outside
+   * the rectangle, but a rotated schema's stored top-left can legitimately
+   * sit outside the page even when the rotated bounding box is fully on
+   * canvas. We expand the bounds by the largest required overflow across the
+   * currently active schemas so rotated elements can be dragged to the edge.
+   */
+  const dragBoundsExpansion = useMemo(() => {
+    const activeIds = new Set(activeElements.map((ae) => ae.id));
+    const selected = (schemasList[pageCursor] || []).filter((s) => activeIds.has(s.id));
+    let leftPad = 0;
+    let topPad = 0;
+    let rightPad = 0;
+    let bottomPad = 0;
+    selected.forEach((s) => {
+      const rotation = (s as SchemaForUI & { rotate?: number }).rotate ?? 0;
+      if (!rotation) return;
+      const box = getRotatedBoundingBoxOffsets(s.width, s.height, rotation);
+      leftPad = Math.max(leftPad, -box.minX);
+      topPad = Math.max(topPad, -box.minY);
+      rightPad = Math.max(rightPad, box.maxX - s.width);
+      bottomPad = Math.max(bottomPad, box.maxY - s.height);
+    });
+    return { leftPad, topPad, rightPad, bottomPad };
+  }, [activeElements, schemasList, pageCursor]);
+
   return (
     <div
       className={DESIGNER_CLASSNAME + 'canvas'}
@@ -458,7 +502,16 @@ const Canvas = (props: Props, ref: Ref<HTMLDivElement>) => {
                 <Moveable
                   ref={moveable}
                   target={activeElements}
-                  bounds={{ left: 0, top: 0, bottom: paperSize.height, right: paperSize.width }}
+                  bounds={{
+                    // pdfme#284: expand the moveable bounds so rotated schemas
+                    // can be dragged so their rotated bounding box reaches the
+                    // canvas edge. The on-canvas check still happens in
+                    // `onDrag` using the rotated bounding box.
+                    left: -dragBoundsExpansion.leftPad * ZOOM,
+                    top: -dragBoundsExpansion.topPad * ZOOM,
+                    bottom: paperSize.height + dragBoundsExpansion.bottomPad * ZOOM,
+                    right: paperSize.width + dragBoundsExpansion.rightPad * ZOOM,
+                  }}
                   horizontalGuidelines={getGuideLines(horizontalGuides.current, index)}
                   verticalGuidelines={getGuideLines(verticalGuides.current, index)}
                   keepRatio={isPressShiftKey}
