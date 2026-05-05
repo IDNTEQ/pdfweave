@@ -567,3 +567,162 @@ describe('getDynamicHeights (generic plugin.measure dispatch)', () => {
     expect(heights).toEqual([baseSchema.height]);
   });
 });
+
+describe('getDynamicTemplate staticSchema-aware reflow (pdfme#1434)', () => {
+  // Reproduces upstream pdfme/pdfme#1434: when reflowing content (e.g. a
+  // table) crosses pages, content from staticSchema gets painted under the
+  // dynamic content area because the available page height was computed
+  // from basePdf.padding alone, ignoring staticSchema's vertical extent.
+
+  test('footer-like staticSchema reduces the available content height', async () => {
+    // Page 100 mm tall, 5 mm padding all sides → naive contentHeight = 90.
+    // A footer staticSchema at y=80, height=15 (extends to y=95, inside the
+    // bottom padding band partially) should pull contentBottom up to y=80,
+    // giving an effective contentHeight of 75 (80 - 5).
+    const template: Template = {
+      schemas: [
+        [
+          {
+            name: 'reflowing',
+            type: 'reflowing',
+            content: '',
+            position: { x: 10, y: 5 },
+            width: 80,
+            height: 10,
+          },
+        ],
+      ],
+      basePdf: {
+        width: 100,
+        height: 100,
+        padding: [5, 5, 5, 5],
+        staticSchema: [
+          {
+            name: 'footer',
+            type: 'text',
+            content: 'page footer',
+            position: { x: 10, y: 80 },
+            width: 80,
+            height: 15,
+          },
+        ],
+      },
+    };
+
+    // Two equally sized rows of 50 mm each = 100 mm of content.
+    // Naive contentHeight (90) would fit one row + half the second on page 1.
+    // Effective contentHeight (75) only fits one 50 mm row per page.
+    const dynamicTemplate = await getDynamicTemplate({
+      template,
+      input: { reflowing: 'x' },
+      options: {},
+      _cache: new Map(),
+      getDynamicHeights: async () => [50, 50],
+    });
+
+    // Expectation: each 50 mm row lands on its own page (footer present).
+    expect(dynamicTemplate.schemas.length).toBe(2);
+
+    // The reflowed schema must never extend below the footer's top edge (80).
+    for (const page of dynamicTemplate.schemas) {
+      for (const schema of page) {
+        const bottom = schema.position.y + schema.height;
+        expect(bottom).toBeLessThanOrEqual(80 + 0.01);
+      }
+    }
+  });
+
+  test('header-like staticSchema pushes reflow start downward', async () => {
+    // A header staticSchema at y=2, height=20 (extends past padding[0]=5
+    // into the content area) should move contentTop from 5 to 22.
+    const template: Template = {
+      schemas: [
+        [
+          {
+            name: 'reflowing',
+            type: 'reflowing',
+            content: '',
+            position: { x: 10, y: 5 },
+            width: 80,
+            height: 10,
+          },
+        ],
+      ],
+      basePdf: {
+        width: 100,
+        height: 100,
+        padding: [5, 5, 5, 5],
+        staticSchema: [
+          {
+            name: 'header',
+            type: 'text',
+            content: 'page header',
+            position: { x: 10, y: 2 },
+            width: 80,
+            height: 20,
+          },
+        ],
+      },
+    };
+
+    const dynamicTemplate = await getDynamicTemplate({
+      template,
+      input: { reflowing: 'x' },
+      options: {},
+      _cache: new Map(),
+      getDynamicHeights: async () => [10],
+    });
+
+    // The reflowed schema should sit at-or-below the header's bottom edge (22).
+    expect(dynamicTemplate.schemas[0][0].position.y).toBeGreaterThanOrEqual(22 - 0.01);
+  });
+
+  test('side-margin staticSchema (no horizontal overlap) does not change reflow', async () => {
+    // A staticSchema entirely inside the right padding band — does not
+    // collide with reflowing content and should not change page bounds.
+    const template: Template = {
+      schemas: [
+        [
+          {
+            name: 'reflowing',
+            type: 'reflowing',
+            content: '',
+            position: { x: 10, y: 5 },
+            width: 80,
+            height: 10,
+          },
+        ],
+      ],
+      basePdf: {
+        width: 100,
+        height: 100,
+        padding: [5, 5, 5, 10],
+        staticSchema: [
+          {
+            name: 'sideDecoration',
+            type: 'text',
+            content: '|',
+            position: { x: 96, y: 30 },
+            width: 3,
+            height: 40,
+          },
+        ],
+      },
+    };
+
+    // Two 50 mm rows. With NO staticSchema impact, naive contentHeight=90
+    // fits row 1 (50) on page 1 and row 2 (50) on page 2 — i.e. 2 pages
+    // because together they exceed 90.
+    const dynamicTemplate = await getDynamicTemplate({
+      template,
+      input: { reflowing: 'x' },
+      options: {},
+      _cache: new Map(),
+      getDynamicHeights: async () => [50, 50],
+    });
+
+    expect(dynamicTemplate.schemas.length).toBe(2);
+    // Reflowed first row stays at the original padding-derived top (5).
+    expect(dynamicTemplate.schemas[0][0].position.y).toBe(5);
+  });
+});

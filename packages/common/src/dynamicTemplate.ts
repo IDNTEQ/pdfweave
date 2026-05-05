@@ -192,9 +192,86 @@ export async function getDynamicHeights(
   return getDynamicHeightsFromLayoutResult(args.schema, result);
 }
 
+/**
+ * Compute the effective per-page content bounds, taking into account both
+ * basePdf.padding AND any staticSchema entries that occupy vertical space
+ * inside the content area.
+ *
+ * staticSchema is rendered on every page (think headers / footers / page-frame
+ * decorations). The reflow engine must treat the regions they occupy as
+ * unavailable for dynamic content — otherwise tables (and other reflowing
+ * schemas) paint over them on the second+ pages.
+ *
+ * Header-vs-footer classification: an entry whose vertical centre sits in the
+ * top half of the page is treated as a header (extends `contentTop` downward).
+ * Otherwise it is treated as a footer (pulls `contentBottom` upward).
+ *
+ * Entries whose horizontal extent lies entirely inside the left/right padding
+ * (i.e. side-margin decorations) do not subtract vertical space — they don't
+ * collide with the dynamic content column.
+ *
+ * Original upstream issue: https://github.com/pdfme/pdfme/issues/1434
+ */
+const getEffectiveContentBounds = (
+  basePdf: BlankPdf | StationeryPdf,
+): { contentTop: number; contentBottom: number; contentHeight: number } => {
+  const [paddingTop, paddingRight, paddingBottom, paddingLeft] = basePdf.padding;
+  let contentTop = paddingTop;
+  let contentBottom = basePdf.height - paddingBottom;
+
+  const contentXStart = paddingLeft;
+  const contentXEnd = basePdf.width - paddingRight;
+  const verticalMidpoint = basePdf.height / 2;
+
+  const staticSchema = basePdf.staticSchema ?? [];
+  for (const entry of staticSchema) {
+    const top = entry.position.y;
+    const bottom = entry.position.y + entry.height;
+    const left = entry.position.x;
+    const right = entry.position.x + entry.width;
+
+    // Skip entries that are entirely outside the content column (side
+    // margins) — they cannot collide with reflowing content.
+    const overlapsContentColumn = right > contentXStart + EPSILON && left < contentXEnd - EPSILON;
+    if (!overlapsContentColumn) continue;
+
+    // Skip entries that already sit inside the existing padding bands.
+    const insideTopPadding = bottom <= paddingTop + EPSILON;
+    const insideBottomPadding = top >= basePdf.height - paddingBottom - EPSILON;
+    if (insideTopPadding || insideBottomPadding) continue;
+
+    // Header-like (centre in top half) → push contentTop down.
+    // Footer-like (centre in bottom half) → pull contentBottom up.
+    const centre = (top + bottom) / 2;
+    if (centre < verticalMidpoint) {
+      if (bottom > contentTop) contentTop = bottom;
+    } else {
+      if (top < contentBottom) contentBottom = top;
+    }
+  }
+
+  // Guard against a degenerate / negative content area when staticSchema
+  // entries collide head-on. Falling back to padding-only bounds preserves
+  // the legacy behaviour rather than producing a 0-height (or negative)
+  // content area that would loop forever in placeRowsOnPages.
+  if (contentBottom - contentTop <= EPSILON) {
+    return {
+      contentTop: paddingTop,
+      contentBottom: basePdf.height - paddingBottom,
+      contentHeight: basePdf.height - paddingTop - paddingBottom,
+    };
+  }
+
+  return {
+    contentTop,
+    contentBottom,
+    contentHeight: contentBottom - contentTop,
+  };
+};
+
 /** Calculate the content height of a page (drawable area excluding padding) */
 const getContentHeight = (basePdf: BlankPdf | StationeryPdf): number =>
-  basePdf.height - basePdf.padding[0] - basePdf.padding[2];
+  getEffectiveContentBounds(basePdf).contentHeight;
 
 /** Get the input value for a schema */
 const getSchemaValue = (schema: Schema, input: Record<string, string>, pageSchemas: Schema[]): string =>
@@ -421,8 +498,7 @@ export const getDynamicTemplate = async (
     return workingTemplate;
   }
 
-  const contentHeight = getContentHeight(basePdf);
-  const paddingTop = basePdf.padding[0];
+  const { contentHeight, contentTop: paddingTop } = getEffectiveContentBounds(basePdf);
   const resultPages: Schema[][] = [];
   const PARALLEL_LIMIT = 10;
 
