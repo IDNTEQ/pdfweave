@@ -17,13 +17,14 @@ describe('examples command', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
+    delete process.env.PDFWEAVE_EXAMPLES_BASE_URL;
     delete process.env.PDFME_EXAMPLES_BASE_URL;
     rmSync(TMP, { recursive: true, force: true });
   });
 
   it('fetches manifest.json for --list output', async () => {
     const fetchMock = vi.fn(async (input: string | URL | Request) => {
-      expect(String(input)).toBe('https://playground.pdfme.com/template-assets/manifest.json');
+      expect(String(input)).toBe('https://pdfweave.dev/playground/manifest.json');
       return new Response(
         JSON.stringify({
           schemaVersion: 1,

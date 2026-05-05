@@ -22,6 +22,7 @@ import {
 } from '../diagnostics.js';
 import {
   analyzeExplicitFontRecord,
+  ensureFontCacheMigrated,
   NOTO_CACHE_FILE,
   type ExplicitFontRemoteProvider,
   type ExplicitFontSourceDiagnosis,
@@ -202,7 +203,7 @@ interface InputDiagnosis {
 export default defineCommand({
   meta: {
     name: 'doctor',
-    description: 'Diagnose the local pdfme CLI environment and input readiness',
+    description: 'Diagnose the local PDFweave CLI environment and input readiness',
   },
   args: doctorArgs,
   async run({ args, rawArgs }) {
@@ -344,7 +345,7 @@ function resolveDoctorInvocation(args: {
   if (args.target === 'fonts') {
     if (positionals.length > 2) {
       fail(
-        `Unexpected extra positional argument: ${JSON.stringify(positionals[2])}. Usage: pdfme doctor fonts <job-or-template>.`,
+        `Unexpected extra positional argument: ${JSON.stringify(positionals[2])}. Usage: pdfweave doctor fonts <job-or-template>.`,
         { code: 'EARG', exitCode: 1 },
       );
     }
@@ -354,7 +355,7 @@ function resolveDoctorInvocation(args: {
 
   if (positionals.length > 1) {
     fail(
-      `Unexpected extra positional argument: ${JSON.stringify(positionals[1])}. Usage: pdfme doctor [job-or-template].`,
+      `Unexpected extra positional argument: ${JSON.stringify(positionals[1])}. Usage: pdfweave doctor [job-or-template].`,
       { code: 'EARG', exitCode: 1 },
     );
   }
@@ -464,6 +465,7 @@ function createFontPayload(fontDiagnosis: FontDiagnosis): Record<string, unknown
 }
 
 function getEnvironmentReport(): EnvironmentReport {
+  ensureFontCacheMigrated();
   const fontCacheDir = dirname(NOTO_CACHE_FILE);
   const cwdStatus = getWritableStatus(process.cwd());
   const tempStatus = getWritableStatus(tmpdir());

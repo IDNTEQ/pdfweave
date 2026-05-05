@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
-import { writeFileSync, mkdirSync, rmSync, chmodSync } from 'node:fs';
+import { writeFileSync, mkdirSync, rmSync, chmodSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -51,6 +51,27 @@ describe('doctor command', () => {
     expect(parsed.environment.cwd.path).toBeTruthy();
     expect(Array.isArray(parsed.issues)).toBe(true);
     expect(Array.isArray(parsed.warnings)).toBe(true);
+  });
+
+  it('migrates a legacy pdfme font cache to the PDFweave cache', () => {
+    const homeDir = join(TMP, 'legacy-font-cache-home');
+    const legacyFontsDir = join(homeDir, '.pdfme', 'fonts');
+    const migratedFontFile = join(homeDir, '.pdfweave', 'fonts', 'NotoSansJP-Regular.ttf');
+    mkdirSync(legacyFontsDir, { recursive: true });
+    writeFileSync(join(legacyFontsDir, 'NotoSansJP-Regular.ttf'), 'cached-font');
+
+    const result = spawnSync('node', [CLI, 'doctor', '--json'], {
+      encoding: 'utf8',
+      timeout: 30000,
+      env: { ...process.env, HOME: homeDir },
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stderr).toContain('PDFweave: migrating font cache from ~/.pdfme/fonts');
+    expect(existsSync(migratedFontFile)).toBe(true);
+    const parsed = JSON.parse(result.stdout);
+    expect(parsed.environment.fontCache.cached).toBe(true);
+    expect(parsed.environment.fontCache.file).toBe(migratedFontFile);
   });
 
   it('supports verbose output without polluting JSON stdout', () => {

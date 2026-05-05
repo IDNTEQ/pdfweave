@@ -46,7 +46,7 @@ function generateSampleInputs(template: Record<string, unknown>): Record<string,
 export default defineCommand({
   meta: {
     name: 'examples',
-    description: 'List and output example pdfme templates',
+    description: 'List and output example PDFweave templates',
   },
   args: examplesArgs,
   async run({ args, rawArgs }) {

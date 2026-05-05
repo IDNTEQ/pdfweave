@@ -192,7 +192,7 @@ function bufferToArrayBuffer(buffer: Buffer): ArrayBuffer {
 
 /**
  * Draw grid lines and schema boundary overlays on a generated PDF page image.
- * Used by `pdfme generate --grid`.
+ * Used by `pdfweave generate --grid`.
  */
 export async function drawGridOnImage(
   imageBuffer: ArrayBuffer,
@@ -214,7 +214,7 @@ export async function drawGridOnImage(
 
 /**
  * Draw grid lines with mm coordinate labels on a plain PDF image.
- * Used by `pdfme pdf2img --grid`.
+ * Used by `pdfweave pdf2img --grid`.
  */
 export async function drawGridOnPdfImage(
   imageBuffer: ArrayBuffer,
