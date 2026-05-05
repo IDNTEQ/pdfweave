@@ -144,7 +144,18 @@ export const getFontKitFont = async (
   const currentFont = font[fntNm] || getFallbackFont(font) || getDefaultFont()[DEFAULT_FONT_NAME];
   let fontData = currentFont.data;
   if (typeof fontData === 'string') {
-    if (fontData.startsWith('http')) {
+    if (fontData.startsWith('blob:')) {
+      // blob: URLs are created locally by the page via URL.createObjectURL() and
+      // are same-origin by definition — bypass the public-host safety check
+      // used for remote http(s) URLs. See pdfme#1234.
+      const response = await fetch(fontData);
+      if (!response.ok) {
+        throw new Error(
+          `[@pdfweave/schemas] Failed to fetch blob font data from ${fontData}. HTTP ${response.status}`,
+        );
+      }
+      fontData = await response.arrayBuffer();
+    } else if (fontData.startsWith('http')) {
       fontData = await fetchRemoteFontData(fontData);
     } else {
       fontData = b64toUint8Array(fontData);

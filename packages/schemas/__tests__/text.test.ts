@@ -717,3 +717,46 @@ describe('filterEndJP', () => {
     expect(filterEndJP(input)).toEqual(expected);
   });
 });
+
+// pdfme#1234 — getFontKitFont must accept blob: URLs
+describe('getFontKitFont with blob: URL font data (pdfme#1234)', () => {
+  test('does not throw for a blob: URL — fetches via the browser blob store', async () => {
+    // Simulate a font registered with a blob URL (e.g. created via
+    // URL.createObjectURL on a user-uploaded font file). We stub global fetch
+    // so the test does not need a live blob registration; we just assert the
+    // code path takes the blob branch instead of the rejected remote-fetch
+    // branch (isUrlSafeToFetch rejects the blob: protocol).
+    const blobUrl = 'blob:http://localhost/fake-font-uuid';
+
+    const originalFetch = (globalThis as { fetch?: typeof fetch }).fetch;
+    const fontBuffer = sansData.buffer.slice(
+      sansData.byteOffset,
+      sansData.byteOffset + sansData.byteLength,
+    );
+    (globalThis as { fetch: typeof fetch }).fetch = (async (input: unknown) => {
+      if (typeof input === 'string' && input === blobUrl) {
+        return {
+          ok: true,
+          status: 200,
+          arrayBuffer: async () => fontBuffer,
+        };
+      }
+      throw new Error(`unexpected fetch in test: ${String(input)}`);
+    }) as unknown as typeof fetch;
+
+    try {
+      const blobFont: Font = {
+        SauceHanSansJP: { fallback: true, data: blobUrl },
+      };
+      const result = await getFontKitFont('SauceHanSansJP', blobFont, new Map());
+      expect(result).toBeDefined();
+      expect(result.unitsPerEm).toBeGreaterThan(0);
+    } finally {
+      if (originalFetch) {
+        (globalThis as { fetch: typeof fetch }).fetch = originalFetch;
+      } else {
+        delete (globalThis as { fetch?: typeof fetch }).fetch;
+      }
+    }
+  });
+});
