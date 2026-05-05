@@ -1,8 +1,69 @@
 import { b64toUint8Array } from '@pdfweave/common';
-import bwipjs, { RenderOptions } from 'bwip-js';
+// Type-only import keeps RenderOptions available without pulling the
+// runtime entry. The `bwip-js` package's package.json `exports` field
+// branches on `browser` / `node` / `react-native` conditions; some
+// bundlers (e.g. webpack inside Directus per pdfme/pdfme#418) resolve
+// to a build that depends on globals their target environment doesn't
+// provide, and Web Workers (pdfme/pdfme#702) trip over the browser
+// build's `window` / `document` references. Loading bwip-js dynamically
+// at call time lets us pick a subpath whose `exports` entry has no
+// env conditional: `bwip-js/node` for Node, `bwip-js/browser` inside a
+// real document, and the environment-agnostic `bwip-js/generic`
+// (PostScript-pure SVG only) when running inside a Worker / edge
+// runtime where neither `document` nor Node is available.
+import type { RenderOptions } from 'bwip-js';
 import { Buffer } from 'buffer';
 import { BARCODE_TYPES, DEFAULT_BARCODE_INCLUDETEXT } from './constants.js';
 import type { BarcodeSchema, BarcodeTypes } from './types.js';
+
+type BwipModule = {
+  toCanvas?: (
+    canvas: HTMLCanvasElement | OffscreenCanvas,
+    options: RenderOptions,
+  ) => HTMLCanvasElement | OffscreenCanvas;
+  toBuffer?: (options: RenderOptions) => Promise<Buffer>;
+  toSVG?: (options: RenderOptions) => string;
+};
+
+const isBrowserMain = () =>
+  typeof window !== 'undefined' && typeof document !== 'undefined';
+
+const isWebWorker = () =>
+  typeof window === 'undefined' &&
+  typeof document === 'undefined' &&
+  typeof self !== 'undefined' &&
+  typeof (globalThis as { OffscreenCanvas?: unknown }).OffscreenCanvas !== 'undefined';
+
+const isNodeRuntime = () =>
+  typeof process !== 'undefined' &&
+  typeof (process as { versions?: { node?: string } }).versions?.node === 'string';
+
+let bwipjsPromise: Promise<BwipModule> | undefined;
+const loadBwipjs = async (): Promise<BwipModule> => {
+  if (bwipjsPromise) return bwipjsPromise;
+  bwipjsPromise = (async () => {
+    if (isBrowserMain()) {
+      const mod = (await import('bwip-js/browser')) as unknown as
+        | BwipModule
+        | { default: BwipModule };
+      return ('default' in mod ? mod.default : mod) as BwipModule;
+    }
+    if (isNodeRuntime()) {
+      const mod = (await import('bwip-js/node')) as unknown as
+        | BwipModule
+        | { default: BwipModule };
+      return ('default' in mod ? mod.default : mod) as BwipModule;
+    }
+    // Web Worker, edge runtime, deno, etc. — generic build is the only
+    // one whose package.json export has no `browser` / `node` conditional
+    // and whose code never references `window` / `document` / `navigator`.
+    const mod = (await import('bwip-js/generic')) as unknown as
+      | BwipModule
+      | { default: BwipModule };
+    return ('default' in mod ? mod.default : mod) as BwipModule;
+  })();
+  return bwipjsPromise;
+};
 
 // GTIN-13, GTIN-8, GTIN-12, GTIN-14
 const validateCheckDigit = (input: string, checkDigitPos: number) => {
@@ -253,36 +314,55 @@ const buildBwipOptions = (arg: BuildOptsArg): RenderOptions => {
 
 export const createBarCode = async (arg: BuildOptsArg): Promise<Buffer> => {
   const bwipjsArg = buildBwipOptions(arg);
+  const mod = await loadBwipjs();
 
-  let res: Buffer;
-
-  if (typeof window !== 'undefined') {
+  // Browser main thread: render onto a fresh <canvas>, export PNG via toDataURL.
+  if (isBrowserMain() && typeof mod.toCanvas === 'function') {
     const canvas = document.createElement('canvas');
-    // Use a type assertion to safely call toCanvas
-    const bwipjsModule = bwipjs as unknown as {
-      toCanvas(canvas: HTMLCanvasElement, options: RenderOptions): void;
-    };
-    bwipjsModule.toCanvas(canvas, bwipjsArg);
+    mod.toCanvas(canvas, bwipjsArg);
     const dataUrl = canvas.toDataURL('image/png');
-    res = Buffer.from(b64toUint8Array(dataUrl).buffer);
-  } else {
-    // Use a type assertion to safely call toBuffer
-    const bwipjsModule = bwipjs as unknown as {
-      toBuffer(options: RenderOptions): Promise<Buffer>;
-    };
-    res = await bwipjsModule.toBuffer(bwipjsArg);
+    return Buffer.from(b64toUint8Array(dataUrl).buffer);
   }
 
-  return res;
+  // Node runtime: toBuffer is the canonical PNG path.
+  if (typeof mod.toBuffer === 'function') {
+    return mod.toBuffer(bwipjsArg);
+  }
+
+  // Web Worker / edge runtime: no `document`, no Node Buffer pipeline. Use
+  // OffscreenCanvas + toCanvas if available — bwip-js's browser build accepts
+  // an OffscreenCanvas instance directly without ever touching `document`.
+  if (
+    isWebWorker() &&
+    typeof mod.toCanvas === 'function' &&
+    typeof (globalThis as { OffscreenCanvas?: typeof OffscreenCanvas }).OffscreenCanvas !==
+      'undefined'
+  ) {
+    const Offscreen = (globalThis as { OffscreenCanvas: typeof OffscreenCanvas }).OffscreenCanvas;
+    const canvas = new Offscreen(1, 1);
+    mod.toCanvas(canvas, bwipjsArg);
+    const blob = await canvas.convertToBlob({ type: 'image/png' });
+    const ab = await blob.arrayBuffer();
+    return Buffer.from(ab);
+  }
+
+  // Last-resort: surface an actionable error if we can't deliver a PNG buffer
+  // in this environment (e.g., generic-only build). Callers should set
+  // `format: "svg"` on the schema so the renderer takes the page.drawSvg
+  // path via createBarCodeSvg, which works wherever JS runs.
+  throw new Error(
+    '[@pdfweave/schemas] bwip-js PNG output is unavailable in this environment. ' +
+      'Render the barcode schema with `format: "svg"` (uses createBarCodeSvg) ' +
+      'or run inside a context that exposes Node Buffer, browser <canvas>, ' +
+      'or OffscreenCanvas.',
+  );
 };
 
 export const createBarCodeSvg = async (arg: BuildOptsArg): Promise<string> => {
   const opts = buildBwipOptions(arg);
-  const bwipjsModule = bwipjs as unknown as {
-    toSVG?: (options: RenderOptions) => Promise<string> | string;
-  };
-  if (typeof bwipjsModule.toSVG === 'function') {
-    const svg = await bwipjsModule.toSVG(opts);
+  const mod = await loadBwipjs();
+  if (typeof mod.toSVG === 'function') {
+    const svg = mod.toSVG(opts);
     return typeof svg === 'string' ? svg : String(svg);
   }
   // Fallback when toSVG is unavailable (e.g., certain browser builds)
