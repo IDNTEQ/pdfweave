@@ -11,6 +11,8 @@ import {
   getSplittedLines,
   filterStartJP,
   filterEndJP,
+  filterStartRoman,
+  filterEndRoman,
   widthOfTextAtSize,
 } from '../src/text/helper.js';
 import {
@@ -715,6 +717,64 @@ describe('filterEndJP', () => {
     const input = ['これは「', '文章「', 'です「'];
     const expected = ['これは', '「文章', '「です「'];
     expect(filterEndJP(input)).toEqual(expected);
+  });
+});
+
+// pdfme#1115 — Roman / English line-break rules
+describe('filterStartRoman', () => {
+  test('returns empty array for empty input', () => {
+    expect(filterStartRoman([])).toEqual([]);
+  });
+
+  test('does not modify lines that start with regular characters', () => {
+    const input = ['Hello', 'world', 'today'];
+    expect(filterStartRoman(input)).toEqual(input);
+  });
+
+  test('moves a line-leading closing quote back to the previous line', () => {
+    // A wrap point that places the closing quote at the start of the next line
+    // should be undone — the quote must stay attached to its preceding word.
+    // Whitespace between tokens is preserved; we only relocate the punctuation.
+    const input = ['Hello world', '"today'];
+    const expected = ['Hello world"', 'today'];
+    expect(filterStartRoman(input)).toEqual(expected);
+  });
+
+  test('moves a line-leading comma back to the previous line', () => {
+    const input = ['hello', ',world'];
+    const expected = ['hello,', 'world'];
+    expect(filterStartRoman(input)).toEqual(expected);
+  });
+
+  test('moves a line-leading closing parenthesis back to the previous line', () => {
+    const input = ['hello (world', ')today'];
+    const expected = ['hello (world)', 'today'];
+    expect(filterStartRoman(input)).toEqual(expected);
+  });
+});
+
+describe('filterEndRoman', () => {
+  test('returns empty array for empty input', () => {
+    expect(filterEndRoman([])).toEqual([]);
+  });
+
+  test('does not modify lines that end with regular characters', () => {
+    const input = ['Hello', 'world', 'today'];
+    expect(filterEndRoman(input)).toEqual(input);
+  });
+
+  test('moves a line-trailing opening quote forward to the next line', () => {
+    // The trailing space is preserved by the algorithm — the focus is just on
+    // moving the forbidden last character.
+    const input = ['Hello "', 'world today'];
+    const expected = ['Hello ', '"world today'];
+    expect(filterEndRoman(input)).toEqual(expected);
+  });
+
+  test('moves a line-trailing opening parenthesis forward to the next line', () => {
+    const input = ['hello (', 'world)'];
+    const expected = ['hello ', '(world)'];
+    expect(filterEndRoman(input)).toEqual(expected);
   });
 });
 

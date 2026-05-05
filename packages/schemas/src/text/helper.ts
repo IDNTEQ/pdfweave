@@ -24,6 +24,8 @@ import {
   VERTICAL_ALIGN_TOP,
   LINE_END_FORBIDDEN_CHARS,
   LINE_START_FORBIDDEN_CHARS,
+  LINE_END_FORBIDDEN_CHARS_ROMAN,
+  LINE_START_FORBIDDEN_CHARS_ROMAN,
 } from './constants.js';
 
 export const getBrowserVerticalFontAdjustments = (
@@ -468,7 +470,10 @@ const getSplittedLinesBySegmenter = (line: string, calcValues: FontWidthCalcValu
   if (lines.some(containsJapanese)) {
     return adjustEndOfLine(filterEndJP(filterStartJP(lines)));
   } else {
-    return adjustEndOfLine(lines);
+    // Roman / English line-break rules (pdfme#1115): keep punctuation like
+    // ',', '.', ')', '"' attached to the preceding word, and keep openers
+    // like '(' and '"' attached to the following word.
+    return adjustEndOfLine(filterEndRoman(filterStartRoman(lines)));
   }
 };
 
@@ -491,8 +496,9 @@ function containsJapanese(text: string): boolean {
 //
 // https://www.morisawa.co.jp/blogs/MVP/8760
 //
-// 行頭禁則
-export const filterStartJP = (lines: string[]): string[] => {
+// Generic line-start filter: shifts a forbidden first-of-line character back
+// onto the previous line so it stays attached to its predecessor.
+const filterStartForbiddenChars = (lines: string[], forbiddenChars: string[]): string[] => {
   const filtered: string[] = [];
   let charToAppend: string | null = null;
 
@@ -504,7 +510,7 @@ export const filterStartJP = (lines: string[]): string[] => {
         filtered.push('');
       } else {
         const charAtStart: string = line.charAt(0);
-        if (LINE_START_FORBIDDEN_CHARS.includes(charAtStart)) {
+        if (forbiddenChars.includes(charAtStart)) {
           if (line.trim().length === 1) {
             filtered.push(line);
             charToAppend = null;
@@ -538,8 +544,9 @@ export const filterStartJP = (lines: string[]): string[] => {
   }
 };
 
-// 行末禁則
-export const filterEndJP = (lines: string[]): string[] => {
+// Generic line-end filter: shifts a forbidden last-of-line character forward
+// onto the following line so it stays attached to its successor.
+const filterEndForbiddenChars = (lines: string[], forbiddenChars: string[]): string[] => {
   const filtered: string[] = [];
   let charToPrepend: string | null = null;
 
@@ -549,7 +556,7 @@ export const filterEndJP = (lines: string[]): string[] => {
     } else {
       const chartAtEnd = line.slice(-1);
 
-      if (LINE_END_FORBIDDEN_CHARS.includes(chartAtEnd)) {
+      if (forbiddenChars.includes(chartAtEnd)) {
         if (line.trim().length === 1) {
           filtered.push(line);
           charToPrepend = null;
@@ -582,3 +589,19 @@ export const filterEndJP = (lines: string[]): string[] => {
     return filtered;
   }
 };
+
+// 行頭禁則
+export const filterStartJP = (lines: string[]): string[] =>
+  filterStartForbiddenChars(lines, LINE_START_FORBIDDEN_CHARS);
+
+// 行末禁則
+export const filterEndJP = (lines: string[]): string[] =>
+  filterEndForbiddenChars(lines, LINE_END_FORBIDDEN_CHARS);
+
+// Roman / English line-start prohibition (pdfme#1115).
+export const filterStartRoman = (lines: string[]): string[] =>
+  filterStartForbiddenChars(lines, LINE_START_FORBIDDEN_CHARS_ROMAN);
+
+// Roman / English line-end prohibition (pdfme#1115).
+export const filterEndRoman = (lines: string[]): string[] =>
+  filterEndForbiddenChars(lines, LINE_END_FORBIDDEN_CHARS_ROMAN);
