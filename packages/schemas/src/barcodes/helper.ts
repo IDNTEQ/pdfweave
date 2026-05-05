@@ -37,28 +37,31 @@ const isNodeRuntime = () =>
   typeof process !== 'undefined' &&
   typeof (process as { versions?: { node?: string } }).versions?.node === 'string';
 
-let bwipjsPromise: Promise<BwipModule> | undefined;
-const loadBwipjs = async (): Promise<BwipModule> => {
-  if (bwipjsPromise) return bwipjsPromise;
-  bwipjsPromise = (async () => {
-    if (isBrowserMain()) {
-      const mod = (await import('bwip-js/browser')) as unknown as
+let bwipjsPromise: Promise<BwipModule> | null = null;
+export const getBwipJs = (): Promise<BwipModule> => {
+  if (!bwipjsPromise) {
+    bwipjsPromise = (async () => {
+      if (isBrowserMain()) {
+        const mod = (await import('bwip-js/browser')) as unknown as
+          | BwipModule
+          | { default: BwipModule };
+        return ('default' in mod ? mod.default : mod) as BwipModule;
+      }
+      if (isNodeRuntime()) {
+        const mod = (await import('bwip-js/node')) as unknown as
+          | BwipModule
+          | { default: BwipModule };
+        return ('default' in mod ? mod.default : mod) as BwipModule;
+      }
+      // Web Worker, edge runtime, deno, etc. — generic build is the only
+      // one whose package.json export has no `browser` / `node` conditional
+      // and whose code never references `window` / `document` / `navigator`.
+      const mod = (await import('bwip-js/generic')) as unknown as
         | BwipModule
         | { default: BwipModule };
       return ('default' in mod ? mod.default : mod) as BwipModule;
-    }
-    if (isNodeRuntime()) {
-      const mod = (await import('bwip-js/node')) as unknown as BwipModule | { default: BwipModule };
-      return ('default' in mod ? mod.default : mod) as BwipModule;
-    }
-    // Web Worker, edge runtime, deno, etc. — generic build is the only
-    // one whose package.json export has no `browser` / `node` conditional
-    // and whose code never references `window` / `document` / `navigator`.
-    const mod = (await import('bwip-js/generic')) as unknown as
-      | BwipModule
-      | { default: BwipModule };
-    return ('default' in mod ? mod.default : mod) as BwipModule;
-  })();
+    })();
+  }
   return bwipjsPromise;
 };
 
@@ -350,7 +353,7 @@ const buildBwipOptions = (arg: BuildOptsArg): RenderOptions => {
 
 export const createBarCode = async (arg: BuildOptsArg): Promise<Buffer> => {
   const bwipjsArg = buildBwipOptions(arg);
-  const mod = await loadBwipjs();
+  const mod = await getBwipJs();
 
   // Browser main thread: render onto a fresh <canvas>, export PNG via toDataURL.
   if (isBrowserMain() && typeof mod.toCanvas === 'function') {
@@ -396,7 +399,7 @@ export const createBarCode = async (arg: BuildOptsArg): Promise<Buffer> => {
 
 export const createBarCodeSvg = async (arg: BuildOptsArg): Promise<string> => {
   const opts = buildBwipOptions(arg);
-  const mod = await loadBwipjs();
+  const mod = await getBwipJs();
   if (typeof mod.toSVG === 'function') {
     const svg = mod.toSVG(opts);
     return typeof svg === 'string' ? svg : String(svg);
