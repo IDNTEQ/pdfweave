@@ -270,10 +270,11 @@ async function fitContent(
       if (!cell) continue;
 
       const fontKitFont = await getFontKitFontByFontName(cell.styles.fontName);
+      const textWidth = cell.width - cell.padding('left') - cell.padding('right');
       cell.text = splitTextToSize({
         value: cell.raw,
         characterSpacing: cell.styles.characterSpacing,
-        boxWidthInPt: mm2pt(cell.width),
+        boxWidthInPt: mm2pt(textWidth),
         fontSize: cell.styles.fontSize,
         fontKitFont,
       });

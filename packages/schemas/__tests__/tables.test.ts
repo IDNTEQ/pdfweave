@@ -125,3 +125,35 @@ describe('table styling × binding composition', () => {
     expect(table.body[0].cells[1].styles.backgroundColor).toBe('#ffff00');
   });
 });
+
+describe('table cell padding (pdfme/pdfme#1422)', () => {
+  it('subtracts horizontal padding from text-fit width so wrapped rows are tall enough', async () => {
+    // A narrow table (width 60mm, two equal columns => ~30mm/cell) with heavy left/right
+    // padding. With the bug, splitTextToSize is given the full cell width, so a long string
+    // measures as fitting on a single line and the row stays at one-line height. With the
+    // fix, the available text width drops to ~10mm and the string wraps to multiple lines,
+    // increasing the row height.
+    const schema = baseTableSchema();
+    schema.width = 60;
+    schema.headWidthPercentages = [50, 50];
+    schema.bodyStyles.padding = { top: 2, right: 10, bottom: 2, left: 10 };
+    schema.bodyStyles.fontSize = 12;
+    schema.bodyStyles.lineHeight = 1;
+
+    const longText = 'wrap-me-please-because-of-padding';
+
+    const table = await createSingleTable([[longText, longText]], {
+      schema,
+      basePdf: BLANK_A4_PDF,
+      options: {},
+      _cache: new Map(),
+    });
+
+    const cell = table.body[0].cells[0];
+    // With padding correctly applied, the long string must wrap to >1 line.
+    expect(cell.text.length).toBeGreaterThan(1);
+    // Row height must accommodate wrapped lines + vertical padding.
+    const minHeight = cell.text.length * (12 / 2.8346) + 4; // pt2mm(fontSize)*lineHeight*lines + vPad
+    expect(table.body[0].height).toBeGreaterThanOrEqual(minHeight - 0.5);
+  });
+});
