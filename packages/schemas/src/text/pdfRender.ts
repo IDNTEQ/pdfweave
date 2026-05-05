@@ -34,7 +34,7 @@ import { calculateDynamicRichTextFontSize, isInlineMarkdownTextSchema } from './
 import { renderInlineMarkdownText } from './richTextPdfRender.js';
 import { convertForPdfLayoutProps, rotatePoint, hex2PrintingColor } from '../utils.js';
 
-const embedAndGetFontObj = async (arg: {
+export const embedAndGetFontObj = async (arg: {
   pdfDoc: PDFDocument;
   font: Font;
   _cache: Map<PDFDocument, { [key: string]: PDFFont }>;

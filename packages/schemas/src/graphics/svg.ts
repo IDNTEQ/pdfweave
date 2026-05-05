@@ -1,4 +1,5 @@
 import { Plugin, Schema } from '@pdfweave/common';
+import type { PDFDocument, PDFFont } from '@pdfweave/pdf-lib';
 import {
   convertForPdfLayoutProps,
   isEditable,
@@ -7,6 +8,7 @@ import {
   createSvgStr,
 } from '../utils.js';
 import { sanitizeSVG } from '../sanitize.js';
+import { embedAndGetFontObj } from '../text/pdfRender.js';
 import { Route } from 'lucide';
 
 const isValidSVG = (svgString: string): boolean => {
@@ -97,12 +99,27 @@ const svgSchema: Plugin<SVGSchema> = {
     }
   },
   pdf: async (arg) => {
-    const { page, schema, value } = arg;
+    const { page, schema, value, pdfDoc, options, _cache } = arg;
     if (!value || !isValidSVG(value)) return;
     const pageHeight = page.getHeight();
     const { width, height, position } = convertForPdfLayoutProps({ schema, pageHeight });
     const { x, y } = position;
-    await page.drawSvg(value, { x, y: y + height, width, height });
+
+    // Forward embedded fonts to drawSvg so SVG <text> elements containing
+    // non-Latin characters (e.g. CJK) do not crash the underlying WinAnsi
+    // encoder. Mirrors the text plugin's font-resolution path.
+    // See: https://github.com/pdfme/pdfme/issues/1433
+    const font = options?.font;
+    let fonts: { [fontName: string]: PDFFont } | undefined;
+    if (font) {
+      fonts = await embedAndGetFontObj({
+        pdfDoc,
+        font,
+        _cache: _cache as unknown as Map<PDFDocument, { [key: string]: PDFFont }>,
+      });
+    }
+
+    await page.drawSvg(value, { x, y: y + height, width, height, fonts });
   },
   propPanel: {
     schema: {},
