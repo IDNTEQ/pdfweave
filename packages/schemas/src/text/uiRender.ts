@@ -307,6 +307,11 @@ export const buildStyledTextContainer = (
     textAlign: schema.alignment ?? DEFAULT_ALIGNMENT,
     whiteSpace: 'pre-wrap',
     wordBreak: 'break-word',
+    // CSS-equivalent text-transform — applied via CSS so contenteditable
+    // typing keeps the original casing in the schema's `value` while the
+    // user sees the transformed glyphs. pdfme/pdfme#707.
+    textTransform:
+      schema.textTransform && schema.textTransform !== 'none' ? schema.textTransform : 'none',
     // Block layout styles
     resize: 'none',
     border: 'none',

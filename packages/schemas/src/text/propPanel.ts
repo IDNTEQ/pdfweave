@@ -252,6 +252,26 @@ export const propPanel: PropPanel<TextSchema> = {
           },
         },
       },
+      // CSS-equivalent text transform applied at render time only; the
+      // schema's stored `content` is left untouched. pdfme/pdfme#707.
+      textTransform: {
+        title: i18n('schemas.text.textTransform') || 'Text transform',
+        type: 'string',
+        widget: 'select',
+        default: 'none',
+        props: {
+          options: [
+            { label: i18n('schemas.text.transformNone') || 'none', value: 'none' },
+            { label: i18n('schemas.text.transformUppercase') || 'UPPERCASE', value: 'uppercase' },
+            { label: i18n('schemas.text.transformLowercase') || 'lowercase', value: 'lowercase' },
+            {
+              label: i18n('schemas.text.transformCapitalize') || 'Capitalize',
+              value: 'capitalize',
+            },
+          ],
+        },
+        span: 12,
+      },
     };
 
     return textSchema;

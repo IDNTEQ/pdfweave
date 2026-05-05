@@ -28,6 +28,14 @@ export type FontWidthCalcValues = {
   characterSpacing: number;
   boxWidthInPt: number;
 };
+
+/**
+ * CSS-equivalent `text-transform` values applied at render time only — the
+ * schema's stored `content` is unchanged. See `applyTextTransform` for the
+ * exact per-mode semantics. pdfme/pdfme#707.
+ */
+export type TEXT_TRANSFORM = 'none' | 'uppercase' | 'lowercase' | 'capitalize';
+
 export type TextSchema = Schema & {
   fontName?: string;
   textFormat?: TEXT_FORMAT;
@@ -47,4 +55,6 @@ export type TextSchema = Schema & {
   };
   fontColor: string;
   backgroundColor: string;
+  /** See `TEXT_TRANSFORM` JSDoc. Default: `'none'`. pdfme/pdfme#707. */
+  textTransform?: TEXT_TRANSFORM;
 };

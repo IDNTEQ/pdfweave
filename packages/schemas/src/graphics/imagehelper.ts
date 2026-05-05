@@ -150,7 +150,8 @@ const imageSize = (imgBuffer: Buffer): { height: number; width: number } => {
   }
 
   throw new TypeError(
-    '[@pdfweave/schemas/images] Unsupported file type: ' + (type === undefined ? 'undefined' : type),
+    '[@pdfweave/schemas/images] Unsupported file type: ' +
+      (type === undefined ? 'undefined' : type),
   );
 };
 // ----------------------------

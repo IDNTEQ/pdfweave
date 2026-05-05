@@ -28,6 +28,7 @@ import {
   fetchRemoteFontData,
   widthOfTextAtSize,
   splitTextToSize,
+  applyTextTransform,
 } from './helper.js';
 import { stripInlineMarkdown } from './inlineMarkdown.js';
 import { calculateDynamicRichTextFontSize, isInlineMarkdownTextSchema } from './richText.js';
@@ -96,10 +97,17 @@ const getFontProp = ({
 };
 
 export const pdfRender = async (arg: PDFRenderProps<TextSchema>) => {
-  const { value, pdfDoc, pdfLib, page, options, schema, _cache } = arg;
-  if (!value) return;
+  const { value: rawValue, pdfDoc, pdfLib, page, options, schema, _cache } = arg;
+  if (!rawValue) return;
 
   const { font = getDefaultFont(), colorType } = options;
+
+  // textTransform is applied at render time only — the schema's stored value
+  // is left untouched so a Designer toggling between transforms always sees
+  // the user's original input. Inline markdown is transformed *after* parsing
+  // (the result of stripInlineMarkdown) so delimiters like `**bold**` aren't
+  // mangled into `**BOLD**`. pdfme/pdfme#707.
+  const value = applyTextTransform(rawValue, schema.textTransform);
 
   const [pdfFontObj, fontKitFont] = await Promise.all([
     embedAndGetFontObj({

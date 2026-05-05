@@ -605,3 +605,37 @@ export const filterStartRoman = (lines: string[]): string[] =>
 // Roman / English line-end prohibition (pdfme#1115).
 export const filterEndRoman = (lines: string[]): string[] =>
   filterEndForbiddenChars(lines, LINE_END_FORBIDDEN_CHARS_ROMAN);
+
+/**
+ * Apply CSS-equivalent `text-transform` semantics to a string at render time.
+ *
+ * The schema's stored `value` (or `content`) is left untouched — only the
+ * displayed glyphs change. This mirrors how CSS `text-transform` works in the
+ * browser and is critical for round-tripping: a user typing into a Designer
+ * with `textTransform: 'uppercase'` should still see their original casing
+ * when the schema is re-opened with `textTransform: 'none'`.
+ *
+ * `'capitalize'` follows CSS semantics: the first letter of each
+ * whitespace-separated word is uppercased; remaining letters are left as-is.
+ * That intentionally preserves "iPhone" → "IPhone" rather than "Iphone" — it
+ * matches what browsers do and avoids surprising users with locale-aware
+ * lower-casing of the tail of each word. See pdfme/pdfme#707.
+ */
+export const applyTextTransform = (
+  value: string,
+  transform: 'none' | 'uppercase' | 'lowercase' | 'capitalize' | undefined,
+): string => {
+  if (!transform || transform === 'none') return value;
+  if (transform === 'uppercase') return value.toUpperCase();
+  if (transform === 'lowercase') return value.toLowerCase();
+  // capitalize: only touch the first character of each whitespace-separated
+  // run. Splitting on /(\s+)/ with a capture group preserves the whitespace
+  // segments verbatim so newlines / tabs / multi-space runs round-trip.
+  return value
+    .split(/(\s+)/)
+    .map((segment) => {
+      if (segment.length === 0 || /^\s+$/.test(segment)) return segment;
+      return segment.charAt(0).toUpperCase() + segment.slice(1);
+    })
+    .join('');
+};

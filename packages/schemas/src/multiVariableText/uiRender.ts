@@ -175,10 +175,7 @@ const formUiRender = async (arg: UIRenderProps<MultiVariableTextSchema>) => {
 const getInlineMarkdownFormDisplayText = (
   runs: RichTextRun[],
   variables: Record<string, string>,
-): string =>
-  runs
-    .map((run) => substituteVariables(run.text, variables))
-    .join('');
+): string => runs.map((run) => substituteVariables(run.text, variables)).join('');
 
 const applyInlineMarkdownStyle = (arg: {
   element: HTMLElement;
