@@ -189,10 +189,50 @@ export const barCodeType2Bcid = (type: BarcodeTypes) =>
   type === 'nw7' ? 'rationalizedCodabar' : type === 'itf' ? 'interleaved2of5' : type;
 
 /**
- *  Strip hash from the beginning of HTML hex color codes for the bwip.js lib
+ *  Normalise color codes for the bwip-js lib.
+ *
+ *  bwip-js (FixupOptions in bwip-js-gen.mjs) accepts:
+ *    - 6-hex RGB:  `RRGGBB` or `#RRGGBB`
+ *    - 3-hex RGB:  `RGB` or `#RGB`
+ *    - 8-hex CMYK: `CCMMYYKK` (each pair is the 0-255 byte value of the
+ *      C/M/Y/K channel — bwip-js converts this to the equivalent RGB
+ *      internally before rasterising).
+ *
+ *  Authors more commonly express CMYK as `c100m0y0k0` (per-channel
+ *  percentages, the textual form used by bwipp's PostScript options). To
+ *  make that input shape work end-to-end (regression: pdfme/pdfme#460), we
+ *  parse the c/m/y/k tokens here and normalise to bwip-js's 8-hex CMYK
+ *  encoding so it falls into the existing CMYK -> RGB path inside
+ *  FixupOptions.
+ *
+ *  KNOWN LIMITATION (pdfme/pdfme#460): the rasterised barcode is always
+ *  embedded as an sRGB PNG via embedPng. Even when the caller provides
+ *  CMYK colors, the final pdf object stores RGB pixels — preserving a true
+ *  CMYK colorspace would require either (a) emitting the bwip-js SVG path
+ *  with `device-cmyk(...)` fills (bwip-js currently emits hex RGB only)
+ *  and teaching pdf-lib's drawSvg to honour them, or (b) post-processing
+ *  the PNG to an indexed CMYK image before embedding. Both are out of
+ *  scope of the dynamic-import bundling fix; until then, callers that
+ *  need print-correct CMYK should use a pre-rendered SVG asset via the
+ *  svg schema instead of the barcode plugin.
  */
-export const mapHexColorForBwipJsLib = (color: string | undefined, fallback?: string) =>
-  color ? color.replace('#', '') : fallback ? fallback.replace('#', '') : '000000';
+const cmykPercentRegex = /^c(\d+(?:\.\d+)?)m(\d+(?:\.\d+)?)y(\d+(?:\.\d+)?)k(\d+(?:\.\d+)?)$/i;
+export const mapHexColorForBwipJsLib = (color: string | undefined, fallback?: string) => {
+  if (color) {
+    const match = cmykPercentRegex.exec(color.trim());
+    if (match) {
+      const clamp = (n: number) => Math.max(0, Math.min(255, Math.round((n / 100) * 255)));
+      const c = clamp(parseFloat(match[1]));
+      const m = clamp(parseFloat(match[2]));
+      const y = clamp(parseFloat(match[3]));
+      const k = clamp(parseFloat(match[4]));
+      const hex = (n: number) => n.toString(16).padStart(2, '0');
+      return `${hex(c)}${hex(m)}${hex(y)}${hex(k)}`;
+    }
+    return color.replace('#', '');
+  }
+  return fallback ? fallback.replace('#', '') : '000000';
+};
 
 type BuildOptsArg = {
   type: BarcodeTypes;

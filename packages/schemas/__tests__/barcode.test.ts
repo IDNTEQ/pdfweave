@@ -378,4 +378,29 @@ describe('mapHexColorForBwipJsLib text', () => {
   test('it defaults to black if neither color nor fallback passed', () => {
     expect(mapHexColorForBwipJsLib(undefined)).toEqual('000000');
   });
+  // Regression: pdfme/pdfme#460 — a CMYK option should be passed through to
+  // bwip-js (which then converts it to RGB internally). We accept the
+  // human-friendly per-channel-percentage form and normalise to bwip-js's
+  // 8-hex CMYK encoding.
+  test('it normalises CMYK percentage strings to bwip-js 8-hex CMYK', () => {
+    // c100m0y0k0 = pure cyan (100% C, 0% MYK)
+    // 100% maps to byte 255 = 'ff'; 0% to '00'.
+    expect(mapHexColorForBwipJsLib('c100m0y0k0')).toEqual('ff000000');
+    // c0m100y0k0 = pure magenta
+    expect(mapHexColorForBwipJsLib('c0m100y0k0')).toEqual('00ff0000');
+    // c0m0y100k0 = pure yellow
+    expect(mapHexColorForBwipJsLib('c0m0y100k0')).toEqual('0000ff00');
+    // c0m0y0k100 = pure black (registration)
+    expect(mapHexColorForBwipJsLib('c0m0y0k100')).toEqual('000000ff');
+    // Mixed with fractional channels round to nearest byte.
+    expect(mapHexColorForBwipJsLib('c50m25y10k0')).toEqual('80401a00');
+    // Case-insensitive prefixes.
+    expect(mapHexColorForBwipJsLib('C100M0Y0K0')).toEqual('ff000000');
+  });
+  test('non-CMYK strings still pass through unchanged (no false positives)', () => {
+    // 6-hex RGB should not be misinterpreted.
+    expect(mapHexColorForBwipJsLib('c0c0c0')).toEqual('c0c0c0');
+    // Random text should also pass through (bwip-js will reject if invalid).
+    expect(mapHexColorForBwipJsLib('not-a-color')).toEqual('not-a-color');
+  });
 });
