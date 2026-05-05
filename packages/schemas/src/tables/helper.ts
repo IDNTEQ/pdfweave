@@ -199,18 +199,63 @@ export const getColumnStylesPropPanelSchema = ({
   },
 });
 
-export const getBody = (value: string | string[][]): string[][] => {
-  if (typeof value === 'string') {
-    return JSON.parse(value || '[]') as string[][];
+/**
+ * Decode a table body from either:
+ *   - the canonical `string[][]` shape
+ *   - a JSON-encoded `string` (`'[["a","b"]]'`)
+ *   - the comma-flattened fallback shape that results from
+ *     `replacePlaceholders` substituting an array variable into a
+ *     readOnly table's `content` (regression: pdfme/pdfme#1299).
+ *
+ * The third case happens because `replacePlaceholders` evaluates the
+ * placeholder expression and concatenates the result via `String(value)`;
+ * for an array `[["a","b"]]` that yields `"a,b"`, which would then crash
+ * `JSON.parse`. When `columnCount` is provided (the schema's head length),
+ * we reshape the comma-split tokens back into N-column rows so the table
+ * still renders correctly. Without `columnCount`, we fall back to a single
+ * row containing the split tokens — better than throwing.
+ */
+export const getBody = (value: string | string[][], columnCount?: number): string[][] => {
+  if (Array.isArray(value)) return value || [];
+  if (typeof value !== 'string') return [];
+  const trimmed = value.trim();
+  if (!trimmed) return [];
+  try {
+    const parsed = JSON.parse(trimmed) as unknown;
+    if (Array.isArray(parsed)) {
+      // Tolerate either `[[...rows]]` or a single row `[...]`. The latter is
+      // what some upstream callers produce when the inputs themselves are an
+      // array (not a JSON string of an array).
+      if (parsed.every((row) => Array.isArray(row))) {
+        return parsed as string[][];
+      }
+      return [parsed.map((cell) => String(cell))];
+    }
+    // JSON parsed but isn't an array (e.g. `"foo"`). Drop into the
+    // comma-recovery path below.
+  } catch {
+    // not valid JSON — fall through to the comma-recovery path.
   }
-  return value || [];
+  // Recovery for the pdfme/pdfme#1299 path: comma-flattened from
+  // String(arrayOfArrays). If we know the target column count we can
+  // reshape into rows; otherwise emit one row.
+  const tokens = trimmed.split(',');
+  if (columnCount && columnCount > 0 && tokens.length % columnCount === 0) {
+    const rows: string[][] = [];
+    for (let i = 0; i < tokens.length; i += columnCount) {
+      rows.push(tokens.slice(i, i + columnCount));
+    }
+    return rows;
+  }
+  return [tokens];
 };
 
 export const getBodyWithRange = (
   value: string | string[][],
   range?: { start: number; end?: number | undefined },
+  columnCount?: number,
 ) => {
-  const body = getBody(value);
+  const body = getBody(value, columnCount);
   if (!range) return body;
   return body.slice(range.start, range.end);
 };

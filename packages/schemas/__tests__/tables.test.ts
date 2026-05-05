@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { BLANK_A4_PDF, getTableBindingPreview } from '@pdfweave/common';
 import { createSingleTable } from '../src/tables/tableHelper.js';
+import { getBody } from '../src/tables/helper.js';
 import type { TableSchema } from '../src/tables/types.js';
 
 const baseTableSchema = (): TableSchema => ({
@@ -155,5 +156,52 @@ describe('table cell padding (pdfme/pdfme#1422)', () => {
     // Row height must accommodate wrapped lines + vertical padding.
     const minHeight = cell.text.length * (12 / 2.8346) + 4; // pt2mm(fontSize)*lineHeight*lines + vPad
     expect(table.body[0].height).toBeGreaterThanOrEqual(minHeight - 0.5);
+  });
+});
+
+describe('table getBody recovery (pdfme/pdfme#1299)', () => {
+  it('parses canonical JSON-string bodies as before', () => {
+    expect(getBody('[["a","b"],["c","d"]]')).toEqual([
+      ['a', 'b'],
+      ['c', 'd'],
+    ]);
+  });
+  it('returns the array as-is when already a string[][]', () => {
+    expect(
+      getBody([
+        ['a', 'b'],
+        ['c', 'd'],
+      ]),
+    ).toEqual([
+      ['a', 'b'],
+      ['c', 'd'],
+    ]);
+  });
+  it('returns [] for empty/blank string', () => {
+    expect(getBody('')).toEqual([]);
+    expect(getBody('   ')).toEqual([]);
+  });
+  // The actual #1299 regression: replacePlaceholders evaluates {tableData}
+  // against an array variable and concatenates via String(arr). For
+  // [["a","b"],["c","d"]] that produces "a,b,c,d". Without the column-count
+  // hint we have no way to know the row width, so the recovery emits a
+  // single row. With the hint, we reshape into the expected rows.
+  it('reshapes a comma-flattened string when given a column count', () => {
+    expect(getBody('a,b,c,d', 2)).toEqual([
+      ['a', 'b'],
+      ['c', 'd'],
+    ]);
+    expect(getBody('a,b,c,d,e,f', 3)).toEqual([
+      ['a', 'b', 'c'],
+      ['d', 'e', 'f'],
+    ]);
+  });
+  it('emits a single-row recovery when no column count fits', () => {
+    expect(getBody('a,b,c')).toEqual([['a', 'b', 'c']]);
+    // Mismatched column count falls through to single-row recovery.
+    expect(getBody('a,b,c', 2)).toEqual([['a', 'b', 'c']]);
+  });
+  it('tolerates a single-row JSON array (string[]) by wrapping it', () => {
+    expect(getBody('["a","b"]')).toEqual([['a', 'b']]);
   });
 });

@@ -21,8 +21,16 @@ export const getDynamicHeightsForTable = async (
 ): Promise<number[]> => {
   if (args.schema.type !== 'table') return Promise.resolve([args.schema.height]);
   const schema = args.schema as TableSchema;
+  // Pass column count so a comma-flattened string (pdfme/pdfme#1299) can be
+  // reshaped into rows instead of crashing JSON.parse.
+  const columnCount =
+    (Array.isArray(schema.headWidthPercentages) && schema.headWidthPercentages.length) ||
+    (Array.isArray(schema.head) && schema.head.length) ||
+    undefined;
   const body =
-    schema.__bodyRange?.start === 0 ? getBody(value) : getBodyWithRange(value, schema.__bodyRange);
+    schema.__bodyRange?.start === 0
+      ? getBody(value, columnCount)
+      : getBodyWithRange(value, schema.__bodyRange, columnCount);
   const table = await createSingleTable(body, args);
 
   const baseHeights = schema.showHead
