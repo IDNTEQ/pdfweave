@@ -20,7 +20,9 @@ export const substituteVariables = (
           ? (JSON.parse(variablesIn || '{}') as Record<string, string>)
           : variablesIn;
     } catch {
-      throw new SyntaxError(`[@pdfweave/schemas] MVT: invalid JSON string '${variablesIn as string}'`);
+      throw new SyntaxError(
+        `[@pdfweave/schemas] MVT: invalid JSON string '${variablesIn as string}'`,
+      );
     }
 
     Object.keys(variables).forEach((variableName) => {

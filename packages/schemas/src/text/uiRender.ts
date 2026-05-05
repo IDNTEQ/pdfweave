@@ -234,9 +234,7 @@ const renderInlineMarkdownReadOnly = async (arg: {
       span.style.borderRadius = '2px';
       span.style.padding = '0 0.15em';
       if (!schema.fontVariants?.code || !font[schema.fontVariants.code]) {
-        span.style.fontFamily = run.fontName
-          ? `'${run.fontName}', monospace`
-          : 'monospace';
+        span.style.fontFamily = run.fontName ? `'${run.fontName}', monospace` : 'monospace';
       }
     }
     textBlock.appendChild(span);
@@ -276,11 +274,30 @@ export const buildStyledTextContainer = (
 
   const container = document.createElement('div');
 
+  // Optional inner padding (mm) — pdfme/pdfme#851. Defaults to [0,0,0,0] so
+  // schemas without `padding` keep the previous flush layout. Padding lives
+  // on the *container* so background, border, and the inner textBlock all
+  // honour the same inset (matches the PDF render path: text and background
+  // share the schema's outer bounds; only the text-render rect is shrunk).
+  const [padTop, padRight, padBottom, padLeft] = schema.padding ?? [0, 0, 0, 0];
+
+  // Optional decorative border (mm / hex). When `border.width` is unset/0
+  // the container has no border — pre-existing schemas render unchanged.
+  const borderWidthMm = schema.border?.width ?? 0;
+  const borderColor = schema.border?.color ?? '#000000';
+  const borderRadiusMm = schema.border?.radius ?? 0;
+  const hasBorder = borderWidthMm > 0;
+
   const containerStyle: CSS.Properties = {
-    padding: 0,
+    paddingTop: `${padTop}mm`,
+    paddingRight: `${padRight}mm`,
+    paddingBottom: `${padBottom}mm`,
+    paddingLeft: `${padLeft}mm`,
+    boxSizing: 'border-box',
     resize: 'none',
     backgroundColor: getBackgroundColor(value, schema),
-    border: 'none',
+    border: hasBorder ? `${borderWidthMm}mm solid ${borderColor}` : 'none',
+    borderRadius: borderRadiusMm > 0 ? `${borderRadiusMm}mm` : '0',
     display: 'flex',
     flexDirection: 'column',
     justifyContent: mapVerticalAlignToFlex(schema.verticalAlignment),
@@ -307,6 +324,11 @@ export const buildStyledTextContainer = (
     textAlign: schema.alignment ?? DEFAULT_ALIGNMENT,
     whiteSpace: 'pre-wrap',
     wordBreak: 'break-word',
+    // CSS-equivalent text-transform — applied via CSS so contenteditable
+    // typing keeps the original casing in the schema's `value` while the
+    // user sees the transformed glyphs. pdfme/pdfme#707.
+    textTransform:
+      schema.textTransform && schema.textTransform !== 'none' ? schema.textTransform : 'none',
     // Block layout styles
     resize: 'none',
     border: 'none',

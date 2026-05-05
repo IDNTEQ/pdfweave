@@ -28,6 +28,7 @@ import {
   fetchRemoteFontData,
   widthOfTextAtSize,
   splitTextToSize,
+  applyTextTransform,
 } from './helper.js';
 import { stripInlineMarkdown } from './inlineMarkdown.js';
 import { calculateDynamicRichTextFontSize, isInlineMarkdownTextSchema } from './richText.js';
@@ -96,10 +97,17 @@ const getFontProp = ({
 };
 
 export const pdfRender = async (arg: PDFRenderProps<TextSchema>) => {
-  const { value, pdfDoc, pdfLib, page, options, schema, _cache } = arg;
-  if (!value) return;
+  const { value: rawValue, pdfDoc, pdfLib, page, options, schema, _cache } = arg;
+  if (!rawValue) return;
 
   const { font = getDefaultFont(), colorType } = options;
+
+  // textTransform is applied at render time only — the schema's stored value
+  // is left untouched so a Designer toggling between transforms always sees
+  // the user's original input. Inline markdown is transformed *after* parsing
+  // to avoid mangling delimiters like `**bold**` → `**BOLD**` (still parses).
+  // pdfme/pdfme#707.
+  const value = applyTextTransform(rawValue, schema.textTransform);
 
   const [pdfFontObj, fontKitFont] = await Promise.all([
     embedAndGetFontObj({
@@ -132,25 +140,91 @@ export const pdfRender = async (arg: PDFRenderProps<TextSchema>) => {
 
   const pageHeight = page.getHeight();
   const {
-    width,
-    height,
+    width: outerWidth,
+    height: outerHeight,
     rotate,
-    position: { x, y },
+    position: { x: outerX, y: outerY },
     opacity,
   } = convertForPdfLayoutProps({ schema, pageHeight, applyRotateTranslate: false });
 
-  const pivotPoint = { x: x + width / 2, y: pageHeight - mm2pt(schema.position.y) - height / 2 };
+  // Pivot stays at the schema's outer center so any rotation is around the
+  // schema box center — same as the UI does — independent of inner padding.
+  const pivotPoint = {
+    x: outerX + outerWidth / 2,
+    y: pageHeight - mm2pt(schema.position.y) - outerHeight / 2,
+  };
 
   if (schema.backgroundColor) {
     const color = hex2PrintingColor(schema.backgroundColor, colorType);
     if (rotate.angle !== 0) {
       // Apply the same rotation logic as text rendering to match UI behavior
-      const rotatedPoint = rotatePoint({ x, y }, pivotPoint, rotate.angle);
-      page.drawRectangle({ x: rotatedPoint.x, y: rotatedPoint.y, width, height, rotate, color });
+      const rotatedPoint = rotatePoint({ x: outerX, y: outerY }, pivotPoint, rotate.angle);
+      page.drawRectangle({
+        x: rotatedPoint.x,
+        y: rotatedPoint.y,
+        width: outerWidth,
+        height: outerHeight,
+        rotate,
+        color,
+      });
     } else {
-      page.drawRectangle({ x, y, width, height, rotate, color });
+      page.drawRectangle({
+        x: outerX,
+        y: outerY,
+        width: outerWidth,
+        height: outerHeight,
+        rotate,
+        color,
+      });
     }
   }
+
+  // Optional border drawn just inside the schema box (matches CSS
+  // `box-sizing: border-box` — same convention as the rectangle shape).
+  // pdfme/pdfme#851.
+  if (schema.border?.width && schema.border.width > 0) {
+    const borderColorHex = schema.border.color ?? '#000000';
+    const borderWidthPt = mm2pt(schema.border.width);
+    const half = borderWidthPt / 2;
+    const angle = rotate.angle * (Math.PI / 180);
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+    // Same inset-rotation trick as packages/schemas/src/shapes/rectAndEllipse.ts
+    // — pdf-lib rotates around (x, y), so the (half, half) offset has to be
+    // rotated around the schema's outer corner to keep the inner border
+    // concentric with the schema box at any angle.
+    const dx = half * cos - half * sin;
+    const dy = half * sin + half * cos;
+    page.drawRectangle({
+      x: outerX + dx,
+      y: outerY + dy,
+      width: outerWidth - borderWidthPt,
+      height: outerHeight - borderWidthPt,
+      ...(schema.border.radius ? { radius: mm2pt(schema.border.radius) } : {}),
+      rotate,
+      borderWidth: borderWidthPt,
+      borderColor: hex2PrintingColor(borderColorHex, colorType),
+      borderOpacity: opacity,
+      opacity,
+    });
+  }
+
+  // Padding shrinks the text-render rect; the schema's outer bounds are
+  // unchanged. Defaults to [0,0,0,0] so any schema without `padding` keeps
+  // the previous render geometry exactly.
+  const [padTopMm, padRightMm, padBottomMm, padLeftMm] = schema.padding ?? [0, 0, 0, 0];
+  const padTop = mm2pt(padTopMm);
+  const padRight = mm2pt(padRightMm);
+  const padBottom = mm2pt(padBottomMm);
+  const padLeft = mm2pt(padLeftMm);
+  const x = outerX + padLeft;
+  // No `y` for the inner box: the text-render path computes line y positions
+  // from `pageHeight - mm2pt(schema.position.y) - padTop` directly, so it
+  // doesn't need the inner box's bottom-left in PDF coords. Padding-bottom
+  // (padBottom) is implicitly honoured because `height` (below) is reduced,
+  // shrinking the area used for vertical-alignment math.
+  const width = outerWidth - padLeft - padRight;
+  const height = outerHeight - padTop - padBottom;
 
   if (enableInlineMarkdown) {
     await renderInlineMarkdownText({
@@ -176,6 +250,7 @@ export const pdfRender = async (arg: PDFRenderProps<TextSchema>) => {
       pivotPoint,
       rotate,
       opacity,
+      padTop,
     });
     return;
   }
@@ -228,7 +303,11 @@ export const pdfRender = async (arg: PDFRenderProps<TextSchema>) => {
       xLine += width - textWidth;
     }
 
-    let yLine = pageHeight - mm2pt(schema.position.y) - yOffset - rowYOffset;
+    // `pageHeight - mm2pt(schema.position.y)` is the top of the schema's
+    // outer box in PDF coords (y grows up); subtracting `padTop` moves the
+    // top of the text area down by the padding. Schemas with no padding pass
+    // padTop=0 so the math is identical to the pre-padding render path.
+    let yLine = pageHeight - mm2pt(schema.position.y) - padTop - yOffset - rowYOffset;
 
     // draw strikethrough
     if (schema.strikethrough && textWidth > 0) {

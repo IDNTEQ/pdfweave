@@ -188,6 +188,12 @@ export const renderInlineMarkdownText = async (arg: {
   pivotPoint: { x: number; y: number };
   rotate: Rotation;
   opacity: number | undefined;
+  /**
+   * Top padding in PDF points. Pre-computed by the caller from
+   * `schema.padding[0]` so this module doesn't have to re-derive it. Defaults
+   * to 0 when omitted, preserving the no-padding render path. pdfme/pdfme#851.
+   */
+  padTop?: number;
 }) => {
   const {
     value,
@@ -212,6 +218,7 @@ export const renderInlineMarkdownText = async (arg: {
     pivotPoint,
     rotate,
     opacity,
+    padTop = 0,
   } = arg;
   const richTextRuns = parseInlineMarkdown(value);
   const resolvedRuns = await resolveRichTextRuns({ runs: richTextRuns, schema, font, _cache });
@@ -263,7 +270,7 @@ export const renderInlineMarkdownText = async (arg: {
     }
 
     const yLine =
-      pageHeight - mm2pt(schema.position.y) - yOffset - lineHeight * fontSize * rowIndex;
+      pageHeight - mm2pt(schema.position.y) - padTop - yOffset - lineHeight * fontSize * rowIndex;
     page.pushOperators(pdfLib.setCharacterSpacing(spacing));
 
     if (schema.strikethrough || schema.underline) {

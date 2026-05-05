@@ -94,10 +94,22 @@ const cellSchema: Plugin<CellSchema> = {
       renderLine(arg, schema, { x: position.x, y: position.y }, borderWidth.left, height),
     ]);
     // TEXT
+    // The cell schema's `padding` is a `Spacing` *object* (top/right/bottom/
+    // left), already applied above to inset the text rect. The text schema's
+    // own optional `padding` field added in pdfme/pdfme#851 is a 4-tuple — a
+    // structurally incompatible shape. Strip both so the cell's text doesn't
+    // accidentally inherit a tuple/spread from the cell schema. `border`
+    // (text decorative border, pdfme/pdfme#851) is also stripped because the
+    // cell renders its own per-side borders explicitly above.
+    const {
+      padding: _cellPadding,
+      border: _cellBorder,
+      ...textSchemaBase
+    } = schema as CellSchema & { border?: unknown };
     await textPdfRender({
       ...arg,
       schema: {
-        ...schema,
+        ...textSchemaBase,
         type: 'text',
         backgroundColor: '',
         position: {
@@ -106,7 +118,7 @@ const cellSchema: Plugin<CellSchema> = {
         },
         width: width - borderWidth.left - borderWidth.right - padding.left - padding.right,
         height: height - borderWidth.top - borderWidth.bottom - padding.top - padding.bottom,
-      },
+      } as unknown as Parameters<typeof textPdfRender>[0]['schema'],
     });
   },
   ui: async (arg) => {
@@ -115,9 +127,17 @@ const cellSchema: Plugin<CellSchema> = {
     rootElement.style.backgroundColor = backgroundColor;
 
     const textDiv = createTextDiv(schema);
+    // Same shape-stripping as the pdf path above — see comment there.
+    const {
+      padding: _cellPaddingUi,
+      border: _cellBorderUi,
+      ...textSchemaBase
+    } = schema as CellSchema & { border?: unknown };
     await textUiRender({
       ...arg,
-      schema: { ...schema, backgroundColor: '' },
+      schema: { ...textSchemaBase, backgroundColor: '' } as unknown as Parameters<
+        typeof textUiRender
+      >[0]['schema'],
       rootElement: textDiv,
     });
     rootElement.appendChild(textDiv);

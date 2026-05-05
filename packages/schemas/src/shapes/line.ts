@@ -1,4 +1,5 @@
-import type { Schema, Plugin } from '@pdfweave/common';
+import type { Schema, Plugin, PropPanelWidgetProps } from '@pdfweave/common';
+import { mm2pt } from '@pdfweave/common';
 import {
   rotatePoint,
   convertForPdfLayoutProps,
@@ -13,7 +14,45 @@ const HIT_POINT_HEIGHT = 16;
 
 interface LineSchema extends Schema {
   color: string;
+  /**
+   * Optional dash pattern for the line (mm units; alternating dash / gap
+   * lengths). Same shape as pdf-lib's `dashArray` — note pdf-lib uses
+   * `dashArray` (not `borderDashArray`) for `drawLine`. Defaults to
+   * undefined (solid line), preserving the previous render path.
+   * pdfme/pdfme#530.
+   */
+  borderDashArray?: number[];
 }
+
+/** Same widget contract as the rect/ellipse one — see comment over there. */
+const BorderDashArrayWidget = (props: PropPanelWidgetProps) => {
+  const { rootElement, changeSchemas, activeSchema } = props;
+  const dash = (activeSchema as { borderDashArray?: number[] }).borderDashArray;
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.placeholder = '4,2';
+  input.value = Array.isArray(dash) ? dash.join(',') : '';
+  input.style.cssText = 'width: 100%;';
+  input.onchange = (e: Event) => {
+    const raw = (e.target as HTMLInputElement).value.trim();
+    if (raw === '') {
+      changeSchemas([{ key: 'borderDashArray', value: undefined, schemaId: activeSchema.id }]);
+      return;
+    }
+    const parts = raw
+      .split(',')
+      .map((s) => Number(s.trim()))
+      .filter((n) => Number.isFinite(n) && n >= 0);
+    changeSchemas([
+      {
+        key: 'borderDashArray',
+        value: parts.length > 0 ? parts : undefined,
+        schemaId: activeSchema.id,
+      },
+    ]);
+  };
+  rootElement.appendChild(input);
+};
 
 const lineSchema: Plugin<LineSchema> = {
   pdf: (arg) => {
@@ -29,12 +68,19 @@ const lineSchema: Plugin<LineSchema> = {
       opacity,
     } = convertForPdfLayoutProps({ schema, pageHeight, applyRotateTranslate: false });
     const pivot = { x: x + width / 2, y: y + height / 2 };
+    // pdf-lib's drawLine takes `dashArray` (not borderDashArray); same dash
+    // semantics as rect/ellipse. mm → pt conversion for symmetry with the
+    // rest of the schema. pdfme/pdfme#530.
+    const dashArray = Array.isArray(schema.borderDashArray)
+      ? schema.borderDashArray.map(mm2pt)
+      : undefined;
     page.drawLine({
       start: rotatePoint({ x, y: y + height / 2 }, pivot, rotate.angle),
       end: rotatePoint({ x: x + width, y: y + height / 2 }, pivot, rotate.angle),
       thickness: height,
       color: hex2PrintingColor(schema.color ?? DEFAULT_LINE_COLOR, colorType),
       opacity: opacity,
+      ...(dashArray ? { dashArray } : {}),
     });
   },
   ui: (arg) => {
@@ -62,6 +108,20 @@ const lineSchema: Plugin<LineSchema> = {
       pointerEvents: 'none',
     });
 
+    // Dashed-line preview in the Designer / Viewer. CSS `background` doesn't
+    // accept arbitrary dash arrays, so we approximate with a repeating
+    // linear-gradient: dash mm of color, then gap mm transparent. Falls back
+    // to solid when no dash is configured. pdfme/pdfme#530.
+    if (Array.isArray(schema.borderDashArray) && schema.borderDashArray.length >= 2) {
+      const dashMm = schema.borderDashArray[0];
+      const gapMm = schema.borderDashArray[1];
+      const color = schema.color ?? 'transparent';
+      div.style.backgroundColor = 'transparent';
+      div.style.backgroundImage = `linear-gradient(to right, ${color} 0 ${dashMm}mm, transparent ${dashMm}mm ${dashMm + gapMm}mm)`;
+      div.style.backgroundSize = `${dashMm + gapMm}mm 100%`;
+      div.style.backgroundRepeat = 'repeat-x';
+    }
+
     rootElement.append(hitArea, div);
   },
   propPanel: {
@@ -76,7 +136,15 @@ const lineSchema: Plugin<LineSchema> = {
         required: true,
         rules: [{ pattern: HEX_COLOR_PATTERN, message: i18n('validation.hexColor') }],
       },
+      // pdfme/pdfme#530 — see widget JSDoc above.
+      borderDashArray: {
+        title: i18n('schemas.borderDashArray') || 'Dash pattern (mm: dash,gap,...)',
+        type: 'void',
+        widget: 'BorderDashArrayWidget',
+        span: 24,
+      },
     }),
+    widgets: { BorderDashArrayWidget },
     defaultSchema: {
       name: '',
       type: 'line',

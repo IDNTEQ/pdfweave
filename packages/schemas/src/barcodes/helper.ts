@@ -25,8 +25,7 @@ type BwipModule = {
   toSVG?: (options: RenderOptions) => string;
 };
 
-const isBrowserMain = () =>
-  typeof window !== 'undefined' && typeof document !== 'undefined';
+const isBrowserMain = () => typeof window !== 'undefined' && typeof document !== 'undefined';
 
 const isWebWorker = () =>
   typeof window === 'undefined' &&
@@ -49,9 +48,7 @@ const loadBwipjs = async (): Promise<BwipModule> => {
       return ('default' in mod ? mod.default : mod) as BwipModule;
     }
     if (isNodeRuntime()) {
-      const mod = (await import('bwip-js/node')) as unknown as
-        | BwipModule
-        | { default: BwipModule };
+      const mod = (await import('bwip-js/node')) as unknown as BwipModule | { default: BwipModule };
       return ('default' in mod ? mod.default : mod) as BwipModule;
     }
     // Web Worker, edge runtime, deno, etc. — generic build is the only
@@ -315,9 +312,8 @@ const buildBwipOptions = (arg: BuildOptsArg): RenderOptions => {
   if (typeof borderwidth === 'number')
     (bwipjsArg as unknown as { borderwidth: number }).borderwidth = borderwidth;
   if (bordercolor)
-    (bwipjsArg as unknown as { bordercolor: string }).bordercolor = mapHexColorForBwipJsLib(
-      bordercolor,
-    );
+    (bwipjsArg as unknown as { bordercolor: string }).bordercolor =
+      mapHexColorForBwipJsLib(bordercolor);
 
   if (includetext) {
     if (alttext) (bwipjsArg as unknown as { alttext: string }).alttext = alttext;

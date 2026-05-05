@@ -55,6 +55,40 @@ const UseDynamicFontSize = (props: PropPanelWidgetProps) => {
   rootElement.appendChild(label);
 };
 
+/**
+ * Edit `schema.padding` ([top, right, bottom, left] in mm) as a single
+ * comma-separated text input. Form-panel libraries don't bind nested arrays
+ * cleanly; surfacing as text + parse round-trip keeps the underlying
+ * tuple-of-numbers shape that pdf/uiRender expect. pdfme/pdfme#851.
+ */
+const PaddingTupleWidget = (props: PropPanelWidgetProps) => {
+  const { rootElement, changeSchemas, activeSchema } = props;
+
+  const padding = (activeSchema as { padding?: number[] }).padding;
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.placeholder = '0,0,0,0';
+  input.value = Array.isArray(padding) ? padding.join(',') : '';
+  input.style.cssText = 'width: 100%;';
+  input.onchange = (e: Event) => {
+    const raw = (e.target as HTMLInputElement).value.trim();
+    if (raw === '') {
+      changeSchemas([{ key: 'padding', value: undefined, schemaId: activeSchema.id }]);
+      return;
+    }
+    // Accept up to 4 comma-separated numbers; pad/truncate to exactly 4 so
+    // downstream code can rely on the tuple shape. Bad tokens → 0.
+    const parts = raw
+      .split(',')
+      .map((s) => Number(s.trim()))
+      .map((n) => (Number.isFinite(n) ? n : 0));
+    while (parts.length < 4) parts.push(0);
+    const tuple = parts.slice(0, 4);
+    changeSchemas([{ key: 'padding', value: tuple, schemaId: activeSchema.id }]);
+  };
+  rootElement.appendChild(input);
+};
+
 const UseInlineMarkdown = (props: PropPanelWidgetProps) => {
   const { rootElement, changeSchemas, activeSchema, i18n } = props;
 
@@ -252,11 +286,73 @@ export const propPanel: PropPanel<TextSchema> = {
           },
         },
       },
+      // CSS-equivalent text transform applied at render time only; the
+      // schema's stored `content` is left untouched. pdfme/pdfme#707.
+      textTransform: {
+        title: i18n('schemas.text.textTransform') || 'Text transform',
+        type: 'string',
+        widget: 'select',
+        default: 'none',
+        props: {
+          options: [
+            { label: i18n('schemas.text.transformNone') || 'none', value: 'none' },
+            { label: i18n('schemas.text.transformUppercase') || 'UPPERCASE', value: 'uppercase' },
+            { label: i18n('schemas.text.transformLowercase') || 'lowercase', value: 'lowercase' },
+            {
+              label: i18n('schemas.text.transformCapitalize') || 'Capitalize',
+              value: 'capitalize',
+            },
+          ],
+        },
+        span: 12,
+      },
+      // Optional inner padding (mm) — pdfme/pdfme#851. Backed by a custom
+      // widget (`PaddingTupleWidget`) that surfaces the [top,right,bottom,
+      // left] tuple as a comma-separated string, then parses it back to an
+      // array on change. Nested arrays in the form-panel framework are
+      // awkward to bind; the string round-trip keeps the underlying schema
+      // shape (`number[4]`) unchanged.
+      padding: {
+        title: i18n('schemas.text.padding') || 'Padding (top,right,bottom,left mm)',
+        type: 'void',
+        widget: 'PaddingTupleWidget',
+        span: 24,
+      },
+      // Optional decorative border (mm / hex). Standard `card` group whose
+      // sub-properties bind directly to `schema.border.{width,color,radius}`
+      // — same pattern position uses for x/y. pdfme/pdfme#851.
+      border: {
+        title: i18n('schemas.text.border') || 'Border',
+        type: 'object',
+        widget: 'card',
+        column: 3,
+        properties: {
+          width: {
+            title: i18n('schemas.text.borderWidth') || 'Width (mm)',
+            type: 'number',
+            widget: 'inputNumber',
+            props: { min: 0, step: 0.1 },
+          },
+          color: {
+            title: i18n('schemas.text.borderColor') || 'Color',
+            type: 'string',
+            widget: 'color',
+            props: { disabledAlpha: true },
+            rules: [{ pattern: HEX_COLOR_PATTERN, message: i18n('validation.hexColor') }],
+          },
+          radius: {
+            title: i18n('schemas.text.borderRadius') || 'Radius (mm)',
+            type: 'number',
+            widget: 'inputNumber',
+            props: { min: 0, step: 0.1 },
+          },
+        },
+      },
     };
 
     return textSchema;
   },
-  widgets: { UseDynamicFontSize, UseInlineMarkdown },
+  widgets: { UseDynamicFontSize, UseInlineMarkdown, PaddingTupleWidget },
   defaultSchema: {
     name: '',
     type: 'text',
