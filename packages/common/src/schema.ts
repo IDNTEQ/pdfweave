@@ -182,10 +182,18 @@ export const Schema = z
 const SchemaForUIAdditionalInfo = z.object({ id: z.string() });
 export const SchemaForUI = Schema.merge(SchemaForUIAdditionalInfo);
 
-const ArrayBufferSchema: z.ZodSchema<ArrayBuffer> = z.any().refine((v) => v instanceof ArrayBuffer);
-const Uint8ArraySchema: z.ZodSchema<Uint8Array<ArrayBuffer>> = z
-  .any()
-  .refine((v) => v instanceof Uint8Array && v.buffer instanceof ArrayBuffer);
+// Use z.custom<T>() for binary blob types instead of z.any().refine() with a
+// generic ZodSchema<Uint8Array<ArrayBuffer>>. The latter is inferred as
+// `unknown` by TypeScript 5.x+ (the generic Uint8Array<ArrayBuffer> form
+// regressed inference), which then propagates up and makes the exported
+// Template type effectively unusable for consumers. Switching to z.custom
+// preserves the precise output type and matches the rest of the schema's
+// validator-style declarations.
+// Original upstream issue: https://github.com/pdfme/pdfme/issues/1021
+const ArrayBufferSchema = z.custom<ArrayBuffer>((v) => v instanceof ArrayBuffer);
+const Uint8ArraySchema = z.custom<Uint8Array>(
+  (v) => v instanceof Uint8Array && v.buffer instanceof ArrayBuffer,
+);
 
 export const BlankPdf = z.object({
   width: z.number(),

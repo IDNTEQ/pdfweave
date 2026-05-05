@@ -425,19 +425,48 @@ const evaluatePlaceholders = (arg: {
 
       index = endIndex;
     } else {
-      throw new Error('Invalid placeholder');
+      // Unbalanced braces (e.g. "{{1}" with no closing pair). Previously
+      // this threw and crashed the Designer when a malformed placeholder
+      // was typed mid-edit. Treat the unmatched run as a literal — matches
+      // the existing fall-through for runtime eval errors, which also
+      // surface the placeholder source unchanged.
+      // Original upstream issue: https://github.com/pdfme/pdfme/issues/1309
+      resultContent += content.slice(startIndex);
+      break;
     }
   }
 
   return resultContent;
 };
 
+export interface ReplacePlaceholdersOptions {
+  /**
+   * When true, skip placeholder evaluation entirely and return `content`
+   * unchanged. Used by callers that pass values which only coincidentally
+   * contain `{`/`}` but are not template strings — for example the
+   * multiVariableText `content` field, which holds the JSON defaults map
+   * for variable values (e.g. `'{"firstName": "Alice"}'`) rather than the
+   * placeholder-bearing `text` field. Without this opt-out the JSON braces
+   * get parsed as expressions and crash the readOnly render.
+   *
+   * The schema-side caller wires this in (see the schemas batch — owned by
+   * a separate agent); this package ships only the safe parameter.
+   *
+   * Original upstream issue: https://github.com/pdfme/pdfme/issues/1345
+   */
+  skip?: boolean;
+}
+
 export const replacePlaceholders = (arg: {
   content: string;
   variables: Record<string, unknown>;
   schemas: SchemaPageArray;
+  options?: ReplacePlaceholdersOptions;
 }): string => {
-  const { content, variables, schemas } = arg;
+  const { content, variables, schemas, options } = arg;
+  if (options?.skip) {
+    return content;
+  }
   if (!content || typeof content !== 'string' || !content.includes('{') || !content.includes('}')) {
     return content;
   }
@@ -460,11 +489,24 @@ export const replacePlaceholders = (arg: {
     ...parsedInput,
   };
 
-  Object.entries(context).forEach(([key, value]) => {
-    if (typeof value === 'string' && value.includes('{') && value.includes('}')) {
-      context[key] = evaluatePlaceholders({ content: value, context });
-    }
-  });
+  // Defensive: any unexpected throw from placeholder evaluation (malformed
+  // braces, parser quirks) should surface the literal input rather than
+  // crash the entire render. The placeholder parser already short-circuits
+  // unbalanced runs to literals (pdfme#1309); this catches anything that
+  // slips past — matching the existing per-expression fall-through.
+  try {
+    Object.entries(context).forEach(([key, value]) => {
+      if (typeof value === 'string' && value.includes('{') && value.includes('}')) {
+        try {
+          context[key] = evaluatePlaceholders({ content: value, context });
+        } catch {
+          // leave the variable value as-is on parse error
+        }
+      }
+    });
 
-  return evaluatePlaceholders({ content, context });
+    return evaluatePlaceholders({ content, context });
+  } catch {
+    return content;
+  }
 };
