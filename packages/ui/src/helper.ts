@@ -109,10 +109,12 @@ const copyWin = 'ctrl+c';
 const copyMac = 'command+c';
 const pasteWin = 'ctrl+v';
 const pasteMac = 'command+v';
-const redoWin = 'ctrl+y';
-const redoMac = 'shift+command+z';
-const undoWin = 'ctrl+z';
-const undoMac = 'command+z';
+// Note: undo/redo are NOT registered with hotkeys-js. They are bound below as a
+// direct DOM listener so we can match on event.code (the physical key position)
+// rather than event.key (the layout-dependent label). On German QWERTZ keyboards
+// the Y/Z labels are swapped relative to US QWERTY, which made the previous
+// `ctrl+y` (redo) / `ctrl+z` (undo) bindings effectively reversed under the
+// hotkeys-js letter-matching path. See pdfme/pdfme#1465.
 const saveWin = 'ctrl+s';
 const saveMac = 'command+s';
 const selectAllWin = 'ctrl+a';
@@ -134,15 +136,14 @@ const keys = [
   copyMac,
   pasteWin,
   pasteMac,
-  redoWin,
-  redoMac,
-  undoWin,
-  undoMac,
   saveWin,
   saveMac,
   selectAllWin,
   selectAllMac,
 ];
+
+// Module-level holder so destroyShortCuts can detach the undo/redo listener.
+let undoRedoHandler: ((event: KeyboardEvent) => void) | null = null;
 
 export const initShortCuts = (arg: {
   move: (command: 'up' | 'down' | 'left' | 'right', isShift: boolean) => void;
@@ -155,6 +156,41 @@ export const initShortCuts = (arg: {
   save: () => void;
   selectAll: () => void;
 }) => {
+  // Bind undo/redo by physical key code (event.code) so the binding is
+  // independent of keyboard layout. event.key is layout-dependent — on a
+  // German QWERTZ keyboard the Y/Z labels are swapped, which made the
+  // letter-based bindings effectively reversed (pdfme/pdfme#1465).
+  //
+  // Cross-platform binding (matches VS Code, Figma, Google Docs):
+  //   Ctrl/Cmd + Z          → undo
+  //   Ctrl/Cmd + Shift + Z  → redo
+  //
+  // Ctrl+Y has been removed entirely: on US layouts it conventionally means
+  // redo, on German layouts it conventionally means undo, and binding it to
+  // either choice breaks the other audience.
+  if (typeof window !== 'undefined') {
+    undoRedoHandler = (event: KeyboardEvent) => {
+      if (event.code !== 'KeyZ') return;
+      const mod = event.ctrlKey || event.metaKey;
+      if (!mod) return;
+      // Don't interfere with text-editing inputs/contenteditable.
+      const target = event.target as HTMLElement | null;
+      if (target) {
+        const tag = target.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || target.isContentEditable) {
+          return;
+        }
+      }
+      event.preventDefault();
+      if (event.shiftKey) {
+        arg.redo();
+      } else {
+        arg.undo();
+      }
+    };
+    window.addEventListener('keydown', undoRedoHandler);
+  }
+
   hotkeys(keys.join(), (e: KeyboardEvent, handler: { shortcut: string }) => {
     switch (handler.shortcut) {
       case up:
@@ -192,14 +228,6 @@ export const initShortCuts = (arg: {
       case pasteMac:
         arg.paste();
         break;
-      case redoWin:
-      case redoMac:
-        arg.redo();
-        break;
-      case undoWin:
-      case undoMac:
-        arg.undo();
-        break;
       case saveWin:
       case saveMac:
         e.preventDefault();
@@ -218,6 +246,10 @@ export const initShortCuts = (arg: {
 
 export const destroyShortCuts = () => {
   hotkeys.unbind(keys.join());
+  if (typeof window !== 'undefined' && undoRedoHandler) {
+    window.removeEventListener('keydown', undoRedoHandler);
+    undoRedoHandler = null;
+  }
 };
 
 /**
