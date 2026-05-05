@@ -238,6 +238,11 @@ interface UseInitEventsParams {
   setSchemasList: React.Dispatch<React.SetStateAction<SchemaForUI[][]>>;
   onEdit: (targets: Array<HTMLElement | null | undefined>) => void;
   onEditEnd: () => void;
+  designerActions?: {
+    copy: (ids?: string[]) => void;
+    paste: () => void;
+    remove: (ids?: string[]) => void;
+  };
 }
 
 export const useInitEvents = ({
@@ -255,6 +260,7 @@ export const useInitEvents = ({
   setSchemasList,
   onEdit,
   onEditEnd,
+  designerActions,
 }: UseInitEventsParams) => {
   const copiedSchemas = useRef<SchemaForUI[] | null>(null);
 
@@ -287,11 +293,19 @@ export const useInitEvents = ({
       },
 
       copy: () => {
+        if (designerActions) {
+          designerActions.copy();
+          return;
+        }
         const activeSchemas = getActiveSchemas();
         if (activeSchemas.length === 0) return;
         copiedSchemas.current = activeSchemas;
       },
       paste: () => {
+        if (designerActions) {
+          designerActions.paste();
+          return;
+        }
         if (!copiedSchemas.current || copiedSchemas.current.length === 0) return;
         const schema = schemasList[pageCursor];
         const stackUniqueSchemaNames: string[] = [];
@@ -321,7 +335,13 @@ export const useInitEvents = ({
       undo: () => timeTravel('undo'),
       save: () =>
         onSaveTemplate && onSaveTemplate(schemasList2template(schemasList, template.basePdf)),
-      remove: () => removeSchemas(getActiveSchemas().map((s) => s.id)),
+      remove: () => {
+        if (designerActions) {
+          designerActions.remove();
+          return;
+        }
+        removeSchemas(getActiveSchemas().map((s) => s.id));
+      },
       esc: onEditEnd,
       selectAll: () => onEdit(getElementsByIds(schemasList[pageCursor].map((s) => s.id))),
     });
@@ -341,6 +361,7 @@ export const useInitEvents = ({
     copiedSchemas,
     onEdit,
     onEditEnd,
+    designerActions,
   ]);
 
   const destroyEvents = useCallback(() => {

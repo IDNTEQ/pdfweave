@@ -5,6 +5,7 @@ import React, {
   useCallback,
   useEffect,
   useLayoutEffect,
+  useMemo,
 } from 'react';
 import {
   cloneDeep,
@@ -23,30 +24,19 @@ import { DndContext } from '@dnd-kit/core';
 import RightSidebar from './RightSidebar/index.js';
 import LeftSidebar from './LeftSidebar.js';
 import Canvas from './Canvas/index.js';
-import {
-  RULER_HEIGHT,
-  RIGHT_SIDEBAR_WIDTH,
-  LEFT_SIDEBAR_WIDTH,
-} from '../../constants.js';
-import {
-  I18nContext,
-  OptionsContext,
-  PluginsRegistry,
-} from '../../contexts.js';
+import { RULER_HEIGHT, RIGHT_SIDEBAR_WIDTH, LEFT_SIDEBAR_WIDTH } from '../../constants.js';
+import { I18nContext, OptionsContext, PluginsRegistry } from '../../contexts.js';
 import {
   schemasList2template,
   uuid,
   round,
   template2SchemasList,
   getPagesScrollTopByIndex,
+  getUniqueSchemaName,
   changeSchemas as _changeSchemas,
   useMaxZoom,
 } from '../../helper.js';
-import {
-  useUIPreProcessor,
-  useScrollPageCursor,
-  useInitEvents,
-} from '../../hooks.js';
+import { useUIPreProcessor, useScrollPageCursor, useInitEvents } from '../../hooks.js';
 import Root from '../Root.js';
 import ErrorScreen from '../ErrorScreen.js';
 import CtlBar from '../CtlBar.js';
@@ -135,14 +125,13 @@ const TemplateEditor = ({
 
   const [hoveringSchemaId, setHoveringSchemaId] = useState<string | null>(null);
   const [activeElements, setActiveElements] = useState<HTMLElement[]>([]);
-  const [schemasList, setSchemasList] = useState<SchemaForUI[][]>([
-    [],
-  ] as SchemaForUI[][]);
+  const [schemasList, setSchemasList] = useState<SchemaForUI[][]>([[]] as SchemaForUI[][]);
   const [pageCursor, setPageCursor] = useState(0);
   const [zoomLevel, setZoomLevel] = useState(options.zoomLevel ?? 1);
   const [sidebarOpen, setSidebarOpen] = useState(options.sidebarOpen ?? true);
   const [canvasHeight, setCanvasHeight] = useState(0);
   const [prevTemplate, setPrevTemplate] = useState<Template | null>(null);
+  const copiedSchemas = useRef<SchemaForUI[] | null>(null);
 
   const { backgrounds, pageSizes, scale, error, refresh } = useUIPreProcessor({
     template,
@@ -151,19 +140,17 @@ const TemplateEditor = ({
     maxZoom,
   });
 
-  const onEdit = (targets: Array<HTMLElement | null | undefined>) => {
+  const onEdit = useCallback((targets: Array<HTMLElement | null | undefined>) => {
     setActiveElements(
-      targets.filter(
-        (target): target is HTMLElement => target instanceof HTMLElement,
-      ),
+      targets.filter((target): target is HTMLElement => target instanceof HTMLElement),
     );
     setHoveringSchemaId(null);
-  };
+  }, []);
 
-  const onEditEnd = () => {
+  const onEditEnd = useCallback(() => {
     setActiveElements([]);
     setHoveringSchemaId(null);
-  };
+  }, []);
 
   useEffect(() => {
     if (typeof options.zoomLevel === 'number') {
@@ -236,13 +223,116 @@ const TemplateEditor = ({
         commitSchemas,
       });
     },
+    [commitSchemas, pageCursor, schemasList, pluginsRegistry, pageSizes, template.basePdf],
+  );
+
+  const getActiveIds = useCallback(
+    (ids?: string[]) => (ids && ids.length > 0 ? ids : activeElements.map((ae) => ae.id)),
+    [activeElements],
+  );
+
+  const getElementsByIds = useCallback(
+    (ids: string[]) =>
+      ids
+        .map((id) => document.getElementById(id))
+        .filter((element): element is HTMLElement => element instanceof HTMLElement),
+    [],
+  );
+
+  const copySchemas = useCallback(
+    (ids?: string[]) => {
+      const targetIds = getActiveIds(ids);
+      if (targetIds.length === 0) return;
+      const selected = schemasList[pageCursor].filter((schema) => targetIds.includes(schema.id));
+      copiedSchemas.current = cloneDeep(selected);
+    },
+    [getActiveIds, pageCursor, schemasList],
+  );
+
+  const pasteSchemas = useCallback(() => {
+    if (!copiedSchemas.current || copiedSchemas.current.length === 0) return;
+    const schema = schemasList[pageCursor];
+    const stackUniqueSchemaNames: string[] = [];
+    const pasteSchemas = copiedSchemas.current.map((cs) => {
+      const id = uuid();
+      const name = getUniqueSchemaName({
+        copiedSchemaName: cs.name,
+        schema,
+        stackUniqueSchemaNames,
+      });
+      const { height, width, position: p } = cs;
+      const ps = pageSizes[pageCursor];
+      const position = {
+        x: p.x + 10 > ps.width - width ? ps.width - width : p.x + 10,
+        y: p.y + 10 > ps.height - height ? ps.height - height : p.y + 10,
+      };
+
+      return Object.assign(cloneDeep(cs), { id, name, position });
+    });
+    commitSchemas(schemasList[pageCursor].concat(pasteSchemas));
+    setTimeout(() => {
+      onEdit(getElementsByIds(pasteSchemas.map((s) => s.id)));
+    });
+    copiedSchemas.current = cloneDeep(pasteSchemas);
+  }, [commitSchemas, getElementsByIds, onEdit, pageCursor, pageSizes, schemasList]);
+
+  const removeSelectedSchemas = useCallback(
+    (ids?: string[]) => {
+      removeSchemas(getActiveIds(ids));
+    },
+    [getActiveIds, removeSchemas],
+  );
+
+  const cutSchemas = useCallback(
+    (ids?: string[]) => {
+      const targetIds = getActiveIds(ids);
+      copySchemas(targetIds);
+      removeSchemas(targetIds);
+    },
+    [copySchemas, getActiveIds, removeSchemas],
+  );
+
+  const duplicateSchemas = useCallback(
+    (ids?: string[]) => {
+      const targetIds = getActiveIds(ids);
+      copySchemas(targetIds);
+      pasteSchemas();
+    },
+    [copySchemas, getActiveIds, pasteSchemas],
+  );
+
+  const reorderSchemas = useCallback(
+    (ids: string[] | undefined, placement: 'front' | 'back') => {
+      const targetIds = getActiveIds(ids);
+      if (targetIds.length === 0) return;
+      const selectedIds = new Set(targetIds);
+      const pageSchemas = schemasList[pageCursor];
+      const selected = pageSchemas.filter((schema) => selectedIds.has(schema.id));
+      const rest = pageSchemas.filter((schema) => !selectedIds.has(schema.id));
+      commitSchemas(placement === 'front' ? rest.concat(selected) : selected.concat(rest));
+      setTimeout(() => onEdit(getElementsByIds(targetIds)));
+    },
+    [commitSchemas, getActiveIds, getElementsByIds, onEdit, pageCursor, schemasList],
+  );
+
+  const designerActions = useMemo(
+    () => ({
+      copy: copySchemas,
+      cut: cutSchemas,
+      paste: pasteSchemas,
+      duplicate: duplicateSchemas,
+      remove: removeSelectedSchemas,
+      bringToFront: (ids?: string[]) => reorderSchemas(ids, 'front'),
+      sendToBack: (ids?: string[]) => reorderSchemas(ids, 'back'),
+      canPaste: () => Boolean(copiedSchemas.current && copiedSchemas.current.length > 0),
+    }),
     [
-      commitSchemas,
-      pageCursor,
-      schemasList,
-      pluginsRegistry,
-      pageSizes,
-      template.basePdf,
+      copySchemas,
+      cutSchemas,
+      duplicateSchemas,
+      pasteSchemas,
+      removeSelectedSchemas,
+      reorderSchemas,
     ],
   );
 
@@ -261,6 +351,7 @@ const TemplateEditor = ({
     setSchemasList,
     onEdit,
     onEditEnd,
+    designerActions,
   });
 
   const updateTemplate = useCallback(
@@ -303,13 +394,11 @@ const TemplateEditor = ({
         });
       }
     },
-    [pageSizes, scale],
+    [onEditEnd, pageSizes, scale],
   );
 
   const addSchema = (defaultSchema: Schema, options?: { select?: boolean }) => {
-    const [paddingTop, paddingRight, paddingBottom, paddingLeft] = isBlankPdf(
-      template.basePdf,
-    )
+    const [paddingTop, paddingRight, paddingBottom, paddingLeft] = isBlankPdf(template.basePdf)
       ? template.basePdf.padding
       : [0, 0, 0, 0];
     const pageSize = pageSizes[pageCursor];
@@ -355,8 +444,7 @@ const TemplateEditor = ({
     if (defaultSchema.position.y === 0) {
       const paper = paperRefs.current[pageCursor];
       const rectTop = paper ? paper.getBoundingClientRect().top : 0;
-      s.position.y =
-        rectTop > 0 ? paddingTop : pageSizes[pageCursor].height / 2;
+      s.position.y = rectTop > 0 ? paddingTop : pageSizes[pageCursor].height / 2;
     }
 
     commitSchemas(schemasList[pageCursor].concat(s));
@@ -386,11 +474,7 @@ const TemplateEditor = ({
     // Use setTimeout to update scroll position after render
     setTimeout(() => {
       if (canvasRef.current) {
-        canvasRef.current.scrollTop = getPagesScrollTopByIndex(
-          pageSizes,
-          newPageCursor,
-          scale,
-        );
+        canvasRef.current.scrollTop = getPagesScrollTopByIndex(pageSizes, newPageCursor, scale);
       }
     }, 0);
   };
@@ -442,8 +526,7 @@ const TemplateEditor = ({
           // Triggered after a schema is dragged & dropped from the left sidebar.
           if (!event.active) return;
           const active = event.active;
-          const pageRect =
-            paperRefs.current[pageCursor].getBoundingClientRect();
+          const pageRect = paperRefs.current[pageCursor].getBoundingClientRect();
 
           const dragStartLeft = active.rect.current.initial?.left || 0;
           const dragStartTop = active.rect.current.initial?.top || 0;
@@ -453,8 +536,7 @@ const TemplateEditor = ({
           const canvasTopOffsetFromPageCorner = pageRect.top - dragStartTop;
 
           const moveY = (event.delta.y - canvasTopOffsetFromPageCorner) / scale;
-          const moveX =
-            (event.delta.x - canvasLeftOffsetFromPageCorner) / scale;
+          const moveX = (event.delta.x - canvasLeftOffsetFromPageCorner) / scale;
 
           const position = {
             x: round(px2mm(Math.max(0, moveX)), 2),
@@ -465,11 +547,7 @@ const TemplateEditor = ({
         }}
         onDragStart={onEditEnd}
       >
-        <LeftSidebar
-          height={canvasHeight}
-          scale={scale}
-          basePdf={template.basePdf}
-        />
+        <LeftSidebar height={canvasHeight} scale={scale} basePdf={template.basePdf} />
 
         <div
           style={{
@@ -485,11 +563,7 @@ const TemplateEditor = ({
             setPageCursor={(p) => {
               if (!canvasRef.current) return;
               // Update scroll position and state
-              canvasRef.current.scrollTop = getPagesScrollTopByIndex(
-                pageSizes,
-                p,
-                scale,
-              );
+              canvasRef.current.scrollTop = getPagesScrollTopByIndex(pageSizes, p, scale);
               setPageCursor(p);
               onPageCursorChange(p, schemasList.length);
               onEditEnd();
@@ -540,6 +614,7 @@ const TemplateEditor = ({
             schemasList={schemasList}
             changeSchemas={changeSchemas}
             removeSchemas={removeSchemas}
+            designerActions={designerActions}
             sidebarOpen={sidebarOpen}
             onEdit={onEdit}
           />

@@ -192,14 +192,61 @@ exports[`Designer snapshot 1`] = `
               <div
                 style="min-height: 40px; display: flex; align-items: center; justify-content: center;"
               >
-                <span
-                  class="ant-typography"
-                  style="text-align: center; width: 100%;"
+                <div
+                  style="width: 100%; display: grid; gap: 6px;"
                 >
-                  <strong>
-                    Field List
-                  </strong>
-                </span>
+                  <span
+                    class="ant-typography"
+                    style="text-align: center;"
+                  >
+                    <strong>
+                      Designer
+                    </strong>
+                  </span>
+                  <div
+                    aria-label="segmented control"
+                    aria-orientation="horizontal"
+                    class="ant-segmented ant-segmented-block ant-segmented-sm"
+                    role="radiogroup"
+                    tabindex="0"
+                  >
+                    <div
+                      class="ant-segmented-group"
+                    >
+                      <label
+                        class="ant-segmented-item ant-segmented-item-selected"
+                      >
+                        <input
+                          checked=""
+                          class="ant-segmented-item-input"
+                          name="test-id"
+                          type="radio"
+                        />
+                        <div
+                          class="ant-segmented-item-label"
+                          title="Fields"
+                        >
+                          Fields
+                        </div>
+                      </label>
+                      <label
+                        class="ant-segmented-item"
+                      >
+                        <input
+                          class="ant-segmented-item-input"
+                          name="test-id"
+                          type="radio"
+                        />
+                        <div
+                          class="ant-segmented-item-label"
+                          title="Data"
+                        >
+                          Data
+                        </div>
+                      </label>
+                    </div>
+                  </div>
+                </div>
               </div>
               <div
                 class="ant-divider ant-divider-horizontal"
@@ -269,6 +316,7 @@ exports[`Designer snapshot 1`] = `
                     >
                       field1
                     </span>
+                    Lock
                   </div>
                 </li>
                 <li
@@ -328,6 +376,7 @@ exports[`Designer snapshot 1`] = `
                     >
                       field2
                     </span>
+                    Lock
                   </div>
                 </li>
               </ul>
@@ -536,18 +585,18 @@ exports[`Designer snapshot 1`] = `
               <div
                 class="selectable"
                 id="3"
-                style="position: absolute; cursor: pointer; height: 56.692913386499995px; width: 377.95275591px; top: 75.590551182px; left: 75.590551182px; transform: rotate(0deg); opacity: 1; outline: 1px dashed #1677ff;"
+                style="position: absolute; cursor: initial; height: 56.692913386499995px; width: 377.95275591px; top: 75.590551182px; left: 75.590551182px; transform: rotate(0deg); opacity: 1; outline: 1px dashed transparent;"
                 title="field1"
               >
                 <div
                   style="height: 100%; width: 100%;"
                 >
                   <div
-                    style="padding: 0px; resize: none; background-color: transparent; border: medium; display: flex; flex-direction: column; justify-content: flex-start; width: 100%; height: 100%; cursor: default;"
+                    style="padding: 0mm; box-sizing: border-box; resize: none; background-color: transparent; border: medium; border-radius: 0px; display: flex; flex-direction: column; justify-content: flex-start; width: 100%; height: 100%; cursor: default;"
                   >
                     <div
                       id="text-3"
-                      style="font-family: inherit; color: rgb(0, 0, 0); font-size: 30pt; letter-spacing: 0pt; line-height: 1em; text-align: left; white-space: pre-wrap; word-break: break-word; resize: none; border: medium; outline: none; margin-bottom: 0px; padding-top: 3.436640625px; background-color: transparent;"
+                      style="font-family: inherit; color: rgb(0, 0, 0); font-size: 30pt; letter-spacing: 0pt; line-height: 1em; text-align: left; white-space: pre-wrap; word-break: break-word; text-transform: none; resize: none; border: medium; outline: none; margin-bottom: 0px; padding-top: 3.436640625px; background-color: transparent;"
                     >
                       <span
                         style="letter-spacing:inherit;"
@@ -568,7 +617,7 @@ exports[`Designer snapshot 1`] = `
               <div
                 class="selectable"
                 id="4"
-                style="position: absolute; cursor: pointer; height: 151.181102364px; width: 377.95275591px; top: 132.2834645685px; left: 75.590551182px; transform: rotate(0deg); opacity: 1; outline: 1px dashed #1677ff;"
+                style="position: absolute; cursor: initial; height: 151.181102364px; width: 377.95275591px; top: 132.2834645685px; left: 75.590551182px; transform: rotate(0deg); opacity: 1; outline: 1px dashed transparent;"
                 title="field2"
               >
                 <div
@@ -579,7 +628,7 @@ exports[`Designer snapshot 1`] = `
                   >
                     <img
                       src="aaaaaaaaaaaa"
-                      style="height: 100%; width: 100%; border-radius: 0px; object-fit: contain;"
+                      style="height: 100%; width: 100%; border-radius: 0px; object-fit: contain; object-position: center center;"
                     />
                   </div>
                 </div>

@@ -115,7 +115,19 @@ describe('schemasList2template test', () => {
     expect(schemasList2template(schemasList, template.basePdf)).toStrictEqual({
       basePdf: BLANK_PDF,
       schemas: [
-        [ { name: 'b', type: 'text', position: { x: 0, y: 0 }, width: 100, height: 100, content: 'b' } ],
+        [
+          {
+            id: schemasList[0][0].id,
+            name: 'b',
+            type: 'text',
+            position: { x: 0, y: 0 },
+            width: 100,
+            height: 100,
+            readOnly: true,
+            required: false,
+            content: 'b',
+          },
+        ],
       ],
     });
   });
@@ -139,7 +151,9 @@ describe('schemasList2template test', () => {
             width: 100,
             height: 100,
             readOnly: true,
+            required: false,
             content: 'b',
+            id: schemasList[0][0].id,
           },
         ],
       ],
@@ -322,6 +336,8 @@ describe('changeSchemas test', () => {
         height: 40,
         opacity: 1,
         rotate: 0,
+        readOnly: true,
+        required: false,
       },
       {
         id: schemaB.id,
