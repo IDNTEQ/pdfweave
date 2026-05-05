@@ -1,11 +1,42 @@
-## @pdfme/ui
+## @pdfweave/ui
 
-This library provides the following classes, which can be integrated into applications built with any framework:
+`@pdfweave/ui` provides the browser UI classes for PDFweave: `Designer`, `Form`, and `Viewer`. PDFweave is forked from upstream pdfme, preserving the template-driven UI model while publishing under the `@pdfweave/*` namespace.
 
-- `Designer`: A WYSIWYG editor for designing templates.
-- `Form`: A form based on templates for collecting input data.
-- `Viewer`: A viewer for displaying PDF files generated with [@pdfme/generator](https://www.npmjs.com/package/@pdfme/generator) using templates and input data.
+## Install
 
-The published `@pdfme/ui` package ships as a standalone bundle, so consumers do not need to install `react` or `react-dom` separately just to use these classes.
+```bash
+npm install @pdfweave/ui
+```
 
-For the complete documentation of pdfme, please refer to [this link](https://pdfme.com/docs/getting-started).
+## Usage
+
+```ts
+import { Designer } from '@pdfweave/ui';
+import { text, image } from '@pdfweave/schemas';
+
+const designer = new Designer({
+  domContainer: document.getElementById('app')!,
+  template,
+  plugins: { text, image },
+});
+
+designer.onChangeTemplate((nextTemplate) => {
+  console.log(nextTemplate);
+});
+```
+
+## Notes
+
+The published bundle includes React and React DOM, so consumers do not install them separately just to use the classes.
+
+Use `@pdfweave/schemas` for built-in plugins, or provide custom plugins that match the `@pdfweave/common` contracts.
+
+## Links
+
+- [PDFweave repository](https://github.com/IDNTEQ/pdfweave)
+- [Migration guide](../../MIGRATION.md)
+- [Changelog](../../CHANGELOG.md)
+
+## License
+
+MIT, same as upstream pdfme.

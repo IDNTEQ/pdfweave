@@ -1,16 +1,18 @@
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, renameSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { extname, join, resolve } from 'node:path';
+import { dirname, extname, join, resolve } from 'node:path';
 import { getDefaultFont, isUrlSafeToFetch } from '@pdfweave/common';
 import type { Font } from '@pdfweave/common';
 import { CliError, fail } from './contract.js';
 
-const CACHE_DIR = join(homedir(), '.pdfme', 'fonts');
+const CACHE_DIR = join(homedir(), '.pdfweave', 'fonts');
+const LEGACY_CACHE_DIR = join(homedir(), '.pdfme', 'fonts');
 const NOTO_SANS_JP_URL =
   'https://github.com/google/fonts/raw/main/ofl/notosansjp/NotoSansJP%5Bwght%5D.ttf';
 export const NOTO_CACHE_FILE = join(CACHE_DIR, 'NotoSansJP-Regular.ttf');
 const REMOTE_FONT_TIMEOUT_MS = 15000;
 const MAX_REMOTE_FONT_BYTES = 32 * 1024 * 1024; // 32 MiB
+let cacheMigrationChecked = false;
 
 export type ExplicitFontSourceKind = 'localPath' | 'url' | 'dataUri' | 'inlineBytes' | 'invalid';
 export type ExplicitFontRemoteProvider =
@@ -42,12 +44,36 @@ interface ResolveFontOptions {
 }
 
 function ensureCacheDir(): void {
+  ensureFontCacheMigrated();
   if (!existsSync(CACHE_DIR)) {
     mkdirSync(CACHE_DIR, { recursive: true });
   }
 }
 
+export function ensureFontCacheMigrated(): void {
+  if (cacheMigrationChecked) {
+    return;
+  }
+  cacheMigrationChecked = true;
+
+  if (!existsSync(LEGACY_CACHE_DIR) || existsSync(CACHE_DIR)) {
+    return;
+  }
+
+  try {
+    mkdirSync(dirname(CACHE_DIR), { recursive: true });
+    console.error('PDFweave: migrating font cache from ~/.pdfme/fonts');
+    renameSync(LEGACY_CACHE_DIR, CACHE_DIR);
+  } catch (error) {
+    console.error(
+      'Warning: Could not migrate PDFweave font cache from ~/.pdfme/fonts.',
+      error instanceof Error ? error.message : String(error),
+    );
+  }
+}
+
 export async function downloadNotoSansJP(verbose: boolean): Promise<Uint8Array | null> {
+  ensureFontCacheMigrated();
   if (existsSync(NOTO_CACHE_FILE)) {
     if (verbose) console.error('Using cached NotoSansJP from', NOTO_CACHE_FILE);
     return new Uint8Array(readFileSync(NOTO_CACHE_FILE)) as Uint8Array<ArrayBuffer>;

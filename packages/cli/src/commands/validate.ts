@@ -25,7 +25,7 @@ const validateArgs = {
 export default defineCommand({
   meta: {
     name: 'validate',
-    description: 'Validate a pdfme template JSON file',
+    description: 'Validate a PDFweave template JSON file',
   },
   args: validateArgs,
   async run({ args, rawArgs }) {

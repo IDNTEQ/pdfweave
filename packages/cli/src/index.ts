@@ -9,9 +9,10 @@ import { CLI_VERSION } from './version.js';
 
 const main = defineCommand({
   meta: {
-    name: 'pdfme',
+    name: 'pdfweave',
     version: CLI_VERSION,
-    description: 'CLI tool for pdfme - generate PDFs, convert images, validate templates',
+    description:
+      'CLI tool for PDFweave (forked from pdfme) - generate PDFs, convert images, validate templates',
   },
   subCommands: {
     generate: generateCmd,

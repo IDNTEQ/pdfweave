@@ -32,7 +32,11 @@ export interface ExampleTemplateLoadResult {
 }
 
 export function getExamplesBaseUrl(): string {
-  return process.env.PDFME_EXAMPLES_BASE_URL ?? 'https://playground.pdfme.com/template-assets';
+  return (
+    process.env.PDFWEAVE_EXAMPLES_BASE_URL ??
+    process.env.PDFME_EXAMPLES_BASE_URL ??
+    'https://pdfweave.dev/playground'
+  );
 }
 
 async function fetchJson<T>(url: string): Promise<T> {
