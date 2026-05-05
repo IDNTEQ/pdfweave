@@ -474,6 +474,18 @@ export default class PDFPage {
   }
 
   /**
+   * Returns `true` if this page has an explicit CropBox entry that is distinct
+   * from the inherited MediaBox. When `false`, [[PDFPage.getCropBox]] still
+   * returns a rectangle, but it is the MediaBox falling through as the spec
+   * default. This helper lets callers (e.g. positioning logic) distinguish
+   * between an inherited and an authored CropBox without poking at the
+   * underlying `PDFPageLeaf` node.
+   */
+  hasCropBox(): boolean {
+    return Boolean(this.node.CropBox());
+  }
+
+  /**
    * Get the rectangle defining this page's BleedBox. For example:
    * ```js
    * const { x, y, width, height } = page.getBleedBox()

@@ -1,5 +1,6 @@
 import generate from '../src/generate.js';
 import { Template, BLANK_PDF, Schema } from '@pdfweave/common';
+import { PDFDocument } from '@pdfweave/pdf-lib';
 import { getFont, getImageSnapshotOptions, pdfToImages } from './utils.js';
 
 describe('generate integrate test', () => {
@@ -237,6 +238,89 @@ Check this document: https://pdfme.com/docs/custom-fonts#about-font-type`
       );
     }
   });
+  describe('basePdf with custom CropBox (pdfme/pdfme#623)', () => {
+    /**
+     * Builds an in-memory base PDF whose MediaBox and CropBox differ. The
+     * CropBox is inset 50pt on every side, simulating a print PDF with bleed
+     * in the MediaBox but only the trim area meant to be visible.
+     */
+    const buildBasePdfWithCropBox = async (): Promise<string> => {
+      const doc = await PDFDocument.create();
+      const page = doc.addPage([612, 792]);
+      page.setMediaBox(0, 0, 612, 792);
+      page.setCropBox(50, 50, 512, 692);
+      // pdf-lib refuses to embed pages without a Contents stream, so draw a
+      // marker rectangle just to give the page something to embed.
+      page.drawRectangle({ x: 0, y: 0, width: 1, height: 1 });
+      const bytes = await doc.save();
+      let binary = '';
+      for (let i = 0; i < bytes.length; i += 1) binary += String.fromCharCode(bytes[i]);
+      return `data:application/pdf;base64,${Buffer.from(binary, 'binary').toString('base64')}`;
+    };
+
+    test('preserves the source CropBox on the rendered page', async () => {
+      const basePdf = await buildBasePdfWithCropBox();
+      const template: Template = {
+        basePdf,
+        schemas: [
+          [
+            {
+              name: 'a',
+              type: 'text',
+              content: 'hello',
+              position: { x: 0, y: 0 },
+              width: 50,
+              height: 20,
+              fontSize: 12,
+            },
+          ],
+        ],
+      };
+
+      const out = await generate({ inputs: [{ a: 'hello' }], template });
+      const outDoc = await PDFDocument.load(out);
+      const outPage = outDoc.getPages()[0];
+      const cropBox = outPage.getCropBox();
+      expect(outPage.hasCropBox()).toBe(true);
+      expect(cropBox.x).toBeCloseTo(50, 5);
+      expect(cropBox.y).toBeCloseTo(50, 5);
+      expect(cropBox.width).toBeCloseTo(512, 5);
+      expect(cropBox.height).toBeCloseTo(692, 5);
+      // MediaBox should remain the source MediaBox.
+      const mediaBox = outPage.getMediaBox();
+      expect(mediaBox.x).toBeCloseTo(0, 5);
+      expect(mediaBox.y).toBeCloseTo(0, 5);
+      expect(mediaBox.width).toBeCloseTo(612, 5);
+      expect(mediaBox.height).toBeCloseTo(792, 5);
+    });
+
+    test('translates schemas authored at (0,0) to the CropBox origin', async () => {
+      // Verify the helper itself: when an explicit CropBox is set, the
+      // content offset returned for schema positioning must be the CropBox
+      // origin rather than the MediaBox origin. This is the crux of the bug
+      // pdfme/pdfme#623 — without this translation, schemas authored against
+      // the visible (CropBox) area land at the MediaBox origin in the
+      // rendered PDF.
+      const { getPageContentOffset } = await import('../src/helper.js');
+      const offsetWithExplicitCrop = getPageContentOffset({
+        mediaBox: { x: 0, y: 0, width: 612, height: 792 },
+        bleedBox: { x: 0, y: 0, width: 612, height: 792 },
+        trimBox: { x: 0, y: 0, width: 612, height: 792 },
+        cropBox: { x: 50, y: 50, width: 512, height: 692 },
+      });
+      expect(offsetWithExplicitCrop).toEqual({ x: 50, y: 50 });
+
+      // No explicit CropBox: must fall back to MediaBox origin so the change
+      // is a no-op for the common case (MediaBox == CropBox).
+      const offsetNoCrop = getPageContentOffset({
+        mediaBox: { x: 10, y: 20, width: 612, height: 792 },
+        bleedBox: { x: 10, y: 20, width: 612, height: 792 },
+        trimBox: { x: 10, y: 20, width: 612, height: 792 },
+      });
+      expect(offsetNoCrop).toEqual({ x: 10, y: 20 });
+    });
+  });
+
   test(`missing font in template.schemas`, async () => {
     const inputs = [{ a: 'test' }];
     const template: Template = {

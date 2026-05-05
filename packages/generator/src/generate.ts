@@ -14,6 +14,7 @@ import {
   preprocessing,
   postProcessing,
   getEmbedPdfPages,
+  getPageContentOffset,
   validateRequiredFields,
 } from './helper.js';
 
@@ -80,10 +81,18 @@ const generate = async (props: GenerateProps): Promise<Uint8Array<ArrayBuffer>> 
       const basePage = basePages[j];
       const embedPdfBox = embedPdfBoxes[j];
 
-      const boundingBoxLeft =
-        basePage instanceof pdfLib.PDFEmbeddedPage ? pt2mm(embedPdfBox.mediaBox.x) : 0;
-      const boundingBoxBottom =
-        basePage instanceof pdfLib.PDFEmbeddedPage ? pt2mm(embedPdfBox.mediaBox.y) : 0;
+      // Use the visible-region origin (CropBox when present, else MediaBox)
+      // so schemas authored against the CropBox land in the visible area
+      // rather than at the MediaBox origin. For basePdfs without an explicit
+      // CropBox this resolves to MediaBox.x/y — identical to the previous
+      // behavior — keeping the change a no-op for the common case.
+      // See pdfme/pdfme#623.
+      const contentOffset =
+        basePage instanceof pdfLib.PDFEmbeddedPage
+          ? getPageContentOffset(embedPdfBox)
+          : { x: 0, y: 0 };
+      const boundingBoxLeft = pt2mm(contentOffset.x);
+      const boundingBoxBottom = pt2mm(contentOffset.y);
 
       const page = insertPage({ basePage, embedPdfBox, pdfDoc });
 

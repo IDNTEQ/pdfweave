@@ -74,6 +74,12 @@ export const getEmbedPdfPages = async (arg: { template: Template; pdfDoc: PDFDoc
       mediaBox: p.getMediaBox(),
       bleedBox: p.getBleedBox(),
       trimBox: p.getTrimBox(),
+      // Only record the CropBox when the source page actually authored one.
+      // pdf-lib's getCropBox() falls back to MediaBox when absent, so we use
+      // hasCropBox() to disambiguate "explicit crop" from "inherited default"
+      // — the latter must remain a no-op for schema positioning to preserve
+      // existing behavior. See pdfme/pdfme#623.
+      cropBox: p.hasCropBox() ? p.getCropBox() : undefined,
     }));
     const boundingBoxes = embedPdfPages.map((p) => {
       const { x, y, width, height } = p.getMediaBox();
@@ -229,11 +235,35 @@ export const insertPage = (arg: {
 
   if (basePage instanceof PDFEmbeddedPage) {
     insertedPage.drawPage(basePage);
-    const { mediaBox, bleedBox, trimBox } = embedPdfBox;
+    const { mediaBox, bleedBox, trimBox, cropBox } = embedPdfBox;
     insertedPage.setMediaBox(mediaBox.x, mediaBox.y, mediaBox.width, mediaBox.height);
     insertedPage.setBleedBox(bleedBox.x, bleedBox.y, bleedBox.width, bleedBox.height);
     insertedPage.setTrimBox(trimBox.x, trimBox.y, trimBox.width, trimBox.height);
+    // Preserve the source's explicit CropBox (when present) so the rendered
+    // PDF still clips to the same visible region as the input. Without this
+    // the inserted page would inherit the default (= MediaBox), changing the
+    // viewer's visible area for callers that rely on CropBox-driven clipping.
+    if (cropBox) {
+      insertedPage.setCropBox(cropBox.x, cropBox.y, cropBox.width, cropBox.height);
+    }
   }
 
   return insertedPage;
+};
+
+/**
+ * Returns the lower-left origin (in PDF points) of the visible content region
+ * for an embedded base page. When the source PDF has an explicit CropBox
+ * distinct from its MediaBox, schema coordinates from the editor/designer are
+ * authored against the CropBox (the visible area), so the renderer must
+ * translate them by the CropBox origin to land them inside the visible region
+ * rather than at the MediaBox origin. When no explicit CropBox is set, this
+ * falls back to the MediaBox origin — which keeps the historical behavior for
+ * the common case where MediaBox == CropBox. See pdfme/pdfme#623.
+ */
+export const getPageContentOffset = (
+  embedPdfBox: EmbedPdfBox,
+): { x: number; y: number } => {
+  const box = embedPdfBox.cropBox ?? embedPdfBox.mediaBox;
+  return { x: box.x, y: box.y };
 };
