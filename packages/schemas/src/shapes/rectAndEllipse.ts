@@ -62,15 +62,31 @@ const shape: Plugin<ShapeSchema> = {
     } else if (schema.type === 'rectangle') {
       const radius = schema.radius ?? 0;
 
+      // SVG (the UI) uses `box-sizing: border-box`, so the border is drawn
+      // *inside* the schema's width × height. pdf-lib's drawRectangle
+      // centers the border on the rectangle's edge — half-inside,
+      // half-outside. To match the UI, draw an inner rectangle inset by
+      // borderWidth/2 on each side. When the schema is rotated, the
+      // (borderWidth/2, borderWidth/2) offset has to be rotated too,
+      // because pdf-lib rotates around the rectangle's corner.
+      //
+      // The previous formula attempted this with arbitrary terms involving
+      // `Math.tan(toRadians(rotate)) * Math.PI ** 2`, which is unbounded
+      // (Infinity at 90°) and bears no relation to the geometry. The
+      // upshot was that any thick-bordered rectangle with rotation rendered
+      // miles away from where the SVG showed it (regression: pdfme/pdfme#382).
+      const half = borderWidth / 2;
+      const angle = toRadians(rotate);
+      const cos = Math.cos(angle);
+      const sin = Math.sin(angle);
+      // Rotate the (half, half) inset around the unrotated origin. pdf-lib's
+      // toRadians(degrees) yields the math-convention angle (CCW positive).
+      const dx = half * cos - half * sin;
+      const dy = half * sin + half * cos;
+
       page.drawRectangle({
-        x:
-          position.x +
-          borderWidth * ((1 - Math.sin(toRadians(rotate))) / 2) +
-          Math.tan(toRadians(rotate)) * Math.PI ** 2,
-        y:
-          position.y +
-          borderWidth * ((1 + Math.sin(toRadians(rotate))) / 2) +
-          Math.tan(toRadians(rotate)) * Math.PI ** 2,
+        x: position.x + dx,
+        y: position.y + dy,
         width: width - borderWidth,
         height: height - borderWidth,
         ...(radius ? { radius: mm2pt(radius) } : {}),
