@@ -1,8 +1,44 @@
-import { Plugin, Schema, mm2pt } from '@pdfweave/common';
+import { Plugin, Schema, mm2pt, type PropPanelWidgetProps } from '@pdfweave/common';
 import { HEX_COLOR_PATTERN } from '../constants.js';
 import { hex2PrintingColor, convertForPdfLayoutProps, createSvgStr } from '../utils.js';
 import { toRadians } from '@pdfweave/pdf-lib';
 import { Circle, Square } from 'lucide';
+
+/**
+ * Edit `schema.borderDashArray` (number[] in mm) as a comma-separated text
+ * input. Form-panel libraries don't bind nested arrays cleanly; surfacing
+ * as text + parse round-trip keeps the underlying number[] shape that
+ * pdf-lib and the SVG renderer expect. Empty / blank input clears the
+ * field (= solid stroke). pdfme/pdfme#530.
+ */
+const BorderDashArrayWidget = (props: PropPanelWidgetProps) => {
+  const { rootElement, changeSchemas, activeSchema } = props;
+  const dash = (activeSchema as { borderDashArray?: number[] }).borderDashArray;
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.placeholder = '4,2';
+  input.value = Array.isArray(dash) ? dash.join(',') : '';
+  input.style.cssText = 'width: 100%;';
+  input.onchange = (e: Event) => {
+    const raw = (e.target as HTMLInputElement).value.trim();
+    if (raw === '') {
+      changeSchemas([{ key: 'borderDashArray', value: undefined, schemaId: activeSchema.id }]);
+      return;
+    }
+    const parts = raw
+      .split(',')
+      .map((s) => Number(s.trim()))
+      .filter((n) => Number.isFinite(n) && n >= 0);
+    changeSchemas([
+      {
+        key: 'borderDashArray',
+        value: parts.length > 0 ? parts : undefined,
+        schemaId: activeSchema.id,
+      },
+    ]);
+  };
+  rootElement.appendChild(input);
+};
 
 interface ShapeSchema extends Schema {
   type: 'ellipse' | 'rectangle';
@@ -10,6 +46,14 @@ interface ShapeSchema extends Schema {
   borderColor: string;
   color: string;
   radius?: number;
+  /**
+   * Optional dash pattern for the border stroke (mm units; pdf-lib expects
+   * the same units as the stroke width). Same shape as pdf-lib's
+   * `borderDashArray` — alternating dash / gap lengths. Defaults to
+   * `undefined` (solid stroke), preserving the previous render path.
+   * pdfme/pdfme#530.
+   */
+  borderDashArray?: number[];
 }
 
 const shape: Plugin<ShapeSchema> = {
@@ -25,7 +69,14 @@ const shape: Plugin<ShapeSchema> = {
       div.style.borderRadius = `${schema.radius}mm`;
     }
     div.style.borderWidth = `${schema.borderWidth ?? 0}mm`;
-    div.style.borderStyle = schema.borderWidth && schema.borderColor ? 'solid' : 'none';
+    // CSS border-style approximates pdf-lib's dash render. CSS doesn't
+    // accept arbitrary dash arrays on borders (it's `dashed` / `dotted` /
+    // `solid` only), so the UI shows "dashed" whenever a dash array is
+    // present and "solid" otherwise. The PDF still draws the exact
+    // pattern via borderDashArray. pdfme/pdfme#530.
+    const hasDash = Array.isArray(schema.borderDashArray) && schema.borderDashArray.length > 0;
+    div.style.borderStyle =
+      schema.borderWidth && schema.borderColor ? (hasDash ? 'dashed' : 'solid') : 'none';
     div.style.borderColor = schema.borderColor ?? 'transparent';
     div.style.backgroundColor = schema.color ?? 'transparent';
 
@@ -43,6 +94,14 @@ const shape: Plugin<ShapeSchema> = {
     } = convertForPdfLayoutProps({ ...cArg, applyRotateTranslate: false });
     const borderWidth = schema.borderWidth ? mm2pt(schema.borderWidth) : 0;
 
+    // borderDashArray values are in mm (matching how borderWidth is
+    // expressed at the schema level) and converted to pt here so callers
+    // don't have to think about pdf-lib's unit. Empty array == solid
+    // stroke; pdf-lib treats `[]` as no-dash. pdfme/pdfme#530.
+    const borderDashArray = Array.isArray(schema.borderDashArray)
+      ? schema.borderDashArray.map(mm2pt)
+      : undefined;
+
     const drawOptions = {
       rotate,
       borderWidth,
@@ -50,6 +109,7 @@ const shape: Plugin<ShapeSchema> = {
       color: hex2PrintingColor(schema.color, colorType),
       opacity,
       borderOpacity: opacity,
+      ...(borderDashArray ? { borderDashArray } : {}),
     };
     if (schema.type === 'ellipse') {
       page.drawEllipse({
@@ -129,7 +189,17 @@ const shape: Plugin<ShapeSchema> = {
         props: { min: 0, step: 1 },
         span: 12,
       },
+      // Custom widget — surfaces the number[] as a comma-separated string
+      // since arrays are awkward to bind in form panels (same trick used
+      // for text padding). pdfme/pdfme#530.
+      borderDashArray: {
+        title: i18n('schemas.borderDashArray') || 'Dash pattern (mm: dash,gap,...)',
+        type: 'void',
+        widget: 'BorderDashArrayWidget',
+        span: 24,
+      },
     }),
+    widgets: { BorderDashArrayWidget },
     defaultSchema: {
       name: '',
       type: 'rectangle',
