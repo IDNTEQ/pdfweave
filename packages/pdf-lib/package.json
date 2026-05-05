@@ -50,7 +50,7 @@
   },
   "scripts": {
     "dev": "vite build --watch",
-    "build": "vite build && tsc -p tsconfig.build.json",
+    "build": "vite build && tsc -p tsconfig.build.json && node scripts/fix-dts-extensions.mjs",
     "clean": "rimraf --glob dist \"src/**/*.d.ts\"",
     "lint": "vp lint -c ../../.oxlintrc.json src",
     "fmt": "vp fmt -c ../../.oxfmtrc.json src --write",
