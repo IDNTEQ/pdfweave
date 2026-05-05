@@ -97,6 +97,33 @@ describe('replacePlaceholders', () => {
   // "Invalid placeholder" and crash the render. After the fix the literal
   // is returned unchanged, matching the existing fall-through for runtime
   // eval errors inside well-formed placeholders.
+  // Regression for upstream pdfme#1345: callers (e.g. the multiVariableText
+  // schema render) pass JSON-shaped strings such as `'{"firstName": "Alice"}'`
+  // through replacePlaceholders. Those braces are JSON object literal
+  // syntax, not placeholder syntax. The dispatcher (in the schemas batch)
+  // sets `options.skip` so MVT `content` passes through unchanged.
+  describe('options.skip opt-out (pdfme#1345)', () => {
+    it('returns the content unchanged when skip is true', () => {
+      const content = '{"a": 1}';
+      const result = replacePlaceholders({
+        content,
+        variables: {},
+        schemas: [],
+        options: { skip: true },
+      });
+      expect(result).toBe('{"a": 1}');
+    });
+
+    it('still evaluates placeholders when skip is false or absent', () => {
+      const content = 'Hello, {name}!';
+      const variables = { name: 'Alice' };
+      expect(replacePlaceholders({ content, variables, schemas: [] })).toBe('Hello, Alice!');
+      expect(
+        replacePlaceholders({ content, variables, schemas: [], options: { skip: false } }),
+      ).toBe('Hello, Alice!');
+    });
+  });
+
   describe('malformed placeholders (pdfme#1309)', () => {
     const cases: Array<[string, string]> = [
       ['{{1}', '{{1}'],

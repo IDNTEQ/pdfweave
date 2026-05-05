@@ -84,6 +84,7 @@ import {
 } from './helper.js';
 import { getDynamicTemplate, getDynamicHeights } from './dynamicTemplate.js';
 import { replacePlaceholders } from './expression.js';
+import type { ReplacePlaceholdersOptions } from './expression.js';
 import { pluginRegistry } from './pluginRegistry.js';
 import {
   formatDesignDataValue,
@@ -186,4 +187,5 @@ export type {
   SchemaBindingColumn,
   UIRenderProps,
   Mode,
+  ReplacePlaceholdersOptions,
 };

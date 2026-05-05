@@ -439,12 +439,34 @@ const evaluatePlaceholders = (arg: {
   return resultContent;
 };
 
+export interface ReplacePlaceholdersOptions {
+  /**
+   * When true, skip placeholder evaluation entirely and return `content`
+   * unchanged. Used by callers that pass values which only coincidentally
+   * contain `{`/`}` but are not template strings — for example the
+   * multiVariableText `content` field, which holds the JSON defaults map
+   * for variable values (e.g. `'{"firstName": "Alice"}'`) rather than the
+   * placeholder-bearing `text` field. Without this opt-out the JSON braces
+   * get parsed as expressions and crash the readOnly render.
+   *
+   * The schema-side caller wires this in (see the schemas batch — owned by
+   * a separate agent); this package ships only the safe parameter.
+   *
+   * Original upstream issue: https://github.com/pdfme/pdfme/issues/1345
+   */
+  skip?: boolean;
+}
+
 export const replacePlaceholders = (arg: {
   content: string;
   variables: Record<string, unknown>;
   schemas: SchemaPageArray;
+  options?: ReplacePlaceholdersOptions;
 }): string => {
-  const { content, variables, schemas } = arg;
+  const { content, variables, schemas, options } = arg;
+  if (options?.skip) {
+    return content;
+  }
   if (!content || typeof content !== 'string' || !content.includes('{') || !content.includes('}')) {
     return content;
   }
