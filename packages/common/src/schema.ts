@@ -172,6 +172,7 @@ export const Schema = z
     opacity: z.number().optional(),
     readOnly: z.boolean().optional(),
     required: z.boolean().optional(),
+    group: z.string().optional(),
     binding: SchemaBinding.optional(),
     layout: SchemaLayoutRule.optional(),
     __bodyRange: z.object({ start: z.number(), end: z.number().optional() }).optional(),

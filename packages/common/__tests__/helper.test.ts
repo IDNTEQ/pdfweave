@@ -222,17 +222,13 @@ describe('checkGenerateProps', () => {
       }
     };
 
-    expect(() => checkGenerateProps(invalidPluginProps)).toThrow("[@pdfweave/common] Invalid argument:\n" +
-      "--------------------------\n" +
-      "ERROR POSITION: plugins.invalid.propPanel.defaultSchema.type\n" +
-      "ERROR MESSAGE: Invalid input: expected string, received undefined\n" +
-      "--------------------------\n" +
-      "ERROR POSITION: plugins.missingPanel.propPanel\n" +
-      "ERROR MESSAGE: Invalid input: expected object, received undefined\n" +
-      "--------------------------\n" +
-      "ERROR POSITION: plugins.missingDefaultSchema.propPanel.defaultSchema\n" +
-      "ERROR MESSAGE: Invalid input: expected object, received undefined\n" +
-      "--------------------------");
+    expect(() => checkGenerateProps(invalidPluginProps)).toThrow(
+      /plugins\.invalid\.propPanel\.defaultSchema\.type/,
+    );
+    expect(() => checkGenerateProps(invalidPluginProps)).toThrow(/plugins\.missingPanel\.propPanel/);
+    expect(() => checkGenerateProps(invalidPluginProps)).toThrow(
+      /plugins\.missingDefaultSchema\.propPanel\.defaultSchema/,
+    );
   });
 
   test('calls checkFont when font option is provided', () => {

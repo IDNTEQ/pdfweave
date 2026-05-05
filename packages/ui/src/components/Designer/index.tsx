@@ -140,12 +140,45 @@ const TemplateEditor = ({
     maxZoom,
   });
 
-  const onEdit = useCallback((targets: Array<HTMLElement | null | undefined>) => {
-    setActiveElements(
-      targets.filter((target): target is HTMLElement => target instanceof HTMLElement),
-    );
-    setHoveringSchemaId(null);
-  }, []);
+  const getElementsByIds = useCallback(
+    (ids: string[]) =>
+      ids
+        .map((id) => document.getElementById(id))
+        .filter((element): element is HTMLElement => element instanceof HTMLElement),
+    [],
+  );
+
+  const onEdit = useCallback(
+    (targets: Array<HTMLElement | null | undefined>) => {
+      const selectedTargets = targets.filter(
+        (target): target is HTMLElement => target instanceof HTMLElement,
+      );
+      const pageSchemas = schemasList[pageCursor] || [];
+      const selectedIds = new Set(selectedTargets.map((target) => target.id));
+      const selectedGroups = new Set(
+        pageSchemas
+          .filter((schema) => selectedIds.has(schema.id) && schema.group)
+          .map((schema) => schema.group as string),
+      );
+
+      if (selectedGroups.size > 0) {
+        pageSchemas.forEach((schema) => {
+          if (schema.group && selectedGroups.has(schema.group)) {
+            selectedIds.add(schema.id);
+          }
+        });
+      }
+
+      const groupedTargets = getElementsByIds(
+        pageSchemas.filter((schema) => selectedIds.has(schema.id)).map((schema) => schema.id),
+      );
+      const groupedTargetIds = new Set(groupedTargets.map((target) => target.id));
+      const remainingTargets = selectedTargets.filter((target) => !groupedTargetIds.has(target.id));
+      setActiveElements(groupedTargets.concat(remainingTargets));
+      setHoveringSchemaId(null);
+    },
+    [getElementsByIds, pageCursor, schemasList],
+  );
 
   const onEditEnd = useCallback(() => {
     setActiveElements([]);
@@ -231,14 +264,6 @@ const TemplateEditor = ({
     [activeElements],
   );
 
-  const getElementsByIds = useCallback(
-    (ids: string[]) =>
-      ids
-        .map((id) => document.getElementById(id))
-        .filter((element): element is HTMLElement => element instanceof HTMLElement),
-    [],
-  );
-
   const copySchemas = useCallback(
     (ids?: string[]) => {
       const targetIds = getActiveIds(ids);
@@ -253,6 +278,7 @@ const TemplateEditor = ({
     if (!copiedSchemas.current || copiedSchemas.current.length === 0) return;
     const schema = schemasList[pageCursor];
     const stackUniqueSchemaNames: string[] = [];
+    const groupIdMap = new Map<string, string>();
     const pasteSchemas = copiedSchemas.current.map((cs) => {
       const id = uuid();
       const name = getUniqueSchemaName({
@@ -267,7 +293,13 @@ const TemplateEditor = ({
         y: p.y + 10 > ps.height - height ? ps.height - height : p.y + 10,
       };
 
-      return Object.assign(cloneDeep(cs), { id, name, position });
+      const pastedSchema = Object.assign(cloneDeep(cs), { id, name, position });
+      if (cs.group) {
+        const nextGroupId = groupIdMap.get(cs.group) || `group-${uuid()}`;
+        groupIdMap.set(cs.group, nextGroupId);
+        pastedSchema.group = nextGroupId;
+      }
+      return pastedSchema;
     });
     commitSchemas(schemasList[pageCursor].concat(pasteSchemas));
     setTimeout(() => {
@@ -301,6 +333,47 @@ const TemplateEditor = ({
     [copySchemas, getActiveIds, pasteSchemas],
   );
 
+  const groupSchemas = useCallback(
+    (ids?: string[]) => {
+      const targetIds = getActiveIds(ids);
+      if (targetIds.length < 2) return;
+
+      const selectedIds = new Set(targetIds);
+      const groupId = `group-${uuid()}`;
+      const nextSchemas = schemasList[pageCursor].map((schema) =>
+        selectedIds.has(schema.id) ? { ...schema, group: groupId } : schema,
+      );
+      commitSchemas(nextSchemas);
+      setTimeout(() => onEdit(getElementsByIds(targetIds)));
+    },
+    [commitSchemas, getActiveIds, getElementsByIds, onEdit, pageCursor, schemasList],
+  );
+
+  const ungroupSchemas = useCallback(
+    (ids?: string[]) => {
+      const targetIds = getActiveIds(ids);
+      const pageSchemas = schemasList[pageCursor];
+      const selectedGroups = new Set(
+        pageSchemas
+          .filter((schema) => targetIds.includes(schema.id) && schema.group)
+          .map((schema) => schema.group as string),
+      );
+      if (selectedGroups.size === 0) return;
+
+      const affectedIds: string[] = [];
+      const nextSchemas = pageSchemas.map((schema) => {
+        if (!schema.group || !selectedGroups.has(schema.group)) return schema;
+        affectedIds.push(schema.id);
+        const nextSchema = { ...schema };
+        delete nextSchema.group;
+        return nextSchema;
+      });
+      commitSchemas(nextSchemas);
+      setTimeout(() => onEdit(getElementsByIds(affectedIds)));
+    },
+    [commitSchemas, getActiveIds, getElementsByIds, onEdit, pageCursor, schemasList],
+  );
+
   const reorderSchemas = useCallback(
     (ids: string[] | undefined, placement: 'front' | 'back') => {
       const targetIds = getActiveIds(ids);
@@ -321,6 +394,8 @@ const TemplateEditor = ({
       cut: cutSchemas,
       paste: pasteSchemas,
       duplicate: duplicateSchemas,
+      group: groupSchemas,
+      ungroup: ungroupSchemas,
       remove: removeSelectedSchemas,
       bringToFront: (ids?: string[]) => reorderSchemas(ids, 'front'),
       sendToBack: (ids?: string[]) => reorderSchemas(ids, 'back'),
@@ -330,9 +405,11 @@ const TemplateEditor = ({
       copySchemas,
       cutSchemas,
       duplicateSchemas,
+      groupSchemas,
       pasteSchemas,
       removeSelectedSchemas,
       reorderSchemas,
+      ungroupSchemas,
     ],
   );
 

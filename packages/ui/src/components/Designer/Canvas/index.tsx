@@ -105,6 +105,8 @@ interface Props {
     cut: (ids?: string[]) => void;
     paste: () => void;
     duplicate: (ids?: string[]) => void;
+    group: (ids?: string[]) => void;
+    ungroup: (ids?: string[]) => void;
     remove: (ids?: string[]) => void;
     bringToFront: (ids?: string[]) => void;
     sendToBack: (ids?: string[]) => void;
@@ -367,11 +369,38 @@ const Canvas = (props: Props, ref: Ref<HTMLDivElement>) => {
 
   const activeIds = useMemo(() => activeElements.map((ae) => ae.id), [activeElements]);
 
+  const expandIdsByGroups = useCallback(
+    (ids: string[]) => {
+      const pageSchemas = schemasList[pageCursor] || [];
+      const selectedIds = new Set(ids);
+      const selectedGroups = new Set(
+        pageSchemas
+          .filter((schema) => selectedIds.has(schema.id) && schema.group)
+          .map((schema) => schema.group as string),
+      );
+
+      if (selectedGroups.size === 0) return ids;
+
+      pageSchemas.forEach((schema) => {
+        if (schema.group && selectedGroups.has(schema.group)) {
+          selectedIds.add(schema.id);
+        }
+      });
+
+      return pageSchemas.filter((schema) => selectedIds.has(schema.id)).map((schema) => schema.id);
+    },
+    [pageCursor, schemasList],
+  );
+
+  const getElementsByIds = (ids: string[]) =>
+    ids
+      .map((id) => document.getElementById(id))
+      .filter((element): element is HTMLElement => element instanceof HTMLElement);
+
   const selectContextTargets = (schema: SchemaForUI, target: HTMLElement) => {
-    if (activeIds.includes(schema.id)) {
-      return activeElements;
-    }
-    return [target];
+    const ids = activeIds.includes(schema.id) ? activeIds : [schema.id];
+    const targets = getElementsByIds(expandIdsByGroups(ids));
+    return targets.length > 0 ? targets : [target];
   };
 
   const onContextMenuAction = (action: DesignerContextMenuAction) => {
@@ -389,6 +418,12 @@ const Canvas = (props: Props, ref: Ref<HTMLDivElement>) => {
       case 'duplicate':
         designerActions.duplicate(ids);
         break;
+      case 'group':
+        designerActions.group(ids);
+        break;
+      case 'ungroup':
+        designerActions.ungroup(ids);
+        break;
       case 'delete':
         designerActions.remove(ids);
         break;
@@ -403,6 +438,11 @@ const Canvas = (props: Props, ref: Ref<HTMLDivElement>) => {
     }
     setContextMenu(null);
   };
+
+  const contextSchemas = useMemo(() => {
+    const ids = new Set(contextMenu?.schemaIds ?? []);
+    return (schemasList[pageCursor] || []).filter((schema) => ids.has(schema.id));
+  }, [contextMenu, pageCursor, schemasList]);
 
   const rotatable = useMemo(() => {
     const selectedSchemas = (schemasList[pageCursor] || []).filter((s) =>
@@ -672,6 +712,8 @@ const Canvas = (props: Props, ref: Ref<HTMLDivElement>) => {
         x={contextMenu?.x ?? 0}
         y={contextMenu?.y ?? 0}
         canPaste={designerActions.canPaste()}
+        canGroup={contextSchemas.length > 1}
+        canUngroup={contextSchemas.some((schema) => Boolean(schema.group))}
         onAction={onContextMenuAction}
         onClose={() => setContextMenu(null)}
       />

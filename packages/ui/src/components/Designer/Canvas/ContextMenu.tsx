@@ -5,9 +5,11 @@ import {
   Clipboard,
   Copy,
   CopyPlus,
+  Group,
   Scissors,
   SendToBack,
   Trash2,
+  Ungroup,
 } from 'lucide-react';
 
 export type DesignerContextMenuAction =
@@ -15,6 +17,8 @@ export type DesignerContextMenuAction =
   | 'cut'
   | 'paste'
   | 'duplicate'
+  | 'group'
+  | 'ungroup'
   | 'delete'
   | 'bringToFront'
   | 'sendToBack';
@@ -31,11 +35,13 @@ type Props = {
   x: number;
   y: number;
   canPaste: boolean;
+  canGroup: boolean;
+  canUngroup: boolean;
   onAction: (action: DesignerContextMenuAction) => void;
   onClose: () => void;
 };
 
-const ContextMenu = ({ open, x, y, canPaste, onAction, onClose }: Props) => {
+const ContextMenu = ({ open, x, y, canPaste, canGroup, canUngroup, onAction, onClose }: Props) => {
   const { token } = theme.useToken();
 
   useEffect(() => {
@@ -65,6 +71,8 @@ const ContextMenu = ({ open, x, y, canPaste, onAction, onClose }: Props) => {
     { action: 'cut', label: 'Cut', icon: <Scissors size={iconSize} /> },
     { action: 'paste', label: 'Paste', disabled: !canPaste, icon: <Clipboard size={iconSize} /> },
     { action: 'duplicate', label: 'Duplicate', icon: <CopyPlus size={iconSize} /> },
+    { action: 'group', label: 'Group', disabled: !canGroup, icon: <Group size={iconSize} /> },
+    { action: 'ungroup', label: 'Ungroup', disabled: !canUngroup, icon: <Ungroup size={iconSize} /> },
     { action: 'delete', label: 'Delete', icon: <Trash2 size={iconSize} /> },
     { action: 'bringToFront', label: 'Bring to Front', icon: <BringToFront size={iconSize} /> },
     { action: 'sendToBack', label: 'Send to Back', icon: <SendToBack size={iconSize} /> },
