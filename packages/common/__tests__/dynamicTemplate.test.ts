@@ -1,8 +1,8 @@
 import { readFileSync } from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { getDynamicTemplate } from '../src/dynamicTemplate.js';
-import { Template, Schema, Font } from '../src/index.js';
+import { getDynamicTemplate, getDynamicHeights } from '../src/dynamicTemplate.js';
+import { Template, Schema, Font, Plugin, BasePdf } from '../src/index.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const sansData = readFileSync(path.join(__dirname, `/assets/fonts/NotoSans-Regular.ttf`));
@@ -476,5 +476,94 @@ describe('getDynamicTemplate', () => {
       // Text should be pushed down: original y=30 + (40-10) offset = 60
       expect(text!.position.y).toBe(60);
     });
+  });
+});
+
+describe('getDynamicHeights (generic plugin.measure dispatch)', () => {
+  // Reproduces upstream pdfme/pdfme#1418: a custom schema (not type === 'table')
+  // that exposes a `measure` hook should participate in dynamic-height layout
+  // exactly like the built-in table plugin does.
+
+  const baseSchema: Schema = {
+    name: 'autoFitText',
+    type: 'autoFitText',
+    content: 'hello world',
+    position: { x: 10, y: 10 },
+    width: 80,
+    height: 12,
+  };
+
+  const basePdf: BasePdf = {
+    width: 100,
+    height: 100,
+    padding: [10, 10, 10, 10],
+  };
+
+  const measureArgs = {
+    schema: baseSchema,
+    basePdf,
+    options: {},
+    _cache: new Map<string | number, unknown>(),
+  };
+
+  test('returns the height reported by a custom plugin.measure hook', async () => {
+    const customPlugin = {
+      pdf: () => undefined,
+      ui: () => undefined,
+      propPanel: { schema: {}, defaultSchema: baseSchema },
+      measure: async () => ({ width: baseSchema.width, height: 42 }),
+    } as unknown as Plugin;
+
+    const heights = await getDynamicHeights('hello world', measureArgs, customPlugin);
+    expect(heights).toEqual([42]);
+  });
+
+  test('honours dynamicHeights from the measure result for splittable content', async () => {
+    const splittablePlugin = {
+      pdf: () => undefined,
+      ui: () => undefined,
+      propPanel: { schema: {}, defaultSchema: baseSchema },
+      measure: async () => ({
+        width: baseSchema.width,
+        height: 30,
+        dynamicHeights: [10, 10, 10],
+      }),
+    } as unknown as Plugin;
+
+    const heights = await getDynamicHeights('a\nb\nc', measureArgs, splittablePlugin);
+    expect(heights).toEqual([10, 10, 10]);
+  });
+
+  test('honours fragments from the measure result when dynamicHeights are absent', async () => {
+    const fragmentingPlugin = {
+      pdf: () => undefined,
+      ui: () => undefined,
+      propPanel: { schema: {}, defaultSchema: baseSchema },
+      measure: async () => ({
+        fragments: [
+          { width: baseSchema.width, height: 25 },
+          { width: baseSchema.width, height: 18 },
+        ],
+      }),
+    } as unknown as Plugin;
+
+    const heights = await getDynamicHeights('multi-page', measureArgs, fragmentingPlugin);
+    expect(heights).toEqual([25, 18]);
+  });
+
+  test('falls back to the static schema height when no plugin is registered', async () => {
+    const heights = await getDynamicHeights('any', measureArgs, undefined);
+    expect(heights).toEqual([baseSchema.height]);
+  });
+
+  test('falls back to the static schema height when the plugin has no measure hook', async () => {
+    const renderOnlyPlugin = {
+      pdf: () => undefined,
+      ui: () => undefined,
+      propPanel: { schema: {}, defaultSchema: baseSchema },
+    } as unknown as Plugin;
+
+    const heights = await getDynamicHeights('any', measureArgs, renderOnlyPlugin);
+    expect(heights).toEqual([baseSchema.height]);
   });
 });

@@ -82,7 +82,7 @@ import {
   treatsLikeBlank,
   isUrlSafeToFetch,
 } from './helper.js';
-import { getDynamicTemplate } from './dynamicTemplate.js';
+import { getDynamicTemplate, getDynamicHeights } from './dynamicTemplate.js';
 import { replacePlaceholders } from './expression.js';
 import { pluginRegistry } from './pluginRegistry.js';
 import {
@@ -119,6 +119,7 @@ export {
   isStationeryPdf,
   treatsLikeBlank,
   getDynamicTemplate,
+  getDynamicHeights,
   formatDesignDataValue,
   getDesignDataInput,
   getDesignDataVariables,

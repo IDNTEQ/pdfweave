@@ -6,6 +6,7 @@ import {
   StationeryPdf,
   CommonOptions,
   LayoutMeasureResult,
+  Plugin,
   SchemaLayoutRule,
 } from './types.js';
 import { cloneDeep, treatsLikeBlank } from './helper.js';
@@ -147,6 +148,48 @@ function getDynamicHeightsFromLayoutResult(schema: Schema, result: LayoutMeasure
   }
 
   return [schema.height];
+}
+
+/**
+ * Generic dynamic-height dispatcher.
+ *
+ * Resolves the per-fragment heights of any schema by delegating to the
+ * registered plugin's optional `measure` hook. This is the architectural
+ * generalisation of the legacy `type === 'table'` switch — any plugin that
+ * implements `measure(args)` participates in dynamic-height layout the same
+ * way the built-in table plugin does.
+ *
+ * Resolution order matches `getDynamicHeightsFromLayoutResult`:
+ *   1. `result.dynamicHeights` (explicit per-row breakdown)
+ *   2. `result.fragments[*].height` (cross-page fragment heights)
+ *   3. `[result.height]` (single static measurement)
+ *   4. `[schema.height]` (fall-back to the design-time height)
+ *
+ * @param value   The resolved input value for the schema (already data-bound).
+ * @param args    Standard layout-measure args (schema + basePdf + options + cache).
+ * @param plugin  The registered plugin for `args.schema.type`, if any.
+ *                When `undefined` or when the plugin has no `measure` hook,
+ *                returns the schema's static height — preserving backwards
+ *                compatible behaviour for plugins that don't reflow.
+ *
+ * Original upstream issue: https://github.com/pdfme/pdfme/issues/1418
+ */
+export async function getDynamicHeights(
+  value: string,
+  args: {
+    schema: Schema;
+    basePdf: BasePdf;
+    options: CommonOptions;
+    _cache: Map<string | number, unknown>;
+  },
+  plugin: Plugin | undefined,
+): Promise<number[]> {
+  if (!plugin?.measure) {
+    return [args.schema.height];
+  }
+
+  const result = await plugin.measure({ value, ...args });
+  return getDynamicHeightsFromLayoutResult(args.schema, result);
 }
 
 /** Calculate the content height of a page (drawable area excluding padding) */
