@@ -1,3 +1,11 @@
+// PDFweave loads the pdfjs worker via Vite's `?worker&url` suffix on the
+// legacy ESM build. This avoids the upstream "does not provide an export
+// named 'default'" error when modern bundlers resolve the legacy CJS worker
+// entry — the same class of error addressed by upstream pdfme/pdfme#1290
+// (which switched to `new URL('pdfjs-dist/build/pdf.worker.min.js',
+// import.meta.url)`). Our approach predates and supersedes that PR; we keep
+// the Vite worker pipeline because it bundles the worker as a same-origin
+// asset rather than relying on `import.meta.url` resolution at runtime.
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { pdf2img as _pdf2img, Pdf2ImgOptions } from './pdf2img.js';
 import { pdf2size as _pdf2size, Pdf2SizeOptions } from './pdf2size.js';
