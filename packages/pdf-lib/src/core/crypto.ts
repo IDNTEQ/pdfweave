@@ -23,6 +23,55 @@ import PDFString from './objects/PDFString.js';
 import DecryptStream from './streams/DecryptStream.js';
 import { StreamType } from './streams/Stream.js';
 
+/**
+ * Optional reference to Node.js's native `crypto` module. Used by
+ * {@link AES256Cipher._decrypt} to delegate AES-256 ECB block decryption to
+ * OpenSSL when running under Node.js.
+ *
+ * The pure-JavaScript AES round loop in {@link AESBaseCipher._decrypt} can
+ * produce garbled output for V=5 / R=5 (AES-256) encrypted PDFs, leading to
+ * missing text and corrupted font programs after a load + save round-trip.
+ * Delegating to Node's native crypto sidesteps the JS implementation entirely
+ * for the affected code path.
+ *
+ * Browsers (and any other non-Node runtime) leave this `null` and fall back
+ * to the existing JS implementation, which is correct for AES-128 and the
+ * common AES-256 cases not exercised by the V=5/R=5 path.
+ *
+ * See: https://github.com/pdfme/pdfme/issues/1348
+ */
+type NodeCryptoLike = {
+  createDecipheriv: (
+    algorithm: string,
+    key: Uint8Array,
+    iv: Uint8Array | null,
+  ) => {
+    setAutoPadding: (autoPadding: boolean) => void;
+    update: (data: Uint8Array) => Uint8Array;
+    final: () => Uint8Array;
+  };
+};
+
+let _nodeCrypto: NodeCryptoLike | null = null;
+try {
+  // Guard against browsers that lack `process` entirely. Only attempt to
+  // load `node:crypto` when running under Node.js.
+  const proc = (globalThis as { process?: { versions?: { node?: string } } }).process;
+  if (proc && proc.versions && proc.versions.node) {
+    // Top-level await dynamic import keeps `_nodeCrypto`'s effective API
+    // synchronous for downstream `_decrypt` callers without forcing the
+    // import into browser bundles. ESM consumers that statically analyse
+    // the import (Vite, Rollup, webpack) will tree-shake or externalise the
+    // `node:` specifier instead of trying to resolve it for the browser.
+    //
+    // The package is ESM-only (`"type": "module"` in `package.json`) and
+    // every supported Node version (>=14) implements TLA, so this is safe.
+    _nodeCrypto = (await import('node:crypto')) as unknown as NodeCryptoLike;
+  }
+} catch {
+  _nodeCrypto = null;
+}
+
 class ARCFourCipher {
   private s: Uint8Array;
   private a: number;
@@ -1144,13 +1193,61 @@ class AES128Cipher extends AESBaseCipher {
 }
 
 class AES256Cipher extends AESBaseCipher {
+  /**
+   * Raw 32-byte AES-256 cipher key, retained so that {@link _decrypt} can
+   * pass it directly to Node.js's native crypto when available. The base
+   * class only stores the *expanded* round-key schedule in `this._key`.
+   */
+  protected _rawCipherKey: Uint8Array;
+
   constructor(key: Uint8Array) {
     super();
 
     this._cyclesOfRepetition = 14;
     this._keySize = 224; // bits
+    // Copy so callers can mutate `key` afterwards without affecting us.
+    this._rawCipherKey = new Uint8Array(key);
 
     this._key = this._expandKey(key);
+  }
+
+  /**
+   * AES-256 single-block ECB decryption.
+   *
+   * Overrides {@link AESBaseCipher._decrypt} to delegate to Node.js's native
+   * crypto module when available. The pure-JS AES-256 (14-round) path in the
+   * base class can produce garbled output for V=5/R=5 encrypted PDFs, which
+   * silently corrupts text and font programs after a load + save round-trip.
+   *
+   * In browsers (or any other environment without `node:crypto`), we fall
+   * back to the existing JS implementation.
+   *
+   * See: https://github.com/pdfme/pdfme/issues/1348
+   */
+  override _decrypt(input: Uint8Array, key: Uint8Array): Uint8Array<ArrayBuffer> {
+    if (_nodeCrypto) {
+      const decipher = _nodeCrypto.createDecipheriv(
+        'aes-256-ecb',
+        this._rawCipherKey,
+        null,
+      );
+      // pdf-lib manages padding itself via the OE/UE/Perms structure and the
+      // outer CBC wrapper, so disable OpenSSL's PKCS#7 padding.
+      decipher.setAutoPadding(false);
+      const head = decipher.update(input);
+      const tail = decipher.final();
+      // For a single 16-byte ECB block (the only shape `_decrypt` is ever
+      // called with) `final()` returns an empty buffer; the concat path is
+      // purely defensive. Always copy into a freshly-allocated `Uint8Array`
+      // so the result has the same `Uint8Array<ArrayBuffer>` shape as the
+      // base implementation (Node's `Buffer` is backed by a pooled buffer
+      // that TypeScript types as `ArrayBufferLike`).
+      const out = new Uint8Array(new ArrayBuffer(head.length + tail.length));
+      out.set(head, 0);
+      if (tail.length > 0) out.set(tail, head.length);
+      return out;
+    }
+    return super._decrypt(input, key) as Uint8Array<ArrayBuffer>;
   }
 
   _expandKey(cipherKey: Uint8Array) {
