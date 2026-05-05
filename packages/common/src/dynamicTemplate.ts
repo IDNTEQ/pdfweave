@@ -498,6 +498,29 @@ export const getDynamicTemplate = async (
     return workingTemplate;
   }
 
+  // Validate up-front against the declared top padding (not the effective
+  // staticSchema-adjusted contentTop). A schema positioned above
+  // basePdf.padding[0] would otherwise crash deeper in the layout pass
+  // with the opaque "Cannot read properties of undefined (reading 'push')"
+  // — and that crash hits new users on the official getting-started
+  // example. Surface a clear, actionable validation error instead.
+  // Only absolute (non-anchored) schemas are checked here; anchored ones
+  // get their final position resolved during the per-page reflow below.
+  // Original upstream issue: https://github.com/pdfme/pdfme/issues/1346
+  const declaredPaddingTop = basePdf.padding[0];
+  for (const pageSchemas of workingTemplate.schemas) {
+    for (const schema of pageSchemas) {
+      const layoutMode = (schema as Schema & { layout?: SchemaLayoutRule }).layout?.mode;
+      if (layoutMode === 'anchored') continue;
+      if (schema.position.y < declaredPaddingTop - EPSILON) {
+        throw new Error(
+          `[@pdfweave/common] Schema "${schema.name}" position.y (${schema.position.y}) ` +
+            `must be >= basePdf.padding[0] (${declaredPaddingTop}).`,
+        );
+      }
+    }
+  }
+
   const { contentHeight, contentTop: paddingTop } = getEffectiveContentBounds(basePdf);
   const resultPages: Schema[][] = [];
   const PARALLEL_LIMIT = 10;

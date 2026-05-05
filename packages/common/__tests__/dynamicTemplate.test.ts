@@ -333,6 +333,108 @@ describe('getDynamicTemplate', () => {
     });
   });
 
+  describe('Validation (pdfme#1346)', () => {
+    // Reproduces upstream pdfme#1346: a schema whose y is above the top
+    // padding band crashed deep in the layout pass with an opaque
+    // "Cannot read properties of undefined (reading 'push')". The fix
+    // throws a clear validation error before generation runs.
+    test('throws a clear error when schema.position.y < paddingTop', async () => {
+      const badTemplate: Template = {
+        schemas: [
+          [
+            {
+              name: 'tooHigh',
+              type: 'text',
+              content: 'x',
+              position: { x: 10, y: 10 },
+              width: 50,
+              height: 10,
+            },
+          ],
+        ],
+        basePdf: { width: 100, height: 100, padding: [20, 10, 10, 10] },
+      };
+
+      await expect(
+        getDynamicTemplate({
+          template: badTemplate,
+          input: { tooHigh: 'x' },
+          options: {},
+          _cache: new Map(),
+        }),
+      ).rejects.toThrow(
+        '[@pdfweave/common] Schema "tooHigh" position.y (10) must be >= basePdf.padding[0] (20).',
+      );
+    });
+
+    test('accepts schema.position.y == paddingTop without throwing', async () => {
+      const okTemplate: Template = {
+        schemas: [
+          [
+            {
+              name: 'flush',
+              type: 'text',
+              content: 'x',
+              position: { x: 10, y: 20 },
+              width: 50,
+              height: 10,
+            },
+          ],
+        ],
+        basePdf: { width: 100, height: 100, padding: [20, 10, 10, 10] },
+      };
+
+      const dynamicTemplate = await getDynamicTemplate({
+        template: okTemplate,
+        input: { flush: 'x' },
+        options: {},
+        _cache: new Map(),
+      });
+      expect(dynamicTemplate.schemas[0][0].name).toBe('flush');
+    });
+
+    test('skips anchored schemas — their final y is computed during reflow', async () => {
+      // An anchored schema may declare position.y = 0 because reflow
+      // overwrites it; that must NOT trip the up-front validator.
+      const anchoredTemplate: Template = {
+        schemas: [
+          [
+            {
+              name: 'anchor',
+              type: 'text',
+              content: 'a',
+              position: { x: 10, y: 25 },
+              width: 50,
+              height: 10,
+            },
+            {
+              name: 'follower',
+              type: 'text',
+              content: 'b',
+              position: { x: 0, y: 0 },
+              width: 50,
+              height: 10,
+              layout: {
+                mode: 'anchored',
+                x: { mode: 'pageLeft', offsetMm: 10 },
+                y: { mode: 'belowBottomEdge', ref: { schemaId: 'anchor' }, offsetMm: 5 },
+              },
+            },
+          ],
+        ],
+        basePdf: { width: 100, height: 100, padding: [20, 10, 10, 10] },
+      };
+
+      const dynamicTemplate = await getDynamicTemplate({
+        template: anchoredTemplate,
+        input: { anchor: 'a', follower: 'b' },
+        options: {},
+        _cache: new Map(),
+      });
+      expect(dynamicTemplate.schemas[0].length).toBe(2);
+    });
+  });
+
   describe('Edge cases', () => {
     test('should handle empty increase heights', async () => {
       const increaseHeights: number[] = [];
