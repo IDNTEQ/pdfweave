@@ -1,8 +1,8 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { extname, join, resolve } from 'node:path';
-import { getDefaultFont, isUrlSafeToFetch } from '@pdfme/common';
-import type { Font } from '@pdfme/common';
+import { getDefaultFont, isUrlSafeToFetch } from '@pdfweave/common';
+import type { Font } from '@pdfweave/common';
 import { CliError, fail } from './contract.js';
 
 const CACHE_DIR = join(homedir(), '.pdfme', 'fonts');
@@ -95,7 +95,7 @@ export function parseCustomFonts(fontArgs: string[]): Font {
     const extension = extname(filePath).toLowerCase();
     if (extension !== '.ttf') {
       fail(
-        `Unsupported font format for ${filePath}. @pdfme/cli currently guarantees only .ttf custom fonts.`,
+        `Unsupported font format for ${filePath}. @pdfweave/cli currently guarantees only .ttf custom fonts.`,
         { code: 'EUNSUPPORTED', exitCode: 1 },
       );
     }
@@ -598,13 +598,13 @@ function evaluateFontFormat(
 
   if (formatHint === null) {
     return {
-      warning: `${sourceLabel} does not clearly advertise a .ttf format. @pdfme/cli currently guarantees only .ttf custom fonts.`,
+      warning: `${sourceLabel} does not clearly advertise a .ttf format. @pdfweave/cli currently guarantees only .ttf custom fonts.`,
     };
   }
 
   return {
     supportedFormat: false,
-    issue: `${sourceLabel} uses .${formatHint}. @pdfme/cli currently guarantees only .ttf custom fonts for ${fontName}.`,
+    issue: `${sourceLabel} uses .${formatHint}. @pdfweave/cli currently guarantees only .ttf custom fonts for ${fontName}.`,
   };
 }
 

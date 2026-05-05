@@ -1,5 +1,5 @@
 import React, { useContext } from 'react';
-import { Size } from '@pdfme/common';
+import { Size } from '@pdfweave/common';
 // Import icons from lucide-react
 // Note: In tests, these are replaced via the Vitest lucide-react mock.
 import { Plus, Minus, ChevronLeft, ChevronRight, Ellipsis } from 'lucide-react';

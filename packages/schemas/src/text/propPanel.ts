@@ -4,7 +4,7 @@ import {
   PropPanelWidgetProps,
   PropPanelSchema,
   getFallbackFontName,
-} from '@pdfme/common';
+} from '@pdfweave/common';
 import type { TextSchema } from './types.js';
 import {
   DEFAULT_FONT_SIZE,

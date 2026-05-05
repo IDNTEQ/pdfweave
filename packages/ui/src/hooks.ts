@@ -9,8 +9,8 @@ import {
   SchemaForUI,
   ChangeSchemas,
   isBlankPdf,
-} from '@pdfme/common';
-import { pdf2img, pdf2size } from '@pdfme/converter';
+} from '@pdfweave/common';
+import { pdf2img, pdf2size } from '@pdfweave/converter';
 
 import {
   schemasList2template,
@@ -125,7 +125,7 @@ export const useUIPreProcessor = ({ template, size, zoomLevel, maxZoom }: UIPreP
         const error = err instanceof Error ? err : new Error(String(err));
         if (isMountedRef.current && requestId === requestIdRef.current) {
           setError(error);
-          console.error('[@pdfme/ui]', error);
+          console.error('[@pdfweave/ui]', error);
         }
       }
     },

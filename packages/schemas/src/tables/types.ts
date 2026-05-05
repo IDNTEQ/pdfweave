@@ -1,5 +1,5 @@
 import type { ALIGNMENT, VERTICAL_ALIGNMENT } from '../text/types.js';
-import type { Schema } from '@pdfme/common';
+import type { Schema } from '@pdfweave/common';
 
 export type Spacing = { top: number; right: number; bottom: number; left: number };
 type BorderInsets = Spacing;

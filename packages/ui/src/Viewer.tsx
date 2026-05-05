@@ -1,5 +1,5 @@
 import React from 'react';
-import { PreviewProps } from '@pdfme/common';
+import { PreviewProps } from '@pdfweave/common';
 import { PreviewUI } from './class.js';
 import { DESTROYED_ERR_MSG } from './constants.js';
 import Preview from './components/Preview.js';
@@ -12,7 +12,7 @@ class Viewer extends PreviewUI {
   constructor(props: PreviewProps) {
     super(props);
     console.warn(
-      '[@pdfme/ui] Viewer component is deprecated and will be removed in a future version.',
+      '[@pdfweave/ui] Viewer component is deprecated and will be removed in a future version.',
     );
   }
 

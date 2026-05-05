@@ -1,4 +1,4 @@
-import type { Lang, Dict } from '@pdfme/common';
+import type { Lang, Dict } from '@pdfweave/common';
 import { DEFAULT_LANG } from './constants.js';
 
 const dictEn: { [key in keyof Dict]: string } = {

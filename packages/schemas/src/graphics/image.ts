@@ -1,8 +1,8 @@
-import type { PDFImage } from '@pdfme/pdf-lib';
-import type { Plugin } from '@pdfme/common';
-import type { Schema } from '@pdfme/common';
+import type { PDFImage } from '@pdfweave/pdf-lib';
+import type { Plugin } from '@pdfweave/common';
+import type { Schema } from '@pdfweave/common';
 import type * as CSS from 'csstype';
-import { px2mm } from '@pdfme/common';
+import { px2mm } from '@pdfweave/common';
 import { Image } from 'lucide';
 import {
   convertForPdfLayoutProps,

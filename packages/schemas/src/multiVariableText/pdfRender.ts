@@ -1,4 +1,4 @@
-import { PDFRenderProps } from '@pdfme/common';
+import { PDFRenderProps } from '@pdfweave/common';
 import { MultiVariableTextSchema } from './types.js';
 import { pdfRender as parentPdfRender } from '../text/pdfRender.js';
 import {

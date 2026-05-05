@@ -1,5 +1,5 @@
 import { defineCommand } from 'citty';
-import { pdf2size } from '@pdfme/converter';
+import { pdf2size } from '@pdfweave/converter';
 import { assertNoUnknownFlags, fail, printJson, runWithContract } from '../contract.js';
 import { detectPaperSize, readPdfFile } from '../utils.js';
 

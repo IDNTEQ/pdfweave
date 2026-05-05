@@ -1,5 +1,5 @@
 import React from 'react';
-import { isBlankPdf, replacePlaceholders, Template } from '@pdfme/common';
+import { isBlankPdf, replacePlaceholders, Template } from '@pdfweave/common';
 import Renderer from './Renderer.js';
 import { uuid } from '../helper.js';
 

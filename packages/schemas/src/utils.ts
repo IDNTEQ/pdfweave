@@ -1,6 +1,6 @@
 import type * as CSS from 'csstype';
-import { cmyk, degrees, degreesToRadians, rgb, Color } from '@pdfme/pdf-lib';
-import { Schema, mm2pt, Mode, isHexValid, ColorType } from '@pdfme/common';
+import { cmyk, degrees, degreesToRadians, rgb, Color } from '@pdfweave/pdf-lib';
+import { Schema, mm2pt, Mode, isHexValid, ColorType } from '@pdfweave/common';
 import { IconNode } from 'lucide';
 import { getDynamicHeightsForTable as _getDynamicHeightsForTable } from './tables/dynamicTemplate.js';
 export const convertForPdfLayoutProps = ({
@@ -163,7 +163,7 @@ export const readFile = (input: File | FileList | null): Promise<string | ArrayB
     };
 
     fileReader.onerror = () => {
-      reject(new Error('[@pdfme/schemas] File reading failed'));
+      reject(new Error('[@pdfweave/schemas] File reading failed'));
     };
 
     let file: File | null = null;
@@ -176,7 +176,7 @@ export const readFile = (input: File | FileList | null): Promise<string | ArrayB
     if (file) {
       fileReader.readAsDataURL(file);
     } else {
-      reject(new Error('[@pdfme/schemas] No files provided'));
+      reject(new Error('[@pdfweave/schemas] No files provided'));
     }
   });
 

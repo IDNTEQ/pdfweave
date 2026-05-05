@@ -1,8 +1,9 @@
 {
-  "name": "@pdfme/schemas",
-  "version": "0.0.0",
+  "name": "@pdfweave/schemas",
+  "version": "0.1.0",
   "description": "TypeScript base PDF generator and React base UI. Open source, developed by the community, and completely free to use under the MIT license!",
   "keywords": [
+    "pdfweave",
     "pdf",
     "pdf-designer",
     "pdf-generation",
@@ -10,15 +11,16 @@
     "react",
     "typescript"
   ],
-  "homepage": "https://pdfme.com",
+  "homepage": "https://pdfweave.dev",
   "bugs": {
-    "url": "https://github.com/pdfme/pdfme/issues"
+    "url": "https://github.com/IDNTEQ/pdfweave/issues"
   },
   "license": "MIT",
-  "author": "hand-dot",
+  "author": "PDFweave contributors (forked from pdfme by hand-dot)",
   "repository": {
     "type": "git",
-    "url": "git@github.com:pdfme/pdfme.git"
+    "url": "https://github.com/IDNTEQ/pdfweave.git",
+    "directory": "packages/schemas"
   },
   "files": [
     "dist",
@@ -63,7 +65,7 @@
     "test": "vitest run --config ../../vitest.config.ts"
   },
   "dependencies": {
-    "@pdfme/pdf-lib": "*",
+    "@pdfweave/pdf-lib": "0.1.0",
     "air-datepicker": "^3.6.0",
     "bwip-js": "^4.10.1",
     "date-fns": "^4.1.0",
@@ -73,7 +75,7 @@
     "signature_pad": "^5.1.3"
   },
   "devDependencies": {
-    "@pdfme/common": "*",
+    "@pdfweave/common": "0.1.0",
     "@types/bwip-js": "^3.2.1",
     "@types/fontkit": "^2.0.9",
     "@types/pngjs": "^6.0.2",
@@ -82,6 +84,6 @@
     "pngjs": "^7.0.0"
   },
   "peerDependencies": {
-    "@pdfme/common": "latest"
+    "@pdfweave/common": "0.1.0"
   }
 }

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import type { PropPanelWidgetProps } from '@pdfme/common';
+import type { PropPanelWidgetProps } from '@pdfweave/common';
 
 type Props = PropPanelWidgetProps & {
   widget: (props: PropPanelWidgetProps) => void;

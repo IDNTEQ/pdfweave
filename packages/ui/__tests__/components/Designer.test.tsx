@@ -4,10 +4,10 @@ import Designer from '../../src/components/Designer/index.js';
 import { I18nContext, FontContext, OptionsContext, PluginsRegistry } from '../../src/contexts';
 import { i18n } from '../../src/i18n';
 import { DESIGNER_CLASSNAME, RIGHT_SIDEBAR_WIDTH, SELECTABLE_CLASSNAME } from '../../src/constants';
-import { getDefaultFont, pluginRegistry } from '@pdfme/common';
+import { getDefaultFont, pluginRegistry } from '@pdfweave/common';
 import { normalizeElementIdsForSnapshot } from '../assets/normalizeSnapshot';
 import { setupUIMock, getSampleTemplate } from '../assets/helper';
-import { text, image } from '@pdfme/schemas';
+import { text, image } from '@pdfweave/schemas';
 
 const plugins = { text, image };
 

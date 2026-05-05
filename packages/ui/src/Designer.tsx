@@ -6,7 +6,7 @@ import {
   checkDesignerProps,
   checkTemplate,
   PDFME_VERSION,
-} from '@pdfme/common';
+} from '@pdfweave/common';
 import { BaseUIClass } from './class.js';
 import { DESTROYED_ERR_MSG } from './constants.js';
 import DesignerComponent from './components/Designer/index.js';

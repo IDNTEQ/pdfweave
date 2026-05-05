@@ -9,8 +9,8 @@ import type {
   PropPanelSchema,
   Schema,
   SchemaLayoutRule,
-} from '@pdfme/common';
-import { isBlankPdf } from '@pdfme/common';
+} from '@pdfweave/common';
+import { isBlankPdf } from '@pdfweave/common';
 import type { SidebarProps } from '../../../../types.js';
 import { Menu } from 'lucide-react';
 import { I18nContext, PluginsRegistry, OptionsContext } from '../../../../contexts.js';
@@ -268,7 +268,7 @@ const DetailView = (props: DetailViewProps) => {
 
   const activePlugin = pluginsRegistry.findByType(activeSchema.type);
   if (!activePlugin) {
-    throw Error(`[@pdfme/ui] Failed to find plugin used for ${activeSchema.type}`);
+    throw Error(`[@pdfweave/ui] Failed to find plugin used for ${activeSchema.type}`);
   }
 
   const activePropPanelSchema = activePlugin.propPanel.schema;

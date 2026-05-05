@@ -3,11 +3,12 @@ import {
   Template,
   BasePdf,
   BlankPdf,
+  StationeryPdf,
   CommonOptions,
   LayoutMeasureResult,
   SchemaLayoutRule,
 } from './types.js';
-import { cloneDeep, isBlankPdf } from './helper.js';
+import { cloneDeep, treatsLikeBlank } from './helper.js';
 import { resolveSchemaValue } from './dataBinding.js';
 
 /** Floating point tolerance for comparisons */
@@ -127,7 +128,7 @@ function resolveAnchoredSchemas(pageSchemas: Schema[]): void {
     if (!changed) return;
 
     if (pass === pageSchemas.length - 1) {
-      throw new Error('[@pdfme/common] Circular or non-converging anchor layout detected.');
+      throw new Error('[@pdfweave/common] Circular or non-converging anchor layout detected.');
     }
   }
 }
@@ -149,7 +150,7 @@ function getDynamicHeightsFromLayoutResult(schema: Schema, result: LayoutMeasure
 }
 
 /** Calculate the content height of a page (drawable area excluding padding) */
-const getContentHeight = (basePdf: BlankPdf): number =>
+const getContentHeight = (basePdf: BlankPdf | StationeryPdf): number =>
   basePdf.height - basePdf.padding[0] - basePdf.padding[2];
 
 /** Get the input value for a schema */
@@ -372,7 +373,7 @@ export const getDynamicTemplate = async (
   const workingTemplate = cloneDeep(template);
   const basePdf = workingTemplate.basePdf;
 
-  if (!isBlankPdf(basePdf)) {
+  if (!treatsLikeBlank(basePdf)) {
     workingTemplate.schemas.forEach(resolveAnchoredSchemas);
     return workingTemplate;
   }

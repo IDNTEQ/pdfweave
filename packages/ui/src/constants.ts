@@ -1,6 +1,6 @@
 export const DEFAULT_LANG = 'en';
 
-export const DESTROYED_ERR_MSG = '[@pdfme/ui] this instance is already destroyed';
+export const DESTROYED_ERR_MSG = '[@pdfweave/ui] this instance is already destroyed';
 
 export const SELECTABLE_CLASSNAME = 'selectable';
 

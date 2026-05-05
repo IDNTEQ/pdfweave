@@ -9,13 +9,15 @@ import {
   LayoutMeasureResult,
   getB64BasePdf,
   isBlankPdf,
+  isStationeryPdf,
+  treatsLikeBlank,
   mm2pt,
   pluginRegistry,
   BasePdf,
   getValueByPath,
-} from '@pdfme/common';
-import { builtInPlugins } from '@pdfme/schemas/builtins';
-import { PDFPage, PDFDocument, PDFEmbeddedPage, TransformationMatrix } from '@pdfme/pdf-lib';
+} from '@pdfweave/common';
+import { builtInPlugins } from '@pdfweave/schemas/builtins';
+import { PDFPage, PDFDocument, PDFEmbeddedPage, TransformationMatrix } from '@pdfweave/pdf-lib';
 import { TOOL_NAME } from './constants.js';
 import type { EmbedPdfBox } from './types.js';
 
@@ -27,7 +29,30 @@ export const getEmbedPdfPages = async (arg: { template: Template; pdfDoc: PDFDoc
   let basePages: (PDFEmbeddedPage | PDFPage)[] = [];
   let embedPdfBoxes: EmbedPdfBox[] = [];
 
-  if (isBlankPdf(basePdf)) {
+  if (isStationeryPdf(basePdf)) {
+    const { width: _width, height: _height } = basePdf;
+    const width = mm2pt(_width);
+    const height = mm2pt(_height);
+    const willLoadPdf = await getB64BasePdf(basePdf.stationeryPdf);
+    const stationeryDoc = await PDFDocument.load(willLoadPdf);
+    const stationeryPages = stationeryDoc.getPages();
+    if (stationeryPages.length === 0) {
+      throw new Error('[@pdfweave/generator] StationeryPdf has no pages.');
+    }
+    const firstPage = stationeryPages[0];
+    const [embeddedStationery] = await pdfDoc.embedPages([firstPage]);
+    basePages = schemas.map(() => {
+      const page = PDFPage.create(pdfDoc);
+      page.setSize(width, height);
+      page.drawPage(embeddedStationery, { x: 0, y: 0, width, height });
+      return page;
+    });
+    embedPdfBoxes = schemas.map(() => ({
+      mediaBox: { x: 0, y: 0, width, height },
+      bleedBox: { x: 0, y: 0, width, height },
+      trimBox: { x: 0, y: 0, width, height },
+    }));
+  } else if (isBlankPdf(basePdf)) {
     const { width: _width, height: _height } = basePdf;
     const width = mm2pt(_width);
     const height = mm2pt(_height);
@@ -75,7 +100,7 @@ export const validateRequiredFields = (template: Template, inputs: Record<string
         })
       ) {
         throw new Error(
-          `[@pdfme/generator] input for '${inputPath}' is required to generate this PDF`,
+          `[@pdfweave/generator] input for '${inputPath}' is required to generate this PDF`,
         );
       }
     }),
@@ -85,7 +110,7 @@ export const validateRequiredFields = (template: Template, inputs: Record<string
 export const preprocessing = async (arg: { template: Template; userPlugins: Plugins }) => {
   const { template, userPlugins } = arg;
   const { schemas, basePdf } = template as { schemas: Schema[][]; basePdf: BasePdf };
-  const staticSchema: Schema[] = isBlankPdf(basePdf) ? (basePdf.staticSchema ?? []) : [];
+  const staticSchema: Schema[] = treatsLikeBlank(basePdf) ? (basePdf.staticSchema ?? []) : [];
 
   const pdfDoc = await PDFDocument.create();
   // @ts-expect-error registerFontkit method is not in type definitions but exists at runtime
@@ -114,7 +139,7 @@ export const preprocessing = async (arg: { template: Template; userPlugins: Plug
       const plugin = plugins.findByType(type);
 
       if (!plugin || !plugin.pdf) {
-        throw new Error(`[@pdfme/generator] Plugin or renderer for type ${type} not found.
+        throw new Error(`[@pdfweave/generator] Plugin or renderer for type ${type} not found.
 Check this document: https://pdfme.com/docs/custom-schemas`);
       }
 

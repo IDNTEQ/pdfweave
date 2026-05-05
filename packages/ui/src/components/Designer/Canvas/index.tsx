@@ -21,7 +21,7 @@ import {
   getDesignDataInput,
   replacePlaceholders,
   resolveSchemaValue,
-} from '@pdfme/common';
+} from '@pdfweave/common';
 import { OptionsContext, PluginsRegistry } from '../../../contexts.js';
 import { X } from 'lucide-react';
 import { RULER_HEIGHT, RIGHT_SIDEBAR_WIDTH, DESIGNER_CLASSNAME } from '../../../constants.js';

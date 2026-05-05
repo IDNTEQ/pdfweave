@@ -1,25 +1,27 @@
 {
-  "name": "@pdfme/cli",
-  "version": "0.0.0",
-  "description": "CLI tool for pdfme - generate PDFs, convert images, validate templates",
+  "name": "@pdfweave/cli",
+  "version": "0.1.0",
+  "description": "CLI tool for pdfweave - generate PDFs, convert images, validate templates",
   "keywords": [
+    "pdfweave",
     "cli",
     "pdf",
     "pdf-generation",
     "typescript"
   ],
-  "homepage": "https://pdfme.com",
+  "homepage": "https://pdfweave.dev",
   "bugs": {
-    "url": "https://github.com/pdfme/pdfme/issues"
+    "url": "https://github.com/IDNTEQ/pdfweave/issues"
   },
   "license": "MIT",
-  "author": "hand-dot",
+  "author": "PDFweave contributors (forked from pdfme by hand-dot)",
   "repository": {
     "type": "git",
-    "url": "git@github.com:pdfme/pdfme.git"
+    "url": "https://github.com/IDNTEQ/pdfweave.git",
+    "directory": "packages/cli"
   },
   "bin": {
-    "pdfme": "dist/index.js"
+    "pdfweave": "dist/index.js"
   },
   "files": [
     "dist",
@@ -49,10 +51,10 @@
   },
   "dependencies": {
     "@napi-rs/canvas": "^0.1.100",
-    "@pdfme/common": "*",
-    "@pdfme/converter": "*",
-    "@pdfme/generator": "*",
-    "@pdfme/schemas": "*",
+    "@pdfweave/common": "0.1.0",
+    "@pdfweave/converter": "0.1.0",
+    "@pdfweave/generator": "0.1.0",
+    "@pdfweave/schemas": "0.1.0",
     "citty": "^0.2.2"
   },
   "engines": {

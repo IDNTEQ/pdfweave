@@ -5,7 +5,7 @@ import type {
   SchemaForUI,
   SchemaLayoutRule,
   VerticalAnchorRule,
-} from '@pdfme/common';
+} from '@pdfweave/common';
 
 type AnchoredLayoutRule = Extract<SchemaLayoutRule, { mode: 'anchored' }>;
 type HorizontalMode = HorizontalAnchorRule['mode'];

@@ -1,4 +1,4 @@
-import { getFallbackFontName, mm2pt, pt2mm, type Font } from '@pdfme/common';
+import { getFallbackFontName, mm2pt, pt2mm, type Font } from '@pdfweave/common';
 import type { Font as FontKitFont } from 'fontkit';
 import {
   DEFAULT_CHARACTER_SPACING,
@@ -111,7 +111,7 @@ export const resolveFontVariant = (
     fallback === FONT_VARIANT_FALLBACK_ERROR
   ) {
     throw new Error(
-      `[@pdfme/schemas] Missing font variant for markdown text in field "${schema.name}".`,
+      `[@pdfweave/schemas] Missing font variant for markdown text in field "${schema.name}".`,
     );
   }
 

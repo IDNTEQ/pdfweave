@@ -1,115 +1,127 @@
-# PDFME
+# PDFweave
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/pdfme/pdfme/main/website/static/img/logo.svg" width="300"/>
-</p>
+> A PDF template engine with first-class data binding, anchor layouts,
+> smart tables, and stationery PDFs. **Forked from
+> [pdfme](https://github.com/pdfme/pdfme) by [hand-dot](https://github.com/hand-dot)
+> and the pdfme contributors — released under the MIT license.**
 
-<h4 align="center">
-  <a href="https://pdfme.com/">Website</a> |
-  <a href="https://app.pdfme.com?utm_source=github&utm_content=readme-top">pdfme Cloud</a> |
-  <a href="https://discord.gg/xWPTJbmgNV">Discord</a>
-</h4>
+PDFweave keeps everything that makes pdfme productive — the JSON template
+format, the React Designer, the plugin architecture — and adds the layer
+that production document workflows actually need:
 
-<p align="center">
-  <a href="https://github.com/pdfme/pdfme/blob/master/LICENSE.md">
-    <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="pdfme is released under the MIT license." />
-  </a>
-  <a href="https://deepwiki.com/pdfme/pdfme">
-    <img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki">
-  </a>
-  <a href="https://www.npmjs.com/package/@pdfme/generator">
-    <img src="https://img.shields.io/npm/v/@pdfme/generator.svg" alt="Current npm package version." />
-  </a>
-  <a href="https://npmcharts.com/compare/@pdfme/common?minimal=true">
-    <img src="https://img.shields.io/npm/dm/@pdfme/common.svg" alt="Downloads per month on npm." />
-  </a>
-</p>
+- **Data binding** — Schemas reference paths into your input JSON instead of
+  carrying their own copy of the data. Format hints (currency / number /
+  date) live alongside.
+- **Anchor layouts** — Position any schema relative to another by named
+  anchor (`alignRightEdge`, `belowBottomEdge`, …) instead of absolute
+  coordinates that break the moment a sibling changes height.
+- **Smart tables** — Tables reflow across pages with header repetition,
+  per-row binding to data, and column-level format/binding.
+- **Stationery PDFs** — Use a single-page PDF as the basePdf, and PDFweave
+  stamps it onto every reflowed page (header, footer, page numbers all in
+  one re-usable artwork file).
 
-<p align="center">
-  TypeScript-based PDF generator and React-based UI. Open source, developed by the community, and completely free to use under the MIT license!
-</p>
-
-## Features
-
-| Fast PDF Generator                                                                                    | Easy PDF Template Design                               | Simple JSON Template                                              |
-| ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------ | ----------------------------------------------------------------- |
-| Works on Node and in the browser. Use templates to generate PDFs—complex operations are not required. | Anyone can easily create templates using the designer. | Templates are JSON data that is easy to understand and work with. |
-
-## Custom Feature Requests
-
-While pdfme is an open-source project released under the MIT License, we are open to considering custom feature additions for a fee.  
-**If you are willing to pay, we can evaluate and implement your requested features.**  
-Please note that any additional functionality will always be released as open source. If this approach works for you, please [contact us](https://app.pdfme.com/contact).
-
-For a detailed list of supported features, please refer to the [Supported Features](https://pdfme.com/docs/supported-features) page.
-
-## Documentation
-
-For complete documentation on pdfme, please refer to the [Getting Started](https://pdfme.com/docs/getting-started) guide.
-
-For the planned next major release changes, see the [migration guide draft](website/docs/migration-v6.md).
-
-Need interactive help? Use [DeepWiki](https://deepwiki.com/pdfme/pdfme) to ask questions about pdfme's documentation and source code directly.
-
-## CLI Workflow
-
-For agentic workflows, local verification, or JSON-first template iteration, use [`@pdfme/cli`](packages/cli/README.md).
-
-- `pdfme validate`: validate template or unified job JSON before generation
-- `pdfme doctor`: diagnose runtime, font, `basePdf`, and output-path issues before `generate`
-- `pdfme generate --image --grid`: generate PDFs and inspect layout via rendered page images
-- `pdfme examples --withInputs`: export official example assets as a unified job you can edit and regenerate
-
-## Examples Using pdfme
-
-If you're looking for code examples to get started with pdfme, check out the [pdfme-playground website](https://playground.pdfme.com/) and the [playground source code](https://github.com/pdfme/pdfme/tree/main/playground). Setup instructions can be found in the [DEVELOPMENT.md](DEVELOPMENT.md) file.
-
-## Cloud Service Option
-
-While pdfme is a powerful open-source library, we understand that some users might prefer a managed solution. For those looking for a ready-to-use, scalable PDF generation service without the hassle of setup and maintenance, we offer pdfme Cloud.
-
-**[Try pdfme Cloud - Hassle-free PDF Generation](https://app.pdfme.com?utm_source=github&utm_content=readme-cloud)**
-
-pdfme Cloud provides all the features of the open-source library, plus:
-
-- PDF generation at scale without infrastructure management
-- Hosted WYSIWYG template designer
-- Simple API integration
-- Automatic updates and maintenance
-
-_pdfme will always remain open source. The cloud service is an optional offering for those who prefer a managed solution._
-
-## Sponsors
-
-Support this project by becoming a sponsor. Your logo will appear here with a link to your website.
-
-| [![ProgressLab](https://avatars.githubusercontent.com/u/103434180?s=120&v=4)](https://github.com/ProgressLabIT) | [<img src="https://github.com/user-attachments/assets/e5b1bbbe-bcc2-41bd-9d04-fcd886e62105" alt="photoquest_logo" width="150">](https://photoquest.wedding/) | [<img src="https://avatars.githubusercontent.com/u/6552685?s=200&v=4" alt="Famly" width="150">](https://famly.co) | [![New Sponsor](https://user-images.githubusercontent.com/10214025/90518111-e74bbb00-e198-11ea-8f88-c9e3c1aa4b5b.png)](https://github.com/sponsors/pdfme) |
-| :-------------------------------------------------------------------------------------------------------------: | :----------------------------------------------------------------------------------------------------------------------------------------------------------: | :---------------------------------------------------------------------------------------------------------------: | :-------------------------------------------------------------------------------------------------------------------------------------------------------: |
-|                                 [ProgressLab](https://github.com/ProgressLabIT)                                 |                                                          [PhotoQuest](https://photoquest.wedding/)                                                           |                                             [Famly](https://famly.co)                                             |                                                     [New Sponsor](https://github.com/sponsors/pdfme)                                                      |
-
-## Contributors
-
-<a href="https://github.com/pdfme/pdfme/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=pdfme/pdfme" />
-</a>
-
-## Special Thanks
-
-- [pdf-lib](https://pdf-lib.js.org/): Used for PDF generation.
-- [fontkit](https://github.com/foliojs/fontkit): Used for font rendering.
-- [PDF.js](https://mozilla.github.io/pdf.js/): Used for PDF viewing.
-- [React](https://reactjs.org/): Used in building the UI.
-- [form-render](https://xrender.fun/form-render): Used in building the UI.
-- [antd](https://ant.design/): Used in building the UI.
-- [react-moveable](https://daybrush.com/moveable/), [react-selecto](https://github.com/daybrush/selecto), [@scena/react-guides](https://daybrush.com/guides/): Used in the Designer UI.
-- [dnd-kit](https://github.com/clauderic/dnd-kit): Used in the Designer UI.
-- [Lucide](https://lucide.dev/): Used in the Designer UI and Schema's icon.
-
-I definitely could not have created pdfme without these libraries. I am grateful to the developers of these projects.
-
-If you want to contribute to pdfme, please refer to the [Development Guide](https://pdfme.com/docs/development-guide).  
-We look forward to your contributions!
+If you want a JSON template + Node generator + React designer that
+"just works", **upstream pdfme is probably what you want.** PDFweave is
+for teams whose templates need to bind to real data, reflow correctly
+across pages, and ship branded stationery.
 
 ---
 
-pdfme is supported by [Devin AI](https://app.devin.ai/invite/KyOTXVPrlFl2TjcT) and [Greptile](https://app.greptile.com/signup?ref=MzgyNzgtMjQ1MTU=).
+## Quick start
+
+```bash
+pnpm add @pdfweave/generator @pdfweave/schemas
+# or: npm install @pdfweave/generator @pdfweave/schemas
+```
+
+```ts
+import { generate } from '@pdfweave/generator';
+import { text, image, table, barcodes } from '@pdfweave/schemas';
+
+const template = {
+  basePdf: { width: 210, height: 297, padding: [20, 20, 20, 20] },
+  schemas: [[
+    { name: 'name', type: 'text', position: { x: 20, y: 20 }, width: 80, height: 10 },
+  ]],
+};
+
+const pdf = await generate({
+  template,
+  inputs: [{ name: 'Hello PDFweave' }],
+  plugins: { text, image, qrcode: barcodes.qrcode, table },
+});
+```
+
+For data binding, anchor layouts, smart tables, and stationery PDFs —
+see the docs at [pdfweave.dev](https://pdfweave.dev) (coming soon).
+
+---
+
+## Coming from pdfme?
+
+See **[MIGRATION.md](./MIGRATION.md)** — for templates that don't use
+the new features, switching is one find-and-replace and a `pnpm install`.
+
+---
+
+## What's the same as pdfme
+
+| | pdfme | PDFweave |
+| --- | :-: | :-: |
+| JSON template format | ✅ | ✅ (superset) |
+| Node generator | ✅ | ✅ |
+| React Designer | ✅ | ✅ |
+| Plugin architecture | ✅ | ✅ |
+| Built-in schemas (text/image/table/barcodes/svg/lines/shapes) | ✅ | ✅ |
+| Form / Viewer modes | ✅ | ✅ |
+| MIT license | ✅ | ✅ |
+
+## What PDFweave adds
+
+| | pdfme | PDFweave |
+| --- | :-: | :-: |
+| Schema → data path bindings (`binding.path`, `binding.format`, `binding.columns`) | — | ✅ |
+| Anchor-relative positioning (`SchemaLayoutRule`) | — | ✅ |
+| Smart table reflow with header repeat | partial | ✅ |
+| Designer binding panel (drag-from-data, JSON-path picker) | — | ✅ |
+| `StationeryPdf` basePdf shape (single-page PDF stamped on every page) | — | ✅ |
+| Plugin `measure` hook for layout-aware schemas | — | ✅ |
+
+## What pdfme has that PDFweave is intentionally not chasing
+
+- **pdfme Cloud** — pdfme has a hosted service. PDFweave is library-only.
+- **Smaller bundle / fewer dependencies** — pdfme is leaner. PDFweave's
+  binding + anchor system adds weight to `@pdfweave/common`.
+- **Faster upstream releases** — pdfme has a larger contributor pool.
+  PDFweave releases are slower and more deliberate.
+
+If those things matter more to you than the four PDFweave additions,
+**use pdfme**. We mean that — there's no shame in either choice.
+
+---
+
+## Status
+
+Pre-1.0. APIs may change between minor versions. Breaking changes are
+documented in [CHANGELOG.md](./CHANGELOG.md). The four PDFweave additions
+above are what we consider stable contracts; everything else inherits
+upstream pdfme's stability profile.
+
+---
+
+## Maintainership
+
+PDFweave is maintained by [IDNTEQ](https://github.com/IDNTEQ) and
+contributors. Issues, PRs, and discussions welcome — see
+[CONTRIBUTING.md](./CONTRIBUTING.md).
+
+We're committed to keeping PDFweave aligned with upstream pdfme where
+possible, sending bug fixes upstream, and crediting pdfme for everything
+that came from it.
+
+---
+
+## License
+
+MIT — same as upstream pdfme. See [LICENSE.md](./LICENSE.md).

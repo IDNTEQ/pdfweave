@@ -1,8 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { PDFDocument } from '@pdfme/pdf-lib';
-import { pdf2img } from '@pdfme/converter';
+import { PDFDocument } from '@pdfweave/pdf-lib';
+import { pdf2img } from '@pdfweave/converter';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 

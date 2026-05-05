@@ -1,5 +1,5 @@
 import React from 'react';
-import { PreviewProps } from '@pdfme/common';
+import { PreviewProps } from '@pdfweave/common';
 import { PreviewUI } from './class.js';
 import { DESTROYED_ERR_MSG } from './constants.js';
 import AppContextProvider from './components/AppContextProvider.js';

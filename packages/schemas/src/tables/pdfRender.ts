@@ -1,5 +1,5 @@
 import type { TableSchema } from './types.js';
-import type { PDFRenderProps, Schema, BasePdf, CommonOptions } from '@pdfme/common';
+import type { PDFRenderProps, Schema, BasePdf, CommonOptions } from '@pdfweave/common';
 import { Cell, Table, Row, Column } from './classes.js';
 import { rectangle } from '../shapes/rectAndEllipse.js';
 import cell from './cell.js';

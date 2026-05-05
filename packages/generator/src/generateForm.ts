@@ -1,6 +1,6 @@
-import type { GenerateProps, Plugins, Schema, Template } from '@pdfme/common';
-import { cloneDeep } from '@pdfme/common';
-import { checkbox, radioGroup, text } from '@pdfme/schemas';
+import type { GenerateProps, Plugins, Schema, Template } from '@pdfweave/common';
+import { cloneDeep } from '@pdfweave/common';
+import { checkbox, radioGroup, text } from '@pdfweave/schemas';
 import { acroCheckboxPlugin, acroRadioGroupPlugin, acroTextPlugin } from './acroForm.js';
 import generate from './generate.js';
 

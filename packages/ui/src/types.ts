@@ -1,4 +1,4 @@
-import type { Schema, SchemaForUI, Size, ChangeSchemas, BasePdf } from '@pdfme/common';
+import type { Schema, SchemaForUI, Size, ChangeSchemas, BasePdf } from '@pdfweave/common';
 
 export type SidebarProps = {
   height: number;

@@ -1,9 +1,9 @@
 import { defineCommand } from 'citty';
-import { PDFDocument } from '@pdfme/pdf-lib';
-import { generate } from '@pdfme/generator';
-import { pdf2img, pdf2size } from '@pdfme/converter';
-import { checkGenerateProps } from '@pdfme/common';
-import type { Font, GenerateProps, Template } from '@pdfme/common';
+import { PDFDocument } from '@pdfweave/pdf-lib';
+import { generate } from '@pdfweave/generator';
+import { pdf2img, pdf2size } from '@pdfweave/converter';
+import { checkGenerateProps } from '@pdfweave/common';
+import type { Font, GenerateProps, Template } from '@pdfweave/common';
 import {
   assertNoUnknownFlags,
   fail,

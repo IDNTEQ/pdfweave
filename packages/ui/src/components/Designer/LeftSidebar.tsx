@@ -1,5 +1,5 @@
 import React, { useContext, useState, useEffect } from 'react';
-import { Schema, Plugin, BasePdf, getFallbackFontName } from '@pdfme/common';
+import { Schema, Plugin, BasePdf, getFallbackFontName } from '@pdfweave/common';
 import { theme, Button } from 'antd';
 import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';

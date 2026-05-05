@@ -1,6 +1,6 @@
-import type { PDFFont, Rotation } from '@pdfme/pdf-lib';
-import type { ColorType, Font, PDFRenderProps } from '@pdfme/common';
-import { mm2pt } from '@pdfme/common';
+import type { PDFFont, Rotation } from '@pdfweave/pdf-lib';
+import type { ColorType, Font, PDFRenderProps } from '@pdfweave/common';
+import { mm2pt } from '@pdfweave/common';
 import type { Font as FontKitFont } from 'fontkit';
 import {
   CODE_BACKGROUND_COLOR,
@@ -42,7 +42,7 @@ const getRunWidth = (run: RichTextLineRun, fontSize: number, characterSpacing: n
 const getPdfFont = (run: RichTextLineRun, pdfFontObj: Record<string, PDFFont>) => {
   const pdfFont = pdfFontObj[run.fontName];
   if (!pdfFont) {
-    throw new Error(`[@pdfme/schemas] Missing embedded font "${run.fontName}".`);
+    throw new Error(`[@pdfweave/schemas] Missing embedded font "${run.fontName}".`);
   }
   return pdfFont;
 };

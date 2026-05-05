@@ -1,5 +1,5 @@
-import { Schema, mm2pt, pt2mm } from '@pdfme/common';
-import type { CMYK } from '@pdfme/pdf-lib';
+import { Schema, mm2pt, pt2mm } from '@pdfweave/common';
+import type { CMYK } from '@pdfweave/pdf-lib';
 import {
   convertForPdfLayoutProps,
   rotatePoint,

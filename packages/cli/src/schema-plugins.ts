@@ -1,5 +1,5 @@
-import type { Plugin, Plugins } from '@pdfme/common';
-import * as schemas from '@pdfme/schemas';
+import type { Plugin, Plugins } from '@pdfweave/common';
+import * as schemas from '@pdfweave/schemas';
 
 function isPlugin(value: unknown): value is Plugin {
   if (!value || typeof value !== 'object') {

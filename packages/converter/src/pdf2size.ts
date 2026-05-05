@@ -1,5 +1,5 @@
 import type { PDFDocumentProxy } from 'pdfjs-dist';
-import { Size, pt2mm } from '@pdfme/common';
+import { Size, pt2mm } from '@pdfweave/common';
 
 interface Environment {
   getDocument: (pdf: ArrayBuffer | Uint8Array) => Promise<PDFDocumentProxy>;

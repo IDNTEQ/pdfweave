@@ -1,4 +1,4 @@
-import type { Font } from '@pdfme/common';
+import type { Font } from '@pdfweave/common';
 
 export const OFFICIAL_EXAMPLE_FONT_URLS = {
   NotoSansJP:

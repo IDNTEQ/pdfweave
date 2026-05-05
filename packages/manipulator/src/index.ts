@@ -1,8 +1,8 @@
-import { PDFDocument, RotationTypes } from '@pdfme/pdf-lib';
+import { PDFDocument, RotationTypes } from '@pdfweave/pdf-lib';
 
 const merge = async (pdfs: (ArrayBuffer | Uint8Array)[]): Promise<Uint8Array> => {
   if (!pdfs.length) {
-    throw new Error('[@pdfme/manipulator] At least one PDF is required for merging');
+    throw new Error('[@pdfweave/manipulator] At least one PDF is required for merging');
   }
 
   const mergedPdf = await PDFDocument.create();
@@ -19,7 +19,7 @@ const split = async (
   ranges: { start?: number; end?: number }[],
 ): Promise<Uint8Array[]> => {
   if (!ranges.length) {
-    throw new Error('[@pdfme/manipulator] At least one range is required for splitting');
+    throw new Error('[@pdfweave/manipulator] At least one range is required for splitting');
   }
 
   const originalPdf = await PDFDocument.load(pdf);
@@ -29,7 +29,7 @@ const split = async (
   for (const { start = 0, end = numPages - 1 } of ranges) {
     if (start < 0 || end >= numPages || start > end) {
       throw new Error(
-        `[@pdfme/manipulator] Invalid range: start=${start}, end=${end}, total pages=${numPages}`,
+        `[@pdfweave/manipulator] Invalid range: start=${start}, end=${end}, total pages=${numPages}`,
       );
     }
 
@@ -46,7 +46,7 @@ const split = async (
 
 const remove = async (pdf: ArrayBuffer | Uint8Array, pages: number[]): Promise<Uint8Array> => {
   if (!pages.length) {
-    throw new Error('[@pdfme/manipulator] At least one page number is required for removal');
+    throw new Error('[@pdfweave/manipulator] At least one page number is required for removal');
   }
 
   const pdfDoc = await PDFDocument.load(pdf);
@@ -54,7 +54,7 @@ const remove = async (pdf: ArrayBuffer | Uint8Array, pages: number[]): Promise<U
 
   if (pages.some((page) => page < 0 || page >= numPages)) {
     throw new Error(
-      `[@pdfme/manipulator] Invalid page number: pages must be between 0 and ${numPages - 1}`,
+      `[@pdfweave/manipulator] Invalid page number: pages must be between 0 and ${numPages - 1}`,
     );
   }
 
@@ -80,7 +80,7 @@ const insert = async (
     const numPages = basePdfDoc.getPageCount();
 
     if (actualPos < 0 || actualPos > numPages) {
-      throw new Error(`[@pdfme/manipulator] Invalid position: must be between 0 and ${numPages}`);
+      throw new Error(`[@pdfweave/manipulator] Invalid position: must be between 0 and ${numPages}`);
     }
 
     const newPdfDoc = await PDFDocument.create();
@@ -119,26 +119,26 @@ const rotate = async (
   pageNumbers?: number[],
 ): Promise<Uint8Array> => {
   if (!Number.isInteger(degrees) || degrees % 90 !== 0) {
-    throw new Error('[@pdfme/manipulator] Rotation degrees must be a multiple of 90');
+    throw new Error('[@pdfweave/manipulator] Rotation degrees must be a multiple of 90');
   }
 
   const pdfDoc = await PDFDocument.load(pdf);
   const pages = pdfDoc.getPages();
 
   if (!pages.length) {
-    throw new Error('[@pdfme/manipulator] PDF has no pages to rotate');
+    throw new Error('[@pdfweave/manipulator] PDF has no pages to rotate');
   }
 
   const normalizedDegrees = ((degrees % 360) + 360) % 360;
 
   if (normalizedDegrees % 90 !== 0) {
-    throw new Error('[@pdfme/manipulator] Rotation degrees must be a multiple of 90');
+    throw new Error('[@pdfweave/manipulator] Rotation degrees must be a multiple of 90');
   }
 
   if (pageNumbers) {
     if (pageNumbers.some((page) => page < 0 || page >= pages.length)) {
       throw new Error(
-        `[@pdfme/manipulator] Invalid page number: pages must be between 0 and ${pages.length - 1}`,
+        `[@pdfweave/manipulator] Invalid page number: pages must be between 0 and ${pages.length - 1}`,
       );
     }
   }
@@ -166,7 +166,7 @@ const move = async (
 
   if (from < 0 || from >= currentPageCount || to < 0 || to >= currentPageCount) {
     throw new Error(
-      `[@pdfme/manipulator] Invalid page number: from=${from}, to=${to}, total pages=${currentPageCount}`,
+      `[@pdfweave/manipulator] Invalid page number: from=${from}, to=${to}, total pages=${currentPageCount}`,
     );
   }
 
@@ -194,7 +194,7 @@ const organize = async (
   >,
 ): Promise<Uint8Array> => {
   if (!actions.length) {
-    throw new Error('[@pdfme/manipulator] At least one action is required');
+    throw new Error('[@pdfweave/manipulator] At least one action is required');
   }
 
   let currentPdf = await PDFDocument.load(pdf);
@@ -229,7 +229,7 @@ const organize = async (
 
       default:
         throw new Error(
-          `[@pdfme/manipulator] Unknown action type: ${(action as { type: string }).type}`,
+          `[@pdfweave/manipulator] Unknown action type: ${(action as { type: string }).type}`,
         );
     }
   }

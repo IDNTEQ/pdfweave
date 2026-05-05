@@ -45,6 +45,7 @@ import type {
   BasePdf,
   BlankPdf,
   CustomPdf,
+  StationeryPdf,
   Template,
   CommonOptions,
   GeneratorOptions,
@@ -77,6 +78,8 @@ import {
   isHexValid,
   getInputFromTemplate,
   isBlankPdf,
+  isStationeryPdf,
+  treatsLikeBlank,
   isUrlSafeToFetch,
 } from './helper.js';
 import { getDynamicTemplate } from './dynamicTemplate.js';
@@ -113,6 +116,8 @@ export {
   isHexValid,
   getInputFromTemplate,
   isBlankPdf,
+  isStationeryPdf,
+  treatsLikeBlank,
   getDynamicTemplate,
   formatDesignDataValue,
   getDesignDataInput,
@@ -144,6 +149,7 @@ export type {
   BasePdf,
   BlankPdf,
   CustomPdf,
+  StationeryPdf,
   Template,
   CommonOptions,
   GeneratorOptions,

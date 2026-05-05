@@ -1,6 +1,6 @@
 import React from 'react';
 import { act, waitFor } from '@testing-library/react';
-import { BLANK_PDF, type Template, type UIProps } from '@pdfme/common';
+import { BLANK_PDF, type Template, type UIProps } from '@pdfweave/common';
 import { BaseUIClass } from '../src/class';
 
 class TestUI extends BaseUIClass {

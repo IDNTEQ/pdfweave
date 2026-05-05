@@ -11,13 +11,13 @@ import {
   Size,
   isBlankPdf,
   PluginRegistry,
-} from '@pdfme/common';
+} from '@pdfweave/common';
 import type {
   HorizontalAnchorRule,
   SchemaLayoutRule,
   VerticalAnchorRule,
-} from '@pdfme/common';
-import { pdf2size } from '@pdfme/converter';
+} from '@pdfweave/common';
+import { pdf2size } from '@pdfweave/converter';
 import { DEFAULT_MAX_ZOOM, RULER_HEIGHT } from './constants.js';
 import { OptionsContext } from './contexts.js';
 

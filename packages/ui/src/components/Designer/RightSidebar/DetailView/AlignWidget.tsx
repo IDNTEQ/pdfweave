@@ -1,6 +1,6 @@
 import { Space, Button, Form } from 'antd';
 import React from 'react';
-import type { PropPanelWidgetProps } from '@pdfme/common';
+import type { PropPanelWidgetProps } from '@pdfweave/common';
 import { DESIGNER_CLASSNAME } from '../../../../constants.js';
 import {
   AlignStartVertical,

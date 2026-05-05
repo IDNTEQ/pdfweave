@@ -1,14 +1,14 @@
-import * as pdfLib from '@pdfme/pdf-lib';
-import type { GenerateProps, Schema, PDFRenderProps, Template } from '@pdfme/common';
+import * as pdfLib from '@pdfweave/pdf-lib';
+import type { GenerateProps, Schema, PDFRenderProps, Template } from '@pdfweave/common';
 import {
   checkGenerateProps,
   getDynamicTemplate,
-  isBlankPdf,
+  treatsLikeBlank,
   replacePlaceholders,
   resolveSchemaValue,
   pt2mm,
   cloneDeep,
-} from '@pdfme/common';
+} from '@pdfweave/common';
 import {
   insertPage,
   preprocessing,
@@ -26,7 +26,7 @@ const generate = async (props: GenerateProps): Promise<Uint8Array<ArrayBuffer>> 
 
   if (inputs.length === 0) {
     throw new Error(
-      '[@pdfme/generator] inputs should not be empty, pass at least an empty object in the array',
+      '[@pdfweave/generator] inputs should not be empty, pass at least an empty object in the array',
     );
   }
 
@@ -87,7 +87,7 @@ const generate = async (props: GenerateProps): Promise<Uint8Array<ArrayBuffer>> 
 
       const page = insertPage({ basePage, embedPdfBox, pdfDoc });
 
-      if (isBlankPdf(basePdf) && basePdf.staticSchema) {
+      if (treatsLikeBlank(basePdf) && basePdf.staticSchema) {
         for (let k = 0; k < basePdf.staticSchema.length; k += 1) {
           const staticSchema = basePdf.staticSchema[k];
           const render = renderObj[staticSchema.type];

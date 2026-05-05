@@ -3,7 +3,7 @@
 import { readFileSync } from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { Font } from '@pdfme/common';
+import type { Font } from '@pdfweave/common';
 import { uiRender } from '../src/multiVariableText/uiRender.js';
 import type { MultiVariableTextSchema } from '../src/multiVariableText/types.js';
 

@@ -1,5 +1,5 @@
 // @ts-ignore
-import { generate } from '@pdfme/generator';
+import { generate } from '@pdfweave/generator';
 import { createCanvas, loadImage } from '@napi-rs/canvas';
 import { pdf2img as nodePdf2Img, pdf2size as nodePdf2Size, img2pdf } from '../src/index.node.js';
 

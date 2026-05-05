@@ -49,7 +49,7 @@ export default defineConfig(({ mode }) => {
     },
     optimizeDeps: {
       include: ['react', 'react-dom', 'pdfjs-dist', 'antd'],
-      exclude: ['@pdfme/common', '@pdfme/schemas', '@pdfme/converter'],
+      exclude: ['@pdfweave/common', '@pdfweave/schemas', '@pdfweave/converter'],
     },
     worker: {
       format: 'es',

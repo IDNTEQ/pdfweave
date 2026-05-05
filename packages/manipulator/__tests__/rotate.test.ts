@@ -12,7 +12,7 @@ describe('rotate', () => {
     const pdf = await createTestPDF(2);
     // @ts-expect-error
     await expect(rotate(pdf, 45)).rejects.toThrow(
-      '[@pdfme/manipulator] Rotation degrees must be a multiple of 90'
+      '[@pdfweave/manipulator] Rotation degrees must be a multiple of 90'
     );
   });
 });

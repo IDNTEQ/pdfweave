@@ -2,8 +2,8 @@ import generate from '../src/generate.js';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { Template } from '@pdfme/common';
-import { getInputFromTemplate } from '@pdfme/common';
+import { Template } from '@pdfweave/common';
+import { getInputFromTemplate } from '@pdfweave/common';
 import {
   text,
   image,
@@ -15,7 +15,7 @@ import {
   barcodes,
   table,
   multiVariableText,
-} from '@pdfme/schemas';
+} from '@pdfweave/schemas';
 import { getFont, getImageSnapshotOptions, pdfToImages } from './utils.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));

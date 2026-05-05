@@ -1,6 +1,6 @@
 import React, { Ref } from 'react';
 import GuidesComponent from '@scena/react-guides';
-import { ZOOM, Size } from '@pdfme/common';
+import { ZOOM, Size } from '@pdfweave/common';
 import { RULER_HEIGHT } from '../../../constants.js';
 
 const guideStyle = (

@@ -1,5 +1,5 @@
-import type { Plugin, Schema } from '@pdfme/common';
-import { ZOOM } from '@pdfme/common';
+import type { Plugin, Schema } from '@pdfweave/common';
+import { ZOOM } from '@pdfweave/common';
 import image from './image.js';
 
 type SignatureSchema = Schema;
@@ -83,7 +83,7 @@ const signature: Plugin<SignatureSchema> = {
       } catch (error) {
         signaturePad.clear();
         showLoadError();
-        console.error('[@pdfme/schemas] Failed to restore saved signature data.', error);
+        console.error('[@pdfweave/schemas] Failed to restore saved signature data.', error);
       }
 
       if (mode === 'viewer' || (mode === 'form' && schema.readOnly)) {

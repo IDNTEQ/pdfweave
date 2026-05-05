@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { BLANK_PDF, Schema } from '@pdfme/common';
+import { BLANK_PDF, Schema } from '@pdfweave/common';
 import { image, signature } from '../src/index.js';
 
 const { SignaturePadMock } = vi.hoisted(() => {

@@ -1,4 +1,4 @@
-import { Schema } from '@pdfme/common';
+import { Schema } from '@pdfweave/common';
 import { ALIGNMENT } from '../text/types.js';
 
 export interface DateSchema extends Schema {

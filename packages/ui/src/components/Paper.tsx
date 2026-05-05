@@ -1,5 +1,5 @@
 import React, { MutableRefObject, ReactNode, useContext } from 'react';
-import { ZOOM, SchemaForUI, Size, getFallbackFontName } from '@pdfme/common';
+import { ZOOM, SchemaForUI, Size, getFallbackFontName } from '@pdfweave/common';
 import { FontContext } from '../contexts.js';
 import { RULER_HEIGHT, PAGE_GAP } from '../constants.js';
 

@@ -2,7 +2,7 @@ import { accessSync, constants, existsSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { homedir, tmpdir } from 'node:os';
 import { defineCommand } from 'citty';
-import { checkGenerateProps, DEFAULT_FONT_NAME } from '@pdfme/common';
+import { checkGenerateProps, DEFAULT_FONT_NAME } from '@pdfweave/common';
 import {
   assertNoUnknownFlags,
   fail,

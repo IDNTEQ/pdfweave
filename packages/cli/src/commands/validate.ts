@@ -1,5 +1,5 @@
 import { defineCommand } from 'citty';
-import { checkGenerateProps } from '@pdfme/common';
+import { checkGenerateProps } from '@pdfweave/common';
 import { assertNoUnknownFlags, printJson, runWithContract } from '../contract.js';
 import {
   collectInputHints,

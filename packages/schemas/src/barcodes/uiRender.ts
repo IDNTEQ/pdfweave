@@ -1,5 +1,5 @@
 import type * as CSS from 'csstype';
-import { UIRenderProps } from '@pdfme/common';
+import { UIRenderProps } from '@pdfweave/common';
 import type { BarcodeSchema } from './types.js';
 import { validateBarcodeInput, createBarCode } from './helper.js';
 import { addAlphaToHex, isEditable, createErrorElm } from '../utils.js';
@@ -84,11 +84,11 @@ export const uiRender = async (arg: UIRenderProps<BarcodeSchema>) => {
   if (!value) return;
   try {
     if (!validateBarcodeInput(schema.type, value))
-      throw new Error('[@pdfme/schemas/barcodes] Invalid barcode input');
+      throw new Error('[@pdfweave/schemas/barcodes] Invalid barcode input');
     const imgElm = await createBarcodeImageElm(schema, value);
     container.appendChild(imgElm);
   } catch (err) {
-    console.error(`[@pdfme/ui] ${String(err)}`);
+    console.error(`[@pdfweave/ui] ${String(err)}`);
     container.appendChild(createErrorElm());
   }
 };

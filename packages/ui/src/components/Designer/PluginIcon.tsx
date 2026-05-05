@@ -1,5 +1,5 @@
 import React, { useContext, useMemo } from 'react';
-import { Plugin, Schema } from '@pdfme/common';
+import { Plugin, Schema } from '@pdfweave/common';
 import { OptionsContext } from '../../contexts.js';
 import { theme } from 'antd';
 import DOMPurify from 'dompurify';

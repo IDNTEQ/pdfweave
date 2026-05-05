@@ -6,7 +6,7 @@ import {
   Size,
   getDynamicTemplate,
   resolveSchemaValue,
-} from '@pdfme/common';
+} from '@pdfweave/common';
 import UnitPager from './UnitPager.js';
 import Root from './Root.js';
 import StaticSchema from './StaticSchema.js';
@@ -119,7 +119,7 @@ const Preview = ({
         setSchemasList(sl);
         await currentRefresh(dynamicTemplate);
       })
-      .catch((err) => console.error(`[@pdfme/ui] `, err));
+      .catch((err) => console.error(`[@pdfweave/ui] `, err));
   }, []);
 
   useEffect(() => {

@@ -1,4 +1,4 @@
-import { b64toUint8Array } from '@pdfme/common';
+import { b64toUint8Array } from '@pdfweave/common';
 import bwipjs, { RenderOptions } from 'bwip-js';
 import { Buffer } from 'buffer';
 import { BARCODE_TYPES, DEFAULT_BARCODE_INCLUDETEXT } from './constants.js';

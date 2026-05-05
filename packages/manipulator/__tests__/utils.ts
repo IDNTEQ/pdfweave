@@ -1,5 +1,5 @@
-import { PDFDocument } from '@pdfme/pdf-lib';
-import { pdf2img } from '@pdfme/converter';
+import { PDFDocument } from '@pdfweave/pdf-lib';
+import { pdf2img } from '@pdfweave/converter';
 
 export const createTestPDF = async (pageCount: number): Promise<Uint8Array> => {
   const pdfDoc = await PDFDocument.create();

@@ -1,6 +1,6 @@
-import { BLANK_PDF, Template } from '@pdfme/common';
-import { PDFDict, PDFDocument, PDFName } from '@pdfme/pdf-lib';
-import { select } from '@pdfme/schemas';
+import { BLANK_PDF, Template } from '@pdfweave/common';
+import { PDFDict, PDFDocument, PDFName } from '@pdfweave/pdf-lib';
+import { select } from '@pdfweave/schemas';
 import generateForm from '../src/generateForm.js';
 import { getFont } from './utils.js';
 

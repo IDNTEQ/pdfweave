@@ -6,14 +6,14 @@ import type {
   SchemaBinding,
   SchemaBindingColumn,
   SchemaForUI,
-} from '@pdfme/common';
+} from '@pdfweave/common';
 import {
   formatDesignDataValue,
   getDesignDataInput,
   getDesignDataVariables,
   getTableBindingPreview,
   getValueByPath,
-} from '@pdfme/common';
+} from '@pdfweave/common';
 
 const containerStyle: React.CSSProperties = {
   display: 'grid',

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { PDFDocument } from '@pdfme/pdf-lib';
-import * as pdfLib from '@pdfme/pdf-lib';
-import { BLANK_PDF, type Schema, type PDFRenderProps } from '@pdfme/common';
+import { PDFDocument } from '@pdfweave/pdf-lib';
+import * as pdfLib from '@pdfweave/pdf-lib';
+import { BLANK_PDF, type Schema, type PDFRenderProps } from '@pdfweave/common';
 import { image } from '../src/index.js';
 
 describe('image plugin memory-safety', () => {

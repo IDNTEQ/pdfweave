@@ -1,25 +1,28 @@
 {
-  "name": "root",
+  "name": "pdfweave-monorepo",
   "version": "0.0.0",
   "private": true,
-  "description": "TypeScript base PDF generator and React base UI. Open source, developed by the community, and completely free to use under the MIT license!",
+  "description": "PDFweave — a PDF template engine with first-class data binding, anchor layouts, smart tables, and stationery PDFs. Forked from PDFme.",
   "keywords": [
+    "pdfweave",
     "pdf",
-    "pdf-designer",
-    "pdf-generation",
-    "pdf-viewer",
+    "templates",
+    "data-binding",
     "react",
     "typescript"
   ],
-  "homepage": "https://pdfme.com",
+  "homepage": "https://pdfweave.dev",
   "bugs": {
-    "url": "https://github.com/pdfme/pdfme/issues"
+    "url": "https://github.com/IDNTEQ/pdfweave/issues"
   },
   "license": "MIT",
   "author": "hand-dot",
+  "contributors": [
+    "IDNTEQ"
+  ],
   "repository": {
     "type": "git",
-    "url": "git@github.com:pdfme/pdfme.git"
+    "url": "https://github.com/IDNTEQ/pdfweave.git"
   },
   "workspaces": [
     "packages/common",
@@ -33,16 +36,16 @@
   ],
   "scripts": {
     "link-workspaces": "./scripts/link-workspaces.sh",
-    "clean": "vp run --filter '@pdfme/*' clean",
+    "clean": "vp run --filter '@pdfweave/*' clean",
     "build": "npm run clean && npm run build -w packages/pdf-lib && npm run build -w packages/common && npm run build -w packages/converter && npm run build -w packages/schemas && ./scripts/build-workspaces-in-parallel.sh packages/generator packages/ui packages/manipulator && npm run build -w packages/cli",
     "check": "npm run fmt:check && npm run lint && npm run typecheck && npm run test && npm --prefix playground run test",
-    "fmt": "vp run --filter '@pdfme/*' fmt && npm --prefix playground run fmt && npm run fmt:meta",
+    "fmt": "vp run --filter '@pdfweave/*' fmt && npm --prefix playground run fmt && npm run fmt:meta",
     "fmt:check": "vp fmt -c .oxfmtrc.json packages/cli/src packages/common/src packages/converter/src packages/generator/src packages/manipulator/src packages/pdf-lib/src packages/schemas/src packages/ui/src playground/src playground/e2e playground/vite.config.ts playground/vitest.setup.ts playground/postcss.config.js playground/tailwind.config.js package.json packages/cli/package.json packages/common/package.json packages/converter/package.json packages/generator/package.json packages/manipulator/package.json packages/pdf-lib/package.json packages/schemas/package.json packages/ui/package.json playground/package.json .oxlintrc.json .oxfmtrc.json playground/.oxlintrc.json vite.config.mts --check",
     "fmt:meta": "vp fmt -c .oxfmtrc.json package.json packages/cli/package.json packages/common/package.json packages/converter/package.json packages/generator/package.json packages/manipulator/package.json packages/pdf-lib/package.json packages/schemas/package.json packages/ui/package.json playground/package.json .oxlintrc.json .oxfmtrc.json playground/.oxlintrc.json vite.config.mts --write",
     "ci": "npm run check && npm run build && npm --prefix playground run build",
     "typecheck": "node packages/common/set-version.js && tsc -b",
-    "test": "vp run --filter '@pdfme/*' test",
-    "lint": "vp run --filter '@pdfme/*' lint && npm --prefix playground run lint",
+    "test": "vp run --filter '@pdfweave/*' test",
+    "lint": "vp run --filter '@pdfweave/*' lint && npm --prefix playground run lint",
     "lint:fix": "vp lint -c .oxlintrc.json packages/cli/src packages/common/src packages/converter/src packages/generator/src packages/manipulator/src packages/pdf-lib/src packages/schemas/src packages/ui/src --fix && npm --prefix playground run lint -- --fix"
   },
   "devDependencies": {

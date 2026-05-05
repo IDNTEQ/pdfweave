@@ -6,8 +6,8 @@ import {
   getTableBindingPreview,
   Schema,
   SchemaBindingColumn,
-} from '@pdfme/common';
-import type { DesignDataVariable } from '@pdfme/common';
+} from '@pdfweave/common';
+import type { DesignDataVariable } from '@pdfweave/common';
 import { Button, Empty, Tag, Typography } from 'antd';
 import { Database, Plus } from 'lucide-react';
 import type { SidebarProps } from '../../../types.js';

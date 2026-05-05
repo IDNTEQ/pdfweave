@@ -1070,7 +1070,7 @@ describe('doctor command', () => {
     );
     expect(parsed.issues).toEqual([]);
     expect(parsed.warnings).toContain(
-      'Font data URI for BrandBytes does not clearly advertise a .ttf format. @pdfme/cli currently guarantees only .ttf custom fonts.',
+      'Font data URI for BrandBytes does not clearly advertise a .ttf format. @pdfweave/cli currently guarantees only .ttf custom fonts.',
     );
   });
 
@@ -1126,7 +1126,7 @@ describe('doctor command', () => {
     );
     expect(parsed.issues).toEqual([]);
     expect(parsed.warnings).toContain(
-      'Font URL for BrandUrl does not clearly advertise a .ttf format. @pdfme/cli currently guarantees only .ttf custom fonts.',
+      'Font URL for BrandUrl does not clearly advertise a .ttf format. @pdfweave/cli currently guarantees only .ttf custom fonts.',
     );
   });
 

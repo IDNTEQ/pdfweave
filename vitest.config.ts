@@ -81,39 +81,39 @@ const pdfmeAliases = usePublishedPdfmeExports
   ? []
   : [
       {
-        find: '@pdfme/schemas/builtins',
+        find: '@pdfweave/schemas/builtins',
         replacement: path.resolve(repoRoot, 'packages/schemas/src/builtins.ts'),
       },
       {
-        find: '@pdfme/schemas/tables',
+        find: '@pdfweave/schemas/tables',
         replacement: path.resolve(repoRoot, 'packages/schemas/src/tables.ts'),
       },
       {
-        find: '@pdfme/schemas/utils',
+        find: '@pdfweave/schemas/utils',
         replacement: path.resolve(repoRoot, 'packages/schemas/src/utils.ts'),
       },
       {
-        find: '@pdfme/common',
+        find: '@pdfweave/common',
         replacement: path.resolve(repoRoot, 'packages/common/src/index.ts'),
       },
       {
-        find: '@pdfme/converter',
+        find: '@pdfweave/converter',
         replacement: converterReplacement,
       },
       {
-        find: '@pdfme/generator',
+        find: '@pdfweave/generator',
         replacement: path.resolve(repoRoot, 'packages/generator/src/index.ts'),
       },
       {
-        find: '@pdfme/manipulator',
+        find: '@pdfweave/manipulator',
         replacement: path.resolve(repoRoot, 'packages/manipulator/src/index.ts'),
       },
       {
-        find: '@pdfme/pdf-lib',
+        find: '@pdfweave/pdf-lib',
         replacement: path.resolve(repoRoot, 'packages/pdf-lib/src/index.ts'),
       },
       {
-        find: '@pdfme/schemas',
+        find: '@pdfweave/schemas',
         replacement: path.resolve(repoRoot, 'packages/schemas/src/index.ts'),
       },
     ];

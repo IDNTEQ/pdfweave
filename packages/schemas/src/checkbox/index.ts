@@ -1,4 +1,4 @@
-import { Plugin, Schema } from '@pdfme/common';
+import { Plugin, Schema } from '@pdfweave/common';
 import svg from '../graphics/svg.js';
 import { isEditable } from '../utils.js';
 import { HEX_COLOR_PATTERN } from '../constants.js';

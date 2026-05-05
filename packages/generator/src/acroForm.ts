@@ -5,7 +5,7 @@ import {
   type PDFRenderProps,
   type Plugin,
   type Schema,
-} from '@pdfme/common';
+} from '@pdfweave/common';
 import {
   PDFDict,
   PDFDocument,
@@ -13,8 +13,8 @@ import {
   PDFName,
   TextAlignment,
   type PDFRadioGroup,
-} from '@pdfme/pdf-lib';
-import { convertForPdfLayoutProps, hex2PrintingColor } from '@pdfme/schemas/utils';
+} from '@pdfweave/pdf-lib';
+import { convertForPdfLayoutProps, hex2PrintingColor } from '@pdfweave/schemas/utils';
 
 type AcroFormSchema = Schema & {
   __acroRequired?: boolean;
@@ -100,7 +100,7 @@ const getRadioGroup = (arg: {
 const fetchFontData = async (font: Font, fontName: string) => {
   const fontValue = font[fontName];
   if (!fontValue) {
-    throw new Error(`[@pdfme/generator] Font "${fontName}" is not configured`);
+    throw new Error(`[@pdfweave/generator] Font "${fontName}" is not configured`);
   }
 
   if (typeof fontValue.data !== 'string' || !fontValue.data.startsWith('http')) {
@@ -109,7 +109,7 @@ const fetchFontData = async (font: Font, fontName: string) => {
 
   const res = await fetch(fontValue.data);
   if (!res.ok) {
-    throw new Error(`[@pdfme/generator] Failed to fetch font data from ${fontValue.data}`);
+    throw new Error(`[@pdfweave/generator] Failed to fetch font data from ${fontValue.data}`);
   }
   return res.arrayBuffer();
 };

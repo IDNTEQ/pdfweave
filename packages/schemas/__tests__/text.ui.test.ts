@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import type { Font as FontKitFont } from 'fontkit';
-import type { Font } from '@pdfme/common';
+import type { Font } from '@pdfweave/common';
 import { uiRender } from '../src/text/uiRender.js';
 import type { TextSchema } from '../src/text/types.js';
 

@@ -11,7 +11,7 @@ describe('move', () => {
   test('throws error for invalid page numbers', async () => {
     const pdf = await createTestPDF(3);
     await expect(move(pdf, { from: 3, to: 0 })).rejects.toThrow(
-      '[@pdfme/manipulator] Invalid page number: from=3, to=0, total pages=3'
+      '[@pdfweave/manipulator] Invalid page number: from=3, to=0, total pages=3'
     );
   });
 });

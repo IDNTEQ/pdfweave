@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { PDFPage, PDFDocument } from '@pdfme/pdf-lib';
+import type { PDFPage, PDFDocument } from '@pdfweave/pdf-lib';
 import {
   Lang,
   Dict,
@@ -11,6 +11,7 @@ import {
   BasePdf,
   BlankPdf,
   CustomPdf,
+  StationeryPdf,
   CommonOptions,
   Template,
   GeneratorOptions,
@@ -196,7 +197,7 @@ export type LayoutMeasureProps<T extends Schema> = {
  * @property {string} value The string used for PDF rendering.
  * @property {T} schema Extended Schema object for rendering.
  * @property {BasePdf} basePdf Base PDF object for rendering.
- * @property {typeof import('@pdfme/pdf-lib')} pdfLib The pdf-lib library used for rendering.
+ * @property {typeof import('@pdfweave/pdf-lib')} pdfLib The pdf-lib library used for rendering.
  * @property {PDFDocument} pdfDoc PDFDocument object from pdf-lib.
  * @property {PDFPage} page PDFPage object from pdf-lib.
  * @property {GeneratorOptions} options Options object passed from the generator.
@@ -206,7 +207,7 @@ export interface PDFRenderProps<T extends Schema> {
   value: string;
   schema: T;
   basePdf: BasePdf;
-  pdfLib: typeof import('@pdfme/pdf-lib');
+  pdfLib: typeof import('@pdfweave/pdf-lib');
   pdfDoc: PDFDocument;
   page: PDFPage;
   options: GeneratorOptions;
@@ -350,6 +351,7 @@ export type ColorType = z.infer<typeof ColorType>;
 export type BasePdf = z.infer<typeof BasePdf>;
 export type BlankPdf = z.infer<typeof BlankPdf>;
 export type CustomPdf = z.infer<typeof CustomPdf>;
+export type StationeryPdf = z.infer<typeof StationeryPdf>;
 export type Template = z.infer<typeof Template>;
 export type CommonOptions = z.infer<typeof CommonOptions>;
 export type GeneratorOptions = z.infer<typeof GeneratorOptions>;

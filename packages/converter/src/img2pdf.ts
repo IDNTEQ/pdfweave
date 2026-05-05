@@ -1,5 +1,5 @@
-import { PDFDocument } from '@pdfme/pdf-lib';
-import { mm2pt } from '@pdfme/common';
+import { PDFDocument } from '@pdfweave/pdf-lib';
+import { mm2pt } from '@pdfweave/common';
 import type { ImageType } from './types.js';
 
 interface Img2PdfOptions {
@@ -105,6 +105,6 @@ export async function img2pdf(
     view.set(pdfUint8Array);
     return buffer;
   } catch (error) {
-    throw new Error(`[@pdfme/converter] img2pdf failed: ${(error as Error).message}`);
+    throw new Error(`[@pdfweave/converter] img2pdf failed: ${(error as Error).message}`);
   }
 }

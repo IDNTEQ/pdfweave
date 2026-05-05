@@ -10,7 +10,7 @@ import {
   getDefaultFont,
   DEFAULT_FONT_NAME,
   isUrlSafeToFetch,
-} from '@pdfme/common';
+} from '@pdfweave/common';
 import { Buffer } from 'buffer';
 import type { TextSchema, FontWidthCalcValues } from './types.js';
 import {
@@ -113,7 +113,7 @@ const getCacheKey = (fontName: string) => `getFontKitFont-${fontName}`;
 export const fetchRemoteFontData = async (url: string): Promise<ArrayBuffer> => {
   if (!isUrlSafeToFetch(url)) {
     throw Error(
-      '[@pdfme/schemas] Invalid or unsafe URL for font data. Only http: and https: URLs pointing to public hosts are allowed.',
+      '[@pdfweave/schemas] Invalid or unsafe URL for font data. Only http: and https: URLs pointing to public hosts are allowed.',
     );
   }
 
@@ -126,7 +126,7 @@ export const fetchRemoteFontData = async (url: string): Promise<ArrayBuffer> => 
     return await response.arrayBuffer();
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
-    throw Error(`[@pdfme/schemas] Failed to fetch remote font data from ${url}. ${reason}`);
+    throw Error(`[@pdfweave/schemas] Failed to fetch remote font data from ${url}. ${reason}`);
   }
 };
 

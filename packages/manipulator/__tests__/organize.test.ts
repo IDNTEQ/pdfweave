@@ -55,7 +55,7 @@ describe('organize', () => {
   test('throws error for invalid page numbers', async () => {
     const pdf = await createTestPDF(3);
     await expect(organize(pdf, [{ type: 'remove', data: { position: 3 } }])).rejects.toThrow(
-      '[@pdfme/manipulator] Invalid page number'
+      '[@pdfweave/manipulator] Invalid page number'
     );
   });
 
@@ -64,7 +64,7 @@ describe('organize', () => {
     const insertPdf = await createTestPDF(1);
     await expect(
       organize(pdf, [{ type: 'insert', data: { pdf: insertPdf, position: 4 } }])
-    ).rejects.toThrow('[@pdfme/manipulator] Invalid position');
+    ).rejects.toThrow('[@pdfweave/manipulator] Invalid position');
   });
 
   test('throws error for invalid rotation degrees', async () => {
@@ -72,13 +72,13 @@ describe('organize', () => {
     await expect(
       // @ts-expect-error
       organize(pdf, [{ type: 'rotate', data: { pages: [0], degrees: 45 } }])
-    ).rejects.toThrow('[@pdfme/manipulator] Rotation degrees must be a multiple of 90');
+    ).rejects.toThrow('[@pdfweave/manipulator] Rotation degrees must be a multiple of 90');
   });
 
   test('throws error for empty actions array', async () => {
     const pdf = await createTestPDF(3);
     await expect(organize(pdf, [])).rejects.toThrow(
-      '[@pdfme/manipulator] At least one action is required'
+      '[@pdfweave/manipulator] At least one action is required'
     );
   });
 
@@ -86,7 +86,7 @@ describe('organize', () => {
     const pdf = await createTestPDF(3);
     // @ts-expect-error
     await expect(organize(pdf, [{ type: 'invalid', data: { pages: [] } }])).rejects.toThrow(
-      '[@pdfme/manipulator] Unknown action type: invalid'
+      '[@pdfweave/manipulator] Unknown action type: invalid'
     );
   });
 });

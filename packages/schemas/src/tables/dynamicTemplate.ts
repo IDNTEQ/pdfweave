@@ -1,4 +1,11 @@
-import { Schema, BasePdf, BlankPdf, CommonOptions, isBlankPdf } from '@pdfme/common';
+import {
+  Schema,
+  BasePdf,
+  BlankPdf,
+  StationeryPdf,
+  CommonOptions,
+  treatsLikeBlank,
+} from '@pdfweave/common';
 import { createSingleTable } from './tableHelper.js';
 import { getBodyWithRange, getBody } from './helper.js';
 import { TableSchema } from './types.js';
@@ -23,13 +30,13 @@ export const getDynamicHeightsForTable = async (
     : [0].concat(table.body.map((row) => row.height));
 
   const headerHeight = schema.showHead ? table.getHeadHeight() : 0;
-  const shouldRepeatHeader = schema.repeatHead && isBlankPdf(args.basePdf) && headerHeight > 0;
+  const shouldRepeatHeader = schema.repeatHead && treatsLikeBlank(args.basePdf) && headerHeight > 0;
 
   if (!shouldRepeatHeader) {
     return baseHeights;
   }
 
-  const basePdf = args.basePdf as BlankPdf;
+  const basePdf = args.basePdf as BlankPdf | StationeryPdf;
   const [paddingTop, , paddingBottom] = basePdf.padding;
   const pageContentHeight = basePdf.height - paddingTop - paddingBottom;
   const getPageStartY = (pageIndex: number) => pageIndex * pageContentHeight + paddingTop;

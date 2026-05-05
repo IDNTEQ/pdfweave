@@ -19,8 +19,8 @@ import {
   checkUIOptions,
   checkPreviewProps,
   pluginRegistry,
-} from '@pdfme/common';
-import { builtInPlugins } from '@pdfme/schemas/builtins';
+} from '@pdfweave/common';
+import { builtInPlugins } from '@pdfweave/schemas/builtins';
 
 export abstract class BaseUIClass {
   protected domContainer!: HTMLElement | null;

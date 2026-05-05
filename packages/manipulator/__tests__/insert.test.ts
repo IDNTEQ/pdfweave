@@ -13,7 +13,7 @@ describe('insert', () => {
     const basePdf = await createTestPDF(3);
     const insertPdf = await createTestPDF(2);
     await expect(insert(basePdf, [{ pdf: insertPdf, position: 4 }])).rejects.toThrow(
-      '[@pdfme/manipulator] Invalid position'
+      '[@pdfweave/manipulator] Invalid position'
     );
   });
 });

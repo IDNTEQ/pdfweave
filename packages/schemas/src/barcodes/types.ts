@@ -1,4 +1,4 @@
-import { Schema } from '@pdfme/common';
+import { Schema } from '@pdfweave/common';
 import { BARCODE_TYPES } from './constants.js';
 
 export type BarcodeSchema = Schema & {

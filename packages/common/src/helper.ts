@@ -7,6 +7,7 @@ import {
   BasePdf,
   Plugins,
   BlankPdf,
+  StationeryPdf,
   LegacySchemaPageArray,
   SchemaPageArray,
 } from './types.js';
@@ -19,6 +20,7 @@ import {
   GenerateProps as GeneratePropsSchema,
   UIProps as UIPropsSchema,
   BlankPdf as BlankPdfSchema,
+  StationeryPdf as StationeryPdfSchema,
 } from './schema.js';
 import {
   MM_TO_PT_RATIO,
@@ -44,7 +46,7 @@ export const getFallbackFontName = (font: Font) => {
   }, initial);
   if (fallbackFontName === initial) {
     throw Error(
-      `[@pdfme/common] fallback flag is not found in font. true fallback flag must be only one.`,
+      `[@pdfweave/common] fallback flag is not found in font. true fallback flag must be only one.`,
     );
   }
 
@@ -80,7 +82,7 @@ const blob2Base64Pdf = (blob: Blob) => {
       if ((reader.result as string).startsWith('data:application/pdf;')) {
         resolve(reader.result as string);
       } else {
-        reject(Error('[@pdfme/common] template.basePdf must be pdf data.'));
+        reject(Error('[@pdfweave/common] template.basePdf must be pdf data.'));
       }
     };
     reader.readAsDataURL(blob);
@@ -192,7 +194,7 @@ export const getB64BasePdf = async (
   ) {
     if (!isUrlSafeToFetch(customPdf)) {
       throw Error(
-        '[@pdfme/common] Invalid or unsafe URL for basePdf. Only http: and https: URLs pointing to public hosts are allowed.',
+        '[@pdfweave/common] Invalid or unsafe URL for basePdf. Only http: and https: URLs pointing to public hosts are allowed.',
       );
     }
     const response = await fetch(customPdf);
@@ -210,6 +212,12 @@ export const getB64BasePdf = async (
 
 export const isBlankPdf = (basePdf: BasePdf): basePdf is BlankPdf =>
   BlankPdfSchema.safeParse(basePdf).success;
+
+export const isStationeryPdf = (basePdf: BasePdf): basePdf is StationeryPdf =>
+  StationeryPdfSchema.safeParse(basePdf).success;
+
+export const treatsLikeBlank = (basePdf: BasePdf): basePdf is BlankPdf | StationeryPdf =>
+  isBlankPdf(basePdf) || isStationeryPdf(basePdf);
 
 const getByteString = (base64: string) => Buffer.from(base64, 'base64').toString('binary');
 
@@ -245,13 +253,13 @@ export const checkFont = (arg: { font: Font; template: Template }) => {
   );
   if (fallbackFontNum === 0) {
     throw Error(
-      `[@pdfme/common] fallback flag is not found in font. true fallback flag must be only one.
+      `[@pdfweave/common] fallback flag is not found in font. true fallback flag must be only one.
 Check this document: https://pdfme.com/docs/custom-fonts#about-font-type`,
     );
   }
   if (fallbackFontNum > 1) {
     throw Error(
-      `[@pdfme/common] ${fallbackFontNum} fallback flags found in font. true fallback flag must be only one.
+      `[@pdfweave/common] ${fallbackFontNum} fallback flags found in font. true fallback flag must be only one.
 Check this document: https://pdfme.com/docs/custom-fonts#about-font-type`,
     );
   }
@@ -260,7 +268,7 @@ Check this document: https://pdfme.com/docs/custom-fonts#about-font-type`,
   const fontNames = Object.keys(font);
   if (fontNamesInSchemas.some((f) => !fontNames.includes(f))) {
     throw Error(
-      `[@pdfme/common] ${fontNamesInSchemas
+      `[@pdfweave/common] ${fontNamesInSchemas
         .filter((f) => !fontNames.includes(f))
         .join()} of template.schemas is not found in font.
 Check this document: https://pdfme.com/docs/custom-fonts`,
@@ -281,7 +289,7 @@ export const checkPlugins = (arg: { plugins: Plugins; template: Template }) => {
 
   if (allSchemaTypes.some((s) => !pluginsSchemaTypes.includes(s))) {
     throw Error(
-      `[@pdfme/common] ${allSchemaTypes
+      `[@pdfweave/common] ${allSchemaTypes
         .filter((s) => !pluginsSchemaTypes.includes(s))
         .join()} of template.schemas is not found in plugins.`,
     );
@@ -298,12 +306,12 @@ const checkProps = <T>(data: unknown, zodSchema: z.ZodType<T>) => {
 ERROR MESSAGE: ${issue.message}
 --------------------------`,
       );
-      throw Error(`[@pdfme/common] Invalid argument:
+      throw Error(`[@pdfweave/common] Invalid argument:
 --------------------------
 ${messages.join('\n')}`);
     } else {
       throw Error(
-        `[@pdfme/common] Unexpected parsing error: ${e instanceof Error ? e.message : String(e)}`,
+        `[@pdfweave/common] Unexpected parsing error: ${e instanceof Error ? e.message : String(e)}`,
       );
     }
   }

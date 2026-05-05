@@ -1,11 +1,11 @@
 import React from 'react';
 import { act, renderHook, waitFor } from '@testing-library/react';
-import { BLANK_PDF, type SchemaForUI, type Template } from '@pdfme/common';
-import * as converter from '@pdfme/converter';
+import { BLANK_PDF, type SchemaForUI, type Template } from '@pdfweave/common';
+import * as converter from '@pdfweave/converter';
 import * as helper from '../src/helper';
 import { useInitEvents, useUIPreProcessor } from '../src/hooks';
 
-vi.mock('@pdfme/converter', () => ({
+vi.mock('@pdfweave/converter', () => ({
   pdf2size: vi.fn(),
   pdf2img: vi.fn(),
 }));

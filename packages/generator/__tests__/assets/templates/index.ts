@@ -1,5 +1,5 @@
 import { createRequire } from 'node:module';
-import { Template } from '@pdfme/common';
+import { Template } from '@pdfweave/common';
 
 const require = createRequire(import.meta.url);
 

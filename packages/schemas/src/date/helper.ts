@@ -39,7 +39,7 @@ import localeZh from 'air-datepicker/locale/zh';
 import * as dateFns from 'date-fns/locale';
 import { format } from 'date-fns';
 
-import { Plugin, getFallbackFontName, DEFAULT_FONT_NAME, PropPanelSchema } from '@pdfme/common';
+import { Plugin, getFallbackFontName, DEFAULT_FONT_NAME, PropPanelSchema } from '@pdfweave/common';
 import text from '../text/index.js';
 import { DEFAULT_OPACITY, HEX_COLOR_PATTERN } from '../constants.js';
 import { mapVerticalAlignToFlex } from '../text/uiRender.js';

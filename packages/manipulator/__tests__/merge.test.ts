@@ -10,6 +10,6 @@ describe('merge', () => {
   });
 
   test('throws error when no PDFs provided', async () => {
-    await expect(merge([])).rejects.toThrow('[@pdfme/manipulator] At least one PDF is required');
+    await expect(merge([])).rejects.toThrow('[@pdfweave/manipulator] At least one PDF is required');
   });
 });

@@ -18,7 +18,7 @@ import {
   SchemaLayoutRule,
   isBlankPdf,
   px2mm,
-} from '@pdfme/common';
+} from '@pdfweave/common';
 import { DndContext } from '@dnd-kit/core';
 import RightSidebar from './RightSidebar/index.js';
 import LeftSidebar from './LeftSidebar.js';

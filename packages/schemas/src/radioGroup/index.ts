@@ -1,4 +1,4 @@
-import { Plugin, Schema } from '@pdfme/common';
+import { Plugin, Schema } from '@pdfweave/common';
 import { Circle, CircleDot } from 'lucide';
 import svg from '../graphics/svg.js';
 import { isEditable, createSvgStr } from '../utils.js';

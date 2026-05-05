@@ -181,7 +181,15 @@ export const BlankPdf = z.object({
 
 export const CustomPdf = z.union([z.string(), ArrayBufferSchema, Uint8ArraySchema]);
 
-export const BasePdf = z.union([CustomPdf, BlankPdf]);
+export const StationeryPdf = z.object({
+  stationeryPdf: z.union([z.string(), ArrayBufferSchema, Uint8ArraySchema]),
+  width: z.number(),
+  height: z.number(),
+  padding: z.tuple([z.number(), z.number(), z.number(), z.number()]),
+  staticSchema: z.array(Schema).optional(),
+});
+
+export const BasePdf = z.union([CustomPdf, BlankPdf, StationeryPdf]);
 
 // Legacy keyed structure for BC - we convert to SchemaPageArray on import
 export const LegacySchemaPageArray = z.array(z.record(z.string(), Schema));

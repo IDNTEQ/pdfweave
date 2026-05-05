@@ -68,6 +68,6 @@ export async function pdf2img(
       await destroyDocument?.(pdfDoc);
     }
   } catch (error) {
-    throw new Error(`[@pdfme/converter] pdf2img failed: ${(error as Error).message}`);
+    throw new Error(`[@pdfweave/converter] pdf2img failed: ${(error as Error).message}`);
   }
 }

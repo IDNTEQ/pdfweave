@@ -1,8 +1,9 @@
 {
-  "name": "@pdfme/ui",
-  "version": "0.0.0",
+  "name": "@pdfweave/ui",
+  "version": "0.1.0",
   "description": "TypeScript base PDF generator and React base UI. Open source, developed by the community, and completely free to use under the MIT license!",
   "keywords": [
+    "pdfweave",
     "pdf",
     "pdf-designer",
     "pdf-generation",
@@ -10,15 +11,16 @@
     "react",
     "typescript"
   ],
-  "homepage": "https://pdfme.com",
+  "homepage": "https://pdfweave.dev",
   "bugs": {
-    "url": "https://github.com/pdfme/pdfme/issues"
+    "url": "https://github.com/IDNTEQ/pdfweave/issues"
   },
   "license": "MIT",
-  "author": "hand-dot",
+  "author": "PDFweave contributors (forked from pdfme by hand-dot)",
   "repository": {
     "type": "git",
-    "url": "git@github.com:pdfme/pdfme.git"
+    "url": "https://github.com/IDNTEQ/pdfweave.git",
+    "directory": "packages/ui"
   },
   "files": [
     "dist",
@@ -51,22 +53,25 @@
     "@dnd-kit/core": "^6.0.8",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
-    "@pdfme/converter": "*",
+    "@pdfweave/converter": "0.1.0",
     "@scena/react-guides": "^0.28.2",
     "antd": "^6.3.7",
+    "clsx": "^2.1.1",
+    "dayjs": "^1.11.20",
     "dompurify": "^3.4.1",
     "form-render": "^2.5.5",
     "hotkeys-js": "^4.0.3",
     "lucide-react": "^1.12.0",
     "rc-field-form": "^2.7.1",
+    "rc-picker": "^4.11.3",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-moveable": "^0.56.0",
     "react-selecto": "^1.12.0"
   },
   "devDependencies": {
-    "@pdfme/common": "*",
-    "@pdfme/schemas": "*",
+    "@pdfweave/common": "0.1.0",
+    "@pdfweave/schemas": "0.1.0",
     "@testing-library/jest-dom": "^6.8.0",
     "@testing-library/react": "^16.3.0",
     "@types/react": "^18.2.15",
@@ -78,7 +83,7 @@
     "vite-tsconfig-paths": "^6.1.1"
   },
   "peerDependencies": {
-    "@pdfme/common": "latest",
-    "@pdfme/schemas": "latest"
+    "@pdfweave/common": "0.1.0",
+    "@pdfweave/schemas": "0.1.0"
   }
 }
