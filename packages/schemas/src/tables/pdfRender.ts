@@ -118,9 +118,17 @@ async function drawTable(arg: PDFRenderProps<TableSchema>, table: Table): Promis
 export const pdfRender = async (arg: PDFRenderProps<TableSchema>) => {
   const { value, schema, basePdf, options, _cache } = arg;
 
+  // Pass the schema's column count so getBodyWithRange can reshape a
+  // comma-flattened string back into rows (regression: pdfme/pdfme#1299).
+  // Falls back to head.length when headWidthPercentages aren't specified.
+  const columnCount =
+    (Array.isArray(schema.headWidthPercentages) && schema.headWidthPercentages.length) ||
+    (Array.isArray(schema.head) && schema.head.length) ||
+    undefined;
   const body = getBodyWithRange(
     typeof value !== 'string' ? JSON.stringify(value || '[]') : value,
     schema.__bodyRange,
+    columnCount,
   );
 
   // Create a properly typed CreateTableArgs object

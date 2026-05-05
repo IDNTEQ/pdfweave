@@ -204,8 +204,14 @@ const resetEditingPosition = () => {
 
 export const uiRender = async (arg: UIRenderProps<TableSchema>) => {
   const { rootElement, onChange, schema, value, mode, scale } = arg;
-  const body = getBody(value);
-  const bodyWidthRange = getBodyWithRange(value, schema.__bodyRange);
+  // Pass column count so a comma-flattened string (pdfme/pdfme#1299
+  // recovery) can be reshaped into rows instead of crashing JSON.parse.
+  const columnCount =
+    (Array.isArray(schema.headWidthPercentages) && schema.headWidthPercentages.length) ||
+    (Array.isArray(schema.head) && schema.head.length) ||
+    undefined;
+  const body = getBody(value, columnCount);
+  const bodyWidthRange = getBodyWithRange(value, schema.__bodyRange, columnCount);
   const table = await createSingleTable(bodyWidthRange, arg);
   const showHead = table.settings.showHead;
 
