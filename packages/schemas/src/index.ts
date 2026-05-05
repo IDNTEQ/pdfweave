@@ -13,6 +13,7 @@ import time from './date/time.js';
 import select from './select/index.js';
 import radioGroup from './radioGroup/index.js';
 import checkbox from './checkbox/index.js';
+import link from './link/index.js';
 export { builtInPlugins } from './builtins.js';
 
 export {
@@ -33,6 +34,7 @@ export {
   select,
   radioGroup,
   checkbox,
+  link,
 };
 
 // Export utility functions
