@@ -46,26 +46,38 @@ export const uiRender = async (arg: UIRenderProps<MultiVariableTextSchema>) => {
     ...rest,
   });
 
-  const textBlock = rootElement.querySelector('#text-' + String(schema.id)) as HTMLDivElement;
+  // The text-block id lookup is only used to attach the designer-only keyup
+  // listener below. When MVT is rendered in non-designer contexts (notably
+  // basePdf.staticSchema, which always renders in 'viewer' mode and assigns a
+  // freshly-generated schema id at render time), the parent text plugin may
+  // take a code path that doesn't expose a text-block element with the
+  // expected id. Throwing in that case breaks an otherwise valid render — see
+  // pdfme#1296. Gating on designer mode keeps the listener wiring intact while
+  // letting non-designer renders (incl. staticSchema) succeed.
+  if (mode !== 'designer') {
+    return;
+  }
+
+  const textBlock = rootElement.querySelector(
+    '#text-' + String(schema.id),
+  ) as HTMLDivElement | null;
   if (!textBlock) {
     throw new Error('Text block not found. Ensure the text block has an id of "text-" + schema.id');
   }
 
-  if (mode === 'designer') {
-    textBlock.addEventListener('keyup', (event: KeyboardEvent) => {
-      text = textBlock.textContent || '';
-      if (keyPressShouldBeChecked(event)) {
-        const newNumVariables = countUniqueVariableNames(text);
-        if (numVariables !== newNumVariables) {
-          // If variables were modified during this keypress, we trigger a change
-          if (onChange) {
-            onChange({ key: 'text', value: text });
-          }
-          numVariables = newNumVariables;
+  textBlock.addEventListener('keyup', (event: KeyboardEvent) => {
+    text = textBlock.textContent || '';
+    if (keyPressShouldBeChecked(event)) {
+      const newNumVariables = countUniqueVariableNames(text);
+      if (numVariables !== newNumVariables) {
+        // If variables were modified during this keypress, we trigger a change
+        if (onChange) {
+          onChange({ key: 'text', value: text });
         }
+        numVariables = newNumVariables;
       }
-    });
-  }
+    }
+  });
 };
 
 const formUiRender = async (arg: UIRenderProps<MultiVariableTextSchema>) => {

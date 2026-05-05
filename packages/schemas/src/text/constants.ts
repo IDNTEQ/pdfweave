@@ -122,3 +122,26 @@ export const LINE_END_FORBIDDEN_CHARS = [
   '｟',
   '«',
 ];
+
+//
+// Roman / English line-break rules (see pdfme#1115).
+// Characters that should never start a wrapped line.
+//
+export const LINE_START_FORBIDDEN_CHARS_ROMAN = [
+  ',',
+  '.',
+  ';',
+  ':',
+  '?',
+  '!',
+  "'",
+  '"',
+  ')',
+  ']',
+];
+
+//
+// Roman / English line-break rules (see pdfme#1115).
+// Characters that should never end a wrapped line.
+//
+export const LINE_END_FORBIDDEN_CHARS_ROMAN = ['(', '[', "'", '"'];

@@ -11,6 +11,8 @@ import {
   getSplittedLines,
   filterStartJP,
   filterEndJP,
+  filterStartRoman,
+  filterEndRoman,
   widthOfTextAtSize,
 } from '../src/text/helper.js';
 import {
@@ -715,5 +717,106 @@ describe('filterEndJP', () => {
     const input = ['これは「', '文章「', 'です「'];
     const expected = ['これは', '「文章', '「です「'];
     expect(filterEndJP(input)).toEqual(expected);
+  });
+});
+
+// pdfme#1115 — Roman / English line-break rules
+describe('filterStartRoman', () => {
+  test('returns empty array for empty input', () => {
+    expect(filterStartRoman([])).toEqual([]);
+  });
+
+  test('does not modify lines that start with regular characters', () => {
+    const input = ['Hello', 'world', 'today'];
+    expect(filterStartRoman(input)).toEqual(input);
+  });
+
+  test('moves a line-leading closing quote back to the previous line', () => {
+    // A wrap point that places the closing quote at the start of the next line
+    // should be undone — the quote must stay attached to its preceding word.
+    // Whitespace between tokens is preserved; we only relocate the punctuation.
+    const input = ['Hello world', '"today'];
+    const expected = ['Hello world"', 'today'];
+    expect(filterStartRoman(input)).toEqual(expected);
+  });
+
+  test('moves a line-leading comma back to the previous line', () => {
+    const input = ['hello', ',world'];
+    const expected = ['hello,', 'world'];
+    expect(filterStartRoman(input)).toEqual(expected);
+  });
+
+  test('moves a line-leading closing parenthesis back to the previous line', () => {
+    const input = ['hello (world', ')today'];
+    const expected = ['hello (world)', 'today'];
+    expect(filterStartRoman(input)).toEqual(expected);
+  });
+});
+
+describe('filterEndRoman', () => {
+  test('returns empty array for empty input', () => {
+    expect(filterEndRoman([])).toEqual([]);
+  });
+
+  test('does not modify lines that end with regular characters', () => {
+    const input = ['Hello', 'world', 'today'];
+    expect(filterEndRoman(input)).toEqual(input);
+  });
+
+  test('moves a line-trailing opening quote forward to the next line', () => {
+    // The trailing space is preserved by the algorithm — the focus is just on
+    // moving the forbidden last character.
+    const input = ['Hello "', 'world today'];
+    const expected = ['Hello ', '"world today'];
+    expect(filterEndRoman(input)).toEqual(expected);
+  });
+
+  test('moves a line-trailing opening parenthesis forward to the next line', () => {
+    const input = ['hello (', 'world)'];
+    const expected = ['hello ', '(world)'];
+    expect(filterEndRoman(input)).toEqual(expected);
+  });
+});
+
+// pdfme#1234 — getFontKitFont must accept blob: URLs
+describe('getFontKitFont with blob: URL font data (pdfme#1234)', () => {
+  test('does not throw for a blob: URL — fetches via the browser blob store', async () => {
+    // Simulate a font registered with a blob URL (e.g. created via
+    // URL.createObjectURL on a user-uploaded font file). We stub global fetch
+    // so the test does not need a live blob registration; we just assert the
+    // code path takes the blob branch instead of the rejected remote-fetch
+    // branch (isUrlSafeToFetch rejects the blob: protocol).
+    const blobUrl = 'blob:http://localhost/fake-font-uuid';
+
+    const originalFetch = (globalThis as { fetch?: typeof fetch }).fetch;
+    const fontBuffer = sansData.buffer.slice(
+      sansData.byteOffset,
+      sansData.byteOffset + sansData.byteLength,
+    );
+    (globalThis as { fetch: typeof fetch }).fetch = (async (input: unknown) => {
+      if (typeof input === 'string' && input === blobUrl) {
+        return {
+          ok: true,
+          status: 200,
+          arrayBuffer: async () => fontBuffer,
+        };
+      }
+      throw new Error(`unexpected fetch in test: ${String(input)}`);
+    }) as unknown as typeof fetch;
+
+    try {
+      const blobFont: Font = {
+        SauceHanSansJP: { fallback: true, data: blobUrl },
+      };
+      const result = await getFontKitFont('SauceHanSansJP', blobFont, new Map());
+      expect(result).toBeDefined();
+      expect(result.unitsPerEm).toBeGreaterThan(0);
+    } finally {
+      if (originalFetch) {
+        (globalThis as { fetch: typeof fetch }).fetch = originalFetch;
+      } else {
+        delete (globalThis as { fetch?: typeof fetch }).fetch;
+      }
+    }
   });
 });
