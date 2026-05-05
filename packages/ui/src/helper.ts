@@ -382,14 +382,32 @@ export const template2SchemasList = async (_template: Template) => {
       : schemasForUI.slice(0, pageSizes.length)
   ).map((schema, i) => {
     Object.values(schema).forEach((value) => {
-      const { width, height } = pageSizes[i];
-      const xEdge = value.position.x + value.width;
-      const yEdge = value.position.y + value.height;
-      if (xEdge > width) {
-        value.position.x = Math.max(0, width - value.width);
+      const { width: pageWidth, height: pageHeight } = pageSizes[i];
+      // Rotation-aware overflow check. The drag path (Canvas/index.tsx) lets
+      // the un-rotated top-left go negative when the rotated bounding box
+      // still fits on the page (pdfme#284). Without the same awareness here,
+      // persistence would snap rotated schemas back inside the un-rotated
+      // bounds on the next template load — silently undoing the user's drag.
+      const rotate = (value as { rotate?: number }).rotate ?? 0;
+      const offsets = getRotatedBoundingBoxOffsets(value.width, value.height, rotate);
+      const rotatedRight = value.position.x + offsets.maxX;
+      const rotatedBottom = value.position.y + offsets.maxY;
+      const rotatedLeft = value.position.x + offsets.minX;
+      const rotatedTop = value.position.y + offsets.minY;
+      // Snap the rotated bounding box inside [0, pageWidth] / [0, pageHeight].
+      // For rotated schemas this can yield a negative un-rotated x/y, which
+      // is the correct stored value (matches the drag path).
+      if (rotatedRight > pageWidth) {
+        value.position.x -= rotatedRight - pageWidth;
       }
-      if (yEdge > height) {
-        value.position.y = Math.max(0, height - value.height);
+      if (rotatedBottom > pageHeight) {
+        value.position.y -= rotatedBottom - pageHeight;
+      }
+      if (rotatedLeft < 0) {
+        value.position.x -= rotatedLeft;
+      }
+      if (rotatedTop < 0) {
+        value.position.y -= rotatedTop;
       }
     });
 
