@@ -70,7 +70,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        package: [common, pdf-lib, schemas, generator, ui, cli]
+        package: [common, pdf-lib, schemas, generator, ui, cli, converter, manipulator]
 
     steps:
       - uses: actions/checkout@v4
