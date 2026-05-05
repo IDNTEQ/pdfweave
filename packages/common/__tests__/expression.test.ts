@@ -92,6 +92,31 @@ describe('replacePlaceholders', () => {
     expect(result).toBe('Invalid placeholder: {name');
   });
 
+  // Regression for upstream pdfme#1309: malformed `{{1}` (and similar
+  // unbalanced-brace inputs typed mid-edit in the Designer) used to throw
+  // "Invalid placeholder" and crash the render. After the fix the literal
+  // is returned unchanged, matching the existing fall-through for runtime
+  // eval errors inside well-formed placeholders.
+  describe('malformed placeholders (pdfme#1309)', () => {
+    const cases: Array<[string, string]> = [
+      ['{{1}', '{{1}'],
+      ['{{', '{{'],
+      ['prefix {{ no end', 'prefix {{ no end'],
+      ['}}{{', '}}{{'],
+      ['{{nested {1}', '{{nested {1}'],
+    ];
+    for (const [input, expected] of cases) {
+      it(`returns literal for ${JSON.stringify(input)}`, () => {
+        expect(() =>
+          replacePlaceholders({ content: input, variables: {}, schemas: [] }),
+        ).not.toThrow();
+        const result = replacePlaceholders({ content: input, variables: {}, schemas: [] });
+        expect(result).toBe(expected);
+      });
+    }
+  });
+
+
   it('should evaluate expressions even if they result in Infinity', () => {
     const content = 'Divide by zero: {1 / 0}';
     const result = replacePlaceholders({ content, variables: {}, schemas: [] });

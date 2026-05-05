@@ -425,7 +425,14 @@ const evaluatePlaceholders = (arg: {
 
       index = endIndex;
     } else {
-      throw new Error('Invalid placeholder');
+      // Unbalanced braces (e.g. "{{1}" with no closing pair). Previously
+      // this threw and crashed the Designer when a malformed placeholder
+      // was typed mid-edit. Treat the unmatched run as a literal — matches
+      // the existing fall-through for runtime eval errors, which also
+      // surface the placeholder source unchanged.
+      // Original upstream issue: https://github.com/pdfme/pdfme/issues/1309
+      resultContent += content.slice(startIndex);
+      break;
     }
   }
 
@@ -460,11 +467,24 @@ export const replacePlaceholders = (arg: {
     ...parsedInput,
   };
 
-  Object.entries(context).forEach(([key, value]) => {
-    if (typeof value === 'string' && value.includes('{') && value.includes('}')) {
-      context[key] = evaluatePlaceholders({ content: value, context });
-    }
-  });
+  // Defensive: any unexpected throw from placeholder evaluation (malformed
+  // braces, parser quirks) should surface the literal input rather than
+  // crash the entire render. The placeholder parser already short-circuits
+  // unbalanced runs to literals (pdfme#1309); this catches anything that
+  // slips past — matching the existing per-expression fall-through.
+  try {
+    Object.entries(context).forEach(([key, value]) => {
+      if (typeof value === 'string' && value.includes('{') && value.includes('}')) {
+        try {
+          context[key] = evaluatePlaceholders({ content: value, context });
+        } catch {
+          // leave the variable value as-is on parse error
+        }
+      }
+    });
 
-  return evaluatePlaceholders({ content, context });
+    return evaluatePlaceholders({ content, context });
+  } catch {
+    return content;
+  }
 };
