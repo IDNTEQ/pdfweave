@@ -575,10 +575,15 @@ const handlePositionSizeChange = (
   const { width: pw, height: ph } = pageSize;
   const calcBounds = (v: unknown, min: number, max: number) =>
     Math.min(Math.max(Number(v), min), max);
+  // Mirror the rotation-aware drag/persistence path (pdfme#284): clamp the
+  // rotated bounding box, not the un-rotated top-left, so prop-panel edits
+  // don't snap rotated schemas back inside the un-rotated bounds.
+  const rotate = (schema as { rotate?: number }).rotate ?? 0;
+  const offsets = getRotatedBoundingBoxOffsets(schema.width, schema.height, rotate);
   if (key === 'position.x') {
-    schema.position.x = calcBounds(value, pl, pw - schema.width - pr);
+    schema.position.x = calcBounds(value, pl - offsets.minX, pw - pr - offsets.maxX);
   } else if (key === 'position.y') {
-    schema.position.y = calcBounds(value, pt, ph - schema.height - pb);
+    schema.position.y = calcBounds(value, pt - offsets.minY, ph - pb - offsets.maxY);
   } else if (key === 'width') {
     schema.width = calcBounds(value, 0, pw - schema.position.x - pr);
   } else if (key === 'height') {
