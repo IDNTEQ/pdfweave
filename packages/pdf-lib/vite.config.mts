@@ -34,6 +34,10 @@ export default defineConfig({
     outDir: 'dist',
     rollupOptions: { external: isExternal },
     sourcemap: true,
-    target: 'es2020',
+    // ES2022 is required so top-level `await` (used in `src/core/crypto.ts`
+    // to optionally load `node:crypto`) survives the transform pass without
+    // being lowered. Every supported Node version (>=14.8) and every modern
+    // browser bundler handles TLA cleanly.
+    target: 'es2022',
   },
 });
