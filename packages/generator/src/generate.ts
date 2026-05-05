@@ -11,7 +11,7 @@ import {
 } from '@pdfweave/common';
 import {
   insertPage,
-  preprocessing,
+  preprocessing as preparePdfDoc,
   postProcessing,
   prepareBasePdfResources,
   materializeBasePages,
@@ -19,9 +19,47 @@ import {
   validateRequiredFields,
 } from './helper.js';
 
-const generate = async (props: GenerateProps): Promise<Uint8Array<ArrayBuffer>> => {
-  checkGenerateProps(props);
-  const { inputs, template: _template, options = {}, plugins: userPlugins = {} } = props;
+/**
+ * Optional caller hook that transforms an input row before it's rendered.
+ * Runs once per input, sync or async. The return value replaces the input
+ * for that iteration. Default: identity.
+ *
+ * Original feature request: https://github.com/pdfme/pdfme/issues/391
+ */
+export type PreprocessingHook = (
+  input: Record<string, unknown>,
+) => Record<string, unknown> | Promise<Record<string, unknown>>;
+
+/**
+ * Optional caller hook that transforms the final saved PDF bytes. Runs once
+ * after all inputs have rendered, sync or async. The return value replaces
+ * the bytes returned from generate(). Useful for encryption, signing,
+ * compression, metadata stamping, etc. Default: identity.
+ *
+ * Original feature request: https://github.com/pdfme/pdfme/issues/391
+ */
+export type PostprocessingHook = (
+  pdfBytes: Uint8Array<ArrayBuffer>,
+) => Uint8Array<ArrayBuffer> | Promise<Uint8Array<ArrayBuffer>>;
+
+export type GenerateHooks = {
+  preprocessing?: PreprocessingHook;
+  postprocessing?: PostprocessingHook;
+};
+
+const generate = async (
+  props: GenerateProps & GenerateHooks,
+): Promise<Uint8Array<ArrayBuffer>> => {
+  // The runtime check is over the zod-validated subset; pull the hooks out
+  // first so the .strict() schema doesn't reject them as unknown keys.
+  const { preprocessing: preHook, postprocessing: postHook, ...validatableProps } = props;
+  checkGenerateProps(validatableProps);
+  const {
+    inputs,
+    template: _template,
+    options = {},
+    plugins: userPlugins = {},
+  } = validatableProps;
   const template = cloneDeep(_template);
 
   const basePdf = template.basePdf;
@@ -34,7 +72,7 @@ const generate = async (props: GenerateProps): Promise<Uint8Array<ArrayBuffer>> 
 
   validateRequiredFields(template, inputs);
 
-  const { pdfDoc, renderObj, measureObj } = await preprocessing({ template, userPlugins });
+  const { pdfDoc, renderObj, measureObj } = await preparePdfDoc({ template, userPlugins });
 
   const _cache = new Map<string, unknown>();
 
@@ -46,7 +84,8 @@ const generate = async (props: GenerateProps): Promise<Uint8Array<ArrayBuffer>> 
   const baseResources = await prepareBasePdfResources({ basePdf, pdfDoc });
 
   for (let i = 0; i < inputs.length; i += 1) {
-    const input = inputs[i];
+    const rawInput = inputs[i];
+    const input = preHook ? await preHook(rawInput) : rawInput;
 
     // Get the dynamic template with proper typing
     const dynamicTemplate: Template = await getDynamicTemplate({
@@ -183,7 +222,8 @@ const generate = async (props: GenerateProps): Promise<Uint8Array<ArrayBuffer>> 
 
   postProcessing({ pdfDoc, options });
 
-  return pdfDoc.save();
+  const pdfBytes = await pdfDoc.save();
+  return postHook ? await postHook(pdfBytes) : pdfBytes;
 };
 
 export default generate;
