@@ -1,0 +1,155 @@
+name: Release & Publish
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*.*.*'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          registry-url: 'https://registry.npmjs.org'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            playground/package-lock.json
+
+      - run: npm ci
+
+      - name: Build workspaces
+        run: npm run build
+
+      - name: Test common
+        run: npm test -w packages/common
+
+      - name: Test pdf-lib
+        run: npm test -w packages/pdf-lib
+
+      - name: Test schemas
+        run: npm test -w packages/schemas
+
+      - name: Test generator
+        run: npm test -w packages/generator
+
+      - name: Test ui
+        run: npm test -w packages/ui
+
+      - name: Test converter
+        run: npm test -w packages/converter
+
+      - name: Test manipulator
+        run: npm test -w packages/manipulator
+
+      - name: Test cli
+        run: npm test -w packages/cli
+
+  publish-npm:
+    name: Publish to NPM
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [test]
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        package: [common, pdf-lib, schemas, generator, ui, cli]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          registry-url: 'https://registry.npmjs.org'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            playground/package-lock.json
+
+      - name: Upgrade npm for OIDC publishing
+        run: npm install -g npm@latest
+
+      - run: npm ci
+
+      - name: Set release versions from tag
+        env:
+          RELEASE_PACKAGES: common pdf-lib schemas generator ui cli
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          export VERSION
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+
+          node <<'NODE'
+          const fs = require('node:fs');
+
+          const version = process.env.VERSION;
+          const packages = process.env.RELEASE_PACKAGES.split(/\s+/).filter(Boolean);
+          const releaseNames = new Set(packages.map((name) => `@pdfweave/${name}`));
+
+          for (const packageName of packages) {
+            const file = `packages/${packageName}/package.json`;
+            const packageJson = JSON.parse(fs.readFileSync(file, 'utf8'));
+            packageJson.version = version;
+
+            for (const section of [
+              'dependencies',
+              'devDependencies',
+              'peerDependencies',
+              'optionalDependencies',
+            ]) {
+              if (!packageJson[section]) continue;
+
+              for (const dependencyName of Object.keys(packageJson[section])) {
+                if (releaseNames.has(dependencyName)) {
+                  packageJson[section][dependencyName] = version;
+                }
+              }
+            }
+
+            fs.writeFileSync(file, `${JSON.stringify(packageJson, null, 2)}\n`);
+          }
+          NODE
+
+      - name: Build release artifacts
+        run: npm run build
+
+      - name: Publish
+        run: npm publish --provenance --access public -w packages/${{ matrix.package }}
+
+  create-github-release:
+    name: Create GitHub Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [publish-npm]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          gh release create "${{ github.ref_name }}" \
+            --title "PDFweave v$VERSION" \
+            --notes "See [CHANGELOG.md](https://github.com/IDNTEQ/pdfweave/blob/main/CHANGELOG.md) for details."
