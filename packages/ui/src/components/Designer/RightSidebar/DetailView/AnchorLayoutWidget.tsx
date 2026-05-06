@@ -173,24 +173,33 @@ const firstTargetId = (
   if (preferredTarget && targetOptions.some((option) => option.value === preferredTarget)) {
     return preferredTarget;
   }
-  return targetOptions[0]?.value ?? preferredTarget;
+  return targetOptions[0]?.value ?? null;
 };
 
 const buildTargetOptions = (
-  activeSchema: SchemaForUI,
+  activeSchemas: SchemaForUI[],
   schemas: SchemaForUI[],
   currentTarget: string | null,
 ): Array<{ value: string; label: string }> => {
-  const activeIds = new Set(getAnchorIds(activeSchema));
+  const activeSchemaIds = new Set(activeSchemas.map((schema) => schema.id));
+  const activeAnchorIds = new Set(activeSchemas.flatMap(getAnchorIds));
   const options = schemas
-    .filter((schema) => schema.id !== activeSchema.id)
+    .filter((schema) => !activeSchemaIds.has(schema.id))
     .map((schema) => ({ value: schema.id, label: getAnchorLabel(schema) }))
-    .filter((option) => option.value && !activeIds.has(option.value));
+    .filter((option) => option.value && !activeAnchorIds.has(option.value));
 
   const currentTargetResolved = currentTarget
     ? schemas.some((schema) => getAnchorIds(schema).includes(currentTarget))
     : false;
-  if (currentTarget && !currentTargetResolved && !options.some((option) => option.value === currentTarget)) {
+  const currentTargetIsSelected = currentTarget
+    ? activeSchemas.some((schema) => getAnchorIds(schema).includes(currentTarget))
+    : false;
+  if (
+    currentTarget &&
+    !currentTargetResolved &&
+    !currentTargetIsSelected &&
+    !options.some((option) => option.value === currentTarget)
+  ) {
     return [{ value: currentTarget, label: currentTarget }, ...options];
   }
 
@@ -245,6 +254,8 @@ const AnchorLayoutWidget = (props: AnchorLayoutWidgetProps) => {
   });
   const resolveTargetId = (targetId: string | null): string | null =>
     targetId ? targetLookup.get(targetId)?.id ?? targetId : null;
+  const targetMatchesSchema = (schema: SchemaForUI, targetId: string | null): boolean =>
+    Boolean(targetId && (resolveTargetId(targetId) === schema.id || getAnchorIds(schema).includes(targetId)));
   const getTargetLabel = (targetId: string): string =>
     targetLookup.get(targetId)?.name || targetLookup.get(targetId)?.id || targetId;
   const rawXTarget = getHorizontalTarget(anchoredLayout.x);
@@ -254,11 +265,11 @@ const AnchorLayoutWidget = (props: AnchorLayoutWidgetProps) => {
   const missingXTarget = Boolean(rawXTarget && !targetLookup.has(rawXTarget));
   const missingYTarget = Boolean(rawYTarget && !targetLookup.has(rawYTarget));
   const xTargetOptions = buildTargetOptions(
-    activeSchema,
+    activeSchemas,
     schemas,
     getHorizontalTarget(anchoredLayout.x),
   );
-  const yTargetOptions = buildTargetOptions(activeSchema, schemas, getVerticalTarget(anchoredLayout.y));
+  const yTargetOptions = buildTargetOptions(activeSchemas, schemas, getVerticalTarget(anchoredLayout.y));
   const isAnchored = isSharedMode
     ? activeSchemas.every((schema) => getLayout(schema).mode === 'anchored')
     : layout.mode === 'anchored';
@@ -283,15 +294,23 @@ const AnchorLayoutWidget = (props: AnchorLayoutWidgetProps) => {
     anchoredLayout.y.mode !== 'pageTop' || verticalModeValue === PLACEHOLDER_VALUE;
 
   const commitLayouts = (
-    getNextLayout: (schema: SchemaForUI, current: AnchoredLayoutRule) => SchemaLayoutRule,
+    getNextLayout: (schema: SchemaForUI, current: AnchoredLayoutRule) => SchemaLayoutRule | null,
   ) => {
-    changeSchemas(
-      activeSchemas.map((schema) => ({
-        key: 'layout',
-        value: getNextLayout(schema, getAnchoredOrFallbackLayout(schema)),
-        schemaId: schema.id,
-      })),
-    );
+    const changes = activeSchemas.flatMap((schema) => {
+      const value = getNextLayout(schema, getAnchoredOrFallbackLayout(schema));
+      return value
+        ? [
+            {
+              key: 'layout',
+              value,
+              schemaId: schema.id,
+            },
+          ]
+        : [];
+    });
+    if (changes.length > 0) {
+      changeSchemas(changes);
+    }
   };
 
   const commitLayout = (nextLayout: SchemaLayoutRule) => {
@@ -299,7 +318,7 @@ const AnchorLayoutWidget = (props: AnchorLayoutWidgetProps) => {
   };
 
   const updateAnchoredLayout = (
-    updater: (schema: SchemaForUI, current: AnchoredLayoutRule) => AnchoredLayoutRule,
+    updater: (schema: SchemaForUI, current: AnchoredLayoutRule) => AnchoredLayoutRule | null,
   ) => {
     commitLayouts((schema, current) => updater(schema, current));
   };
@@ -343,6 +362,7 @@ const AnchorLayoutWidget = (props: AnchorLayoutWidgetProps) => {
     previousRule: HorizontalAnchorRule,
     targetId: string | null,
   ): HorizontalAnchorRule => {
+    if (targetMatchesSchema(schema, targetId)) return previousRule;
     const offsetMm = calculateHorizontalOffset(
       schema,
       mode,
@@ -359,6 +379,7 @@ const AnchorLayoutWidget = (props: AnchorLayoutWidgetProps) => {
     previousRule: VerticalAnchorRule,
     targetId: string | null,
   ): VerticalAnchorRule => {
+    if (targetMatchesSchema(schema, targetId)) return previousRule;
     const offsetMm = calculateVerticalOffset(
       schema,
       mode,
@@ -474,18 +495,17 @@ const AnchorLayoutWidget = (props: AnchorLayoutWidgetProps) => {
                   onChange={(event) => {
                     const value = event.currentTarget.value;
                     if (value === PLACEHOLDER_VALUE) return;
-                    updateAnchoredLayout((schema, current) => ({
-                      ...current,
-                      x:
-                        current.x.mode === 'pageLeft'
-                          ? current.x
-                          : createHorizontalRule(
-                              schema,
-                              current.x.mode,
-                              current.x,
-                              value,
-                            ),
-                    }));
+                    updateAnchoredLayout((schema, current) =>
+                      targetMatchesSchema(schema, value)
+                        ? null
+                        : {
+                            ...current,
+                            x:
+                              current.x.mode === 'pageLeft'
+                                ? current.x
+                                : createHorizontalRule(schema, current.x.mode, current.x, value),
+                          },
+                    );
                   }}
                 >
                   {horizontalTargetValue === PLACEHOLDER_VALUE ? (
@@ -536,13 +556,17 @@ const AnchorLayoutWidget = (props: AnchorLayoutWidgetProps) => {
                   onChange={(event) => {
                     const value = event.currentTarget.value;
                     if (value === PLACEHOLDER_VALUE) return;
-                    updateAnchoredLayout((schema, current) => ({
-                      ...current,
-                      y:
-                        current.y.mode === 'pageTop'
-                          ? current.y
-                          : createVerticalRule(schema, current.y.mode, current.y, value),
-                    }));
+                    updateAnchoredLayout((schema, current) =>
+                      targetMatchesSchema(schema, value)
+                        ? null
+                        : {
+                            ...current,
+                            y:
+                              current.y.mode === 'pageTop'
+                                ? current.y
+                                : createVerticalRule(schema, current.y.mode, current.y, value),
+                          },
+                    );
                   }}
                 >
                   {verticalTargetValue === PLACEHOLDER_VALUE ? (
