@@ -137,7 +137,7 @@ const VerticalAnchorRule = z.discriminatedUnion('mode', [
   z.object({ mode: z.literal('belowBottomEdge'), ref: AnchorRef, offsetMm: z.number() }),
 ]);
 
-const TextOverflow = z.enum(['visible', 'expand']);
+const TextOverflow = z.enum(['visible', 'hidden', 'expand']);
 const TextLineRange = z.object({ start: z.number(), end: z.number().optional() });
 
 const SchemaLayoutRule = z.discriminatedUnion('mode', [

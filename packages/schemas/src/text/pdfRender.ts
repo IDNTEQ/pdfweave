@@ -20,6 +20,7 @@ import {
   DEFAULT_CHARACTER_SPACING,
   DEFAULT_FONT_COLOR,
   TEXT_OVERFLOW_EXPAND,
+  TEXT_OVERFLOW_HIDDEN,
 } from './constants.js';
 import {
   calculateDynamicFontSize,
@@ -31,7 +32,11 @@ import {
   splitTextToSize,
   applyTextTransform,
 } from './helper.js';
-import { applyTextLineRange } from './measure.js';
+import {
+  applyTextLineRange,
+  getPlainTextLineHeightsInPt,
+  sliceLinesToFitHeight,
+} from './measure.js';
 import { stripInlineMarkdown } from './inlineMarkdown.js';
 import { calculateDynamicRichTextFontSize, isInlineMarkdownTextSchema } from './richText.js';
 import { renderInlineMarkdownText } from './richTextPdfRender.js';
@@ -265,16 +270,25 @@ export const pdfRender = async (arg: PDFRenderProps<TextSchema>) => {
   const descent = getFontDescentInPt(fontKitFont, fontSize);
   const halfLineHeightAdjustment = lineHeight === 0 ? 0 : ((lineHeight - 1) * fontSize) / 2;
 
-  const lines = applyTextLineRange(
-    splitTextToSize({
-      value,
-      characterSpacing,
-      fontSize,
-      fontKitFont,
-      boxWidthInPt: width,
-    }),
-    schema.__textLineRange,
-  );
+  const wrappedLines = splitTextToSize({
+    value,
+    characterSpacing,
+    fontSize,
+    fontKitFont,
+    boxWidthInPt: width,
+  });
+  const wrappedLineHeights = getPlainTextLineHeightsInPt({
+    lines: wrappedLines,
+    firstLineHeightPt: firstLineTextHeight,
+    fontSize,
+    lineHeight,
+  });
+  const rangedLines = applyTextLineRange(wrappedLines, schema.__textLineRange);
+  const rangedLineHeights = applyTextLineRange(wrappedLineHeights, schema.__textLineRange);
+  const lines =
+    schema.overflow === TEXT_OVERFLOW_HIDDEN
+      ? sliceLinesToFitHeight(rangedLines, rangedLineHeights, height)
+      : rangedLines;
 
   // Text lines are rendered from the bottom upwards, we need to adjust the position down
   let yOffset = 0;

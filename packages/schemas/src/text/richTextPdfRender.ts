@@ -8,6 +8,7 @@ import {
   SYNTHETIC_BOLD_PDF_EXTRA_DRAWS,
   SYNTHETIC_BOLD_OFFSET_RATIO,
   SYNTHETIC_ITALIC_SKEW_DEGREES,
+  TEXT_OVERFLOW_HIDDEN,
   VERTICAL_ALIGN_BOTTOM,
   VERTICAL_ALIGN_MIDDLE,
   VERTICAL_ALIGN_TOP,
@@ -20,7 +21,11 @@ import {
   resolveRichTextRuns,
   type RichTextLineRun,
 } from './richText.js';
-import { applyTextLineRange } from './measure.js';
+import {
+  applyTextLineRange,
+  getRichTextLineHeightsInPt,
+  sliceLinesToFitHeight,
+} from './measure.js';
 import type { TextSchema } from './types.js';
 import { hex2PrintingColor, rotatePoint } from '../utils.js';
 
@@ -223,15 +228,23 @@ export const renderInlineMarkdownText = async (arg: {
   } = arg;
   const richTextRuns = parseInlineMarkdown(value);
   const resolvedRuns = await resolveRichTextRuns({ runs: richTextRuns, schema, font, _cache });
-  const lines = applyTextLineRange(
-    layoutRichTextLines({
-      runs: resolvedRuns,
-      fontSize,
-      characterSpacing,
-      boxWidthInPt: width,
-    }),
-    schema.__textLineRange,
-  );
+  const wrappedLines = layoutRichTextLines({
+    runs: resolvedRuns,
+    fontSize,
+    characterSpacing,
+    boxWidthInPt: width,
+  });
+  const wrappedLineHeights = getRichTextLineHeightsInPt({
+    lines: wrappedLines,
+    fontSize,
+    lineHeight,
+  });
+  const rangedLines = applyTextLineRange(wrappedLines, schema.__textLineRange);
+  const rangedLineHeights = applyTextLineRange(wrappedLineHeights, schema.__textLineRange);
+  const lines =
+    schema.overflow === TEXT_OVERFLOW_HIDDEN
+      ? sliceLinesToFitHeight(rangedLines, rangedLineHeights, height)
+      : rangedLines;
 
   const firstLineTextHeight = heightOfFontAtSize(fontKitFont, fontSize);
   const descent = getFontDescentInPt(fontKitFont, fontSize);

@@ -33,7 +33,7 @@ import {
 } from './richText.js';
 import type { TextSchema } from './types.js';
 
-const EPSILON = 0.01;
+export const TEXT_LAYOUT_EPSILON = 0.01;
 
 type TextMeasureLine = string | RichTextLine;
 
@@ -57,9 +57,30 @@ export const applyTextLineRange = <T>(lines: T[], range?: TextLineRange) => {
   return lines.slice(range.start, range.end ?? lines.length);
 };
 
+export const sliceLinesToFitHeight = <T>(lines: T[], lineHeights: number[], maxHeight: number) => {
+  let usedHeight = 0;
+  let end = 0;
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const nextHeight = usedHeight + lineHeights[index];
+    if (nextHeight > maxHeight + TEXT_LAYOUT_EPSILON) {
+      break;
+    }
+    usedHeight = nextHeight;
+    end = index + 1;
+  }
+
+  return lines.slice(0, end);
+};
+
 export const getTextInnerWidthInPt = (schema: TextSchema) => {
   const [, padRight = 0, , padLeft = 0] = schema.padding ?? [0, 0, 0, 0];
   return Math.max(0, mm2pt(schema.width - padLeft - padRight));
+};
+
+export const getTextInnerHeightInPt = (schema: TextSchema) => {
+  const [padTop = 0, , padBottom = 0] = schema.padding ?? [0, 0, 0, 0];
+  return Math.max(0, mm2pt(schema.height - padTop - padBottom));
 };
 
 const getDeclaredFontSize = (schema: TextSchema) => schema.fontSize ?? DEFAULT_FONT_SIZE;
@@ -69,15 +90,25 @@ const getLineHeight = (schema: TextSchema) => schema.lineHeight ?? DEFAULT_LINE_
 const getCharacterSpacing = (schema: TextSchema) =>
   schema.characterSpacing ?? DEFAULT_CHARACTER_SPACING;
 
-const getLineHeights = (arg: {
-  lines: TextMeasureLine[];
+export const getPlainTextLineHeightsInPt = (arg: {
+  lines: string[];
   firstLineHeightPt: number;
   fontSize: number;
   lineHeight: number;
 }) => {
   const { lines, firstLineHeightPt, fontSize, lineHeight } = arg;
-  return lines.map((_, index) =>
-    pt2mm((index === 0 ? firstLineHeightPt : fontSize) * lineHeight),
+  return lines.map((_, index) => (index === 0 ? firstLineHeightPt : fontSize) * lineHeight);
+};
+
+export const getRichTextLineHeightsInPt = (arg: {
+  lines: RichTextLine[];
+  fontSize: number;
+  lineHeight: number;
+}) => {
+  const { lines, fontSize, lineHeight } = arg;
+  return lines.map(
+    (line, index) =>
+      (index === 0 ? getRichTextLineHeightAtSize(line, fontSize) : fontSize) * lineHeight,
   );
 };
 
@@ -88,7 +119,11 @@ async function measurePlainTextLines(
   arg: MeasureTextLinesArgs,
 ): Promise<MeasureTextLinesResult<string>> {
   const { value, schema, font, _cache, ignoreDynamicFontSize } = arg;
-  const fontKitFont = await getFontKitFont(schema.fontName, font, _cache as Map<string, FontKitFont>);
+  const fontKitFont = await getFontKitFont(
+    schema.fontName,
+    font,
+    _cache as Map<string, FontKitFont>,
+  );
   const fontSize = shouldUseDynamicFontSize(schema, ignoreDynamicFontSize)
     ? calculateDynamicFontSize({ textSchema: schema, fontKitFont, value })
     : getDeclaredFontSize(schema);
@@ -99,12 +134,12 @@ async function measurePlainTextLines(
     fontKitFont,
     boxWidthInPt: getTextInnerWidthInPt(schema),
   });
-  const lineHeights = getLineHeights({
+  const lineHeights = getPlainTextLineHeightsInPt({
     lines,
     firstLineHeightPt: heightOfFontAtSize(fontKitFont, fontSize),
     fontSize,
     lineHeight: getLineHeight(schema),
-  });
+  }).map(pt2mm);
 
   return {
     lines,
@@ -129,12 +164,11 @@ async function measureRichTextLines(
     characterSpacing: getCharacterSpacing(schema),
     boxWidthInPt: getTextInnerWidthInPt(schema),
   });
-  const lineHeights = lines.map((line, index) =>
-    pt2mm(
-      (index === 0 ? getRichTextLineHeightAtSize(line, fontSize) : fontSize) *
-        getLineHeight(schema),
-    ),
-  );
+  const lineHeights = getRichTextLineHeightsInPt({
+    lines,
+    fontSize,
+    lineHeight: getLineHeight(schema),
+  }).map(pt2mm);
 
   return {
     lines,
@@ -188,12 +222,12 @@ export const measure = async (arg: {
     ignoreDynamicFontSize: true,
   });
 
-  if (lineHeights.length === 0 || measuredHeight <= schema.height + EPSILON) {
+  if (lineHeights.length === 0 || measuredHeight <= schema.height + TEXT_LAYOUT_EPSILON) {
     return { height: schema.height };
   }
 
   const remainingPageHeight = getRemainingPageHeight(schema, basePdf);
-  if (measuredHeight <= remainingPageHeight + EPSILON) {
+  if (measuredHeight <= remainingPageHeight + TEXT_LAYOUT_EPSILON) {
     return { height: measuredHeight };
   }
 

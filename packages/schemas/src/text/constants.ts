@@ -30,6 +30,7 @@ export const FONT_VARIANT_FALLBACK_PLAIN = 'plain' as const satisfies FONT_VARIA
 export const FONT_VARIANT_FALLBACK_ERROR = 'error' as const satisfies FONT_VARIANT_FALLBACK;
 export const DEFAULT_FONT_VARIANT_FALLBACK = FONT_VARIANT_FALLBACK_SYNTHETIC;
 export const TEXT_OVERFLOW_VISIBLE = 'visible' as const satisfies TextOverflow;
+export const TEXT_OVERFLOW_HIDDEN = 'hidden' as const satisfies TextOverflow;
 export const TEXT_OVERFLOW_EXPAND = 'expand' as const satisfies TextOverflow;
 export const SYNTHETIC_BOLD_OFFSET_RATIO = 0.03;
 export const SYNTHETIC_BOLD_PDF_EXTRA_DRAWS = 2;

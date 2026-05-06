@@ -16,11 +16,13 @@ import {
   CODE_BACKGROUND_COLOR,
   SYNTHETIC_BOLD_CSS_TEXT_SHADOW,
   TEXT_OVERFLOW_EXPAND,
+  TEXT_OVERFLOW_HIDDEN,
 } from './constants.js';
 import {
   calculateDynamicFontSize,
   getFontKitFont,
   getBrowserVerticalFontAdjustments,
+  heightOfFontAtSize,
   isFirefox,
   splitTextToSize,
 } from './helper.js';
@@ -31,7 +33,14 @@ import {
   layoutRichTextLines,
   resolveRichTextRuns,
 } from './richText.js';
-import { applyTextLineRange, getTextInnerWidthInPt } from './measure.js';
+import {
+  applyTextLineRange,
+  getPlainTextLineHeightsInPt,
+  getRichTextLineHeightsInPt,
+  getTextInnerHeightInPt,
+  getTextInnerWidthInPt,
+  sliceLinesToFitHeight,
+} from './measure.js';
 import { isEditable } from '../utils.js';
 
 const replaceUnsupportedChars = (text: string, fontKitFont: FontKitFont): string => {
@@ -73,27 +82,47 @@ const getSlicedPlainTextValue = (arg: {
   value: string;
   schema: TextSchema;
   fontKitFont: FontKitFont;
+  fontSize?: number;
 }) => {
   const { value, schema, fontKitFont } = arg;
-  if (!schema.__textLineRange) return value;
+  const shouldClipOverflow = schema.overflow === TEXT_OVERFLOW_HIDDEN;
+  if (!schema.__textLineRange && !shouldClipOverflow) return value;
 
-  const fontSize = schema.fontSize ?? DEFAULT_FONT_SIZE;
-  const lines = splitTextToSize({
+  const fontSize = arg.fontSize ?? schema.fontSize ?? DEFAULT_FONT_SIZE;
+  const wrappedLines = splitTextToSize({
     value,
     characterSpacing: schema.characterSpacing ?? DEFAULT_CHARACTER_SPACING,
     fontSize,
     fontKitFont,
     boxWidthInPt: getTextInnerWidthInPt(schema),
   });
+  const wrappedLineHeights = getPlainTextLineHeightsInPt({
+    lines: wrappedLines,
+    firstLineHeightPt: heightOfFontAtSize(fontKitFont, fontSize),
+    fontSize,
+    lineHeight: schema.lineHeight ?? DEFAULT_LINE_HEIGHT,
+  });
+  const rangedLines = applyTextLineRange(wrappedLines, schema.__textLineRange);
+  const rangedLineHeights = applyTextLineRange(wrappedLineHeights, schema.__textLineRange);
+  const lines = shouldClipOverflow
+    ? sliceLinesToFitHeight(rangedLines, rangedLineHeights, getTextInnerHeightInPt(schema))
+    : rangedLines;
 
-  return applyTextLineRange(lines, schema.__textLineRange)
-    .map(normalizeWrappedLineForUi)
-    .join('\n');
+  return lines.map(normalizeWrappedLineForUi).join('\n');
 };
 
 export const uiRender = async (arg: UIRenderProps<TextSchema>) => {
-  const { value, schema: rawSchema, mode, onChange, stopEditing, tabIndex, placeholder, options, _cache } =
-    arg;
+  const {
+    value,
+    schema: rawSchema,
+    mode,
+    onChange,
+    stopEditing,
+    tabIndex,
+    placeholder,
+    options,
+    _cache,
+  } = arg;
   const schema =
     rawSchema.overflow === TEXT_OVERFLOW_EXPAND
       ? { ...rawSchema, dynamicFontSize: undefined }
@@ -126,22 +155,33 @@ export const uiRender = async (arg: UIRenderProps<TextSchema>) => {
         })
       : undefined;
   const baseDisplayValue = usePlaceholder ? (placeholder as string) : displayValue;
+  const dynamicPlainTextFontSize =
+    !enableInlineMarkdown &&
+    schema.dynamicFontSize &&
+    schema.overflow !== TEXT_OVERFLOW_EXPAND &&
+    baseDisplayValue
+      ? calculateDynamicFontSize({ textSchema: schema, fontKitFont, value: baseDisplayValue })
+      : undefined;
+  const resolvedDynamicFontSize = dynamicRichTextFontSize ?? dynamicPlainTextFontSize;
   const plainDisplayValue = enableInlineMarkdown
     ? baseDisplayValue
     : getSlicedPlainTextValue({
         value: baseDisplayValue,
         schema,
         fontKitFont,
+        fontSize: dynamicPlainTextFontSize,
       });
   const textBlock = buildStyledTextContainer(
     renderArg,
     fontKitFont,
     plainDisplayValue,
-    dynamicRichTextFontSize,
+    resolvedDynamicFontSize,
   );
 
   const processedText = replaceUnsupportedChars(
-    enableInlineMarkdown ? value : getSlicedPlainTextValue({ value, schema, fontKitFont }),
+    enableInlineMarkdown
+      ? value
+      : getSlicedPlainTextValue({ value, schema, fontKitFont, fontSize: dynamicPlainTextFontSize }),
     fontKitFont,
   );
 
@@ -153,6 +193,7 @@ export const uiRender = async (arg: UIRenderProps<TextSchema>) => {
         schema,
         font,
         _cache,
+        fontSize: dynamicRichTextFontSize,
       });
       return;
     }
@@ -245,6 +286,7 @@ const renderInlineMarkdownReadOnly = async (arg: {
   schema: TextSchema;
   font: NonNullable<UIRenderProps<TextSchema>['options']['font']>;
   _cache: Map<string | number, unknown>;
+  fontSize?: number;
 }) => {
   const { textBlock, value, schema, font, _cache } = arg;
   const runs = await resolveRichTextRuns({
@@ -255,16 +297,27 @@ const renderInlineMarkdownReadOnly = async (arg: {
   });
 
   textBlock.innerHTML = '';
-  if (schema.__textLineRange) {
-    const lines = applyTextLineRange(
-      layoutRichTextLines({
-        runs,
-        fontSize: schema.fontSize ?? DEFAULT_FONT_SIZE,
-        characterSpacing: schema.characterSpacing ?? DEFAULT_CHARACTER_SPACING,
-        boxWidthInPt: getTextInnerWidthInPt(schema),
-      }),
-      schema.__textLineRange,
-    );
+  const shouldLayoutLines =
+    Boolean(schema.__textLineRange) || schema.overflow === TEXT_OVERFLOW_HIDDEN;
+  if (shouldLayoutLines) {
+    const fontSize = arg.fontSize ?? schema.fontSize ?? DEFAULT_FONT_SIZE;
+    const wrappedLines = layoutRichTextLines({
+      runs,
+      fontSize,
+      characterSpacing: schema.characterSpacing ?? DEFAULT_CHARACTER_SPACING,
+      boxWidthInPt: getTextInnerWidthInPt(schema),
+    });
+    const wrappedLineHeights = getRichTextLineHeightsInPt({
+      lines: wrappedLines,
+      fontSize,
+      lineHeight: schema.lineHeight ?? DEFAULT_LINE_HEIGHT,
+    });
+    const rangedLines = applyTextLineRange(wrappedLines, schema.__textLineRange);
+    const rangedLineHeights = applyTextLineRange(wrappedLineHeights, schema.__textLineRange);
+    const lines =
+      schema.overflow === TEXT_OVERFLOW_HIDDEN
+        ? sliceLinesToFitHeight(rangedLines, rangedLineHeights, getTextInnerHeightInPt(schema))
+        : rangedLines;
     lines.forEach((line, lineIndex) => {
       line.runs.forEach((run) => appendInlineMarkdownSpan({ textBlock, run, schema, font }));
       if (lineIndex < lines.length - 1) {

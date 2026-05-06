@@ -168,7 +168,7 @@ export type LayoutAnchorPoint = {
   y: number;
 };
 
-export type TextOverflow = 'visible' | 'expand';
+export type TextOverflow = 'visible' | 'hidden' | 'expand';
 
 export type TextLineRange = {
   start: number;
