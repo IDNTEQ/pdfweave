@@ -20,6 +20,7 @@ import {
   resolveRichTextRuns,
   type RichTextLineRun,
 } from './richText.js';
+import { applyTextLineRange } from './measure.js';
 import type { TextSchema } from './types.js';
 import { hex2PrintingColor, rotatePoint } from '../utils.js';
 
@@ -222,12 +223,15 @@ export const renderInlineMarkdownText = async (arg: {
   } = arg;
   const richTextRuns = parseInlineMarkdown(value);
   const resolvedRuns = await resolveRichTextRuns({ runs: richTextRuns, schema, font, _cache });
-  const lines = layoutRichTextLines({
-    runs: resolvedRuns,
-    fontSize,
-    characterSpacing,
-    boxWidthInPt: width,
-  });
+  const lines = applyTextLineRange(
+    layoutRichTextLines({
+      runs: resolvedRuns,
+      fontSize,
+      characterSpacing,
+      boxWidthInPt: width,
+    }),
+    schema.__textLineRange,
+  );
 
   const firstLineTextHeight = heightOfFontAtSize(fontKitFont, fontSize);
   const descent = getFontDescentInPt(fontKitFont, fontSize);

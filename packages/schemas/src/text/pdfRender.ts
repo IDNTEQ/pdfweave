@@ -19,6 +19,7 @@ import {
   DEFAULT_LINE_HEIGHT,
   DEFAULT_CHARACTER_SPACING,
   DEFAULT_FONT_COLOR,
+  TEXT_OVERFLOW_EXPAND,
 } from './constants.js';
 import {
   calculateDynamicFontSize,
@@ -30,6 +31,7 @@ import {
   splitTextToSize,
   applyTextTransform,
 } from './helper.js';
+import { applyTextLineRange } from './measure.js';
 import { stripInlineMarkdown } from './inlineMarkdown.js';
 import { calculateDynamicRichTextFontSize, isInlineMarkdownTextSchema } from './richText.js';
 import { renderInlineMarkdownText } from './richTextPdfRender.js';
@@ -81,7 +83,7 @@ const getFontProp = ({
 }) => {
   const fontSize =
     resolvedFontSize ??
-    (schema.dynamicFontSize
+    (schema.dynamicFontSize && schema.overflow !== TEXT_OVERFLOW_EXPAND
       ? calculateDynamicFontSize({ textSchema: schema, fontKitFont, value })
       : (schema.fontSize ?? DEFAULT_FONT_SIZE));
   const color = hex2PrintingColor(schema.fontColor || DEFAULT_FONT_COLOR, colorType);
@@ -97,9 +99,13 @@ const getFontProp = ({
 };
 
 export const pdfRender = async (arg: PDFRenderProps<TextSchema>) => {
-  const { value: rawValue, pdfDoc, pdfLib, page, options, schema, _cache } = arg;
+  const { value: rawValue, pdfDoc, pdfLib, page, options, schema: rawSchema, _cache } = arg;
   if (!rawValue) return;
 
+  const schema =
+    rawSchema.overflow === TEXT_OVERFLOW_EXPAND
+      ? { ...rawSchema, dynamicFontSize: undefined }
+      : rawSchema;
   const { font = getDefaultFont(), colorType } = options;
 
   // textTransform is applied at render time only — the schema's stored value
@@ -120,7 +126,7 @@ export const pdfRender = async (arg: PDFRenderProps<TextSchema>) => {
   const enableInlineMarkdown = isInlineMarkdownTextSchema(schema);
   const displayValue = enableInlineMarkdown ? stripInlineMarkdown(value) : value;
   const dynamicRichTextFontSize =
-    enableInlineMarkdown && schema.dynamicFontSize
+    enableInlineMarkdown && schema.dynamicFontSize && schema.overflow !== TEXT_OVERFLOW_EXPAND
       ? await calculateDynamicRichTextFontSize({ value, schema, font, _cache })
       : undefined;
   const fontProp = getFontProp({
@@ -259,13 +265,16 @@ export const pdfRender = async (arg: PDFRenderProps<TextSchema>) => {
   const descent = getFontDescentInPt(fontKitFont, fontSize);
   const halfLineHeightAdjustment = lineHeight === 0 ? 0 : ((lineHeight - 1) * fontSize) / 2;
 
-  const lines = splitTextToSize({
-    value,
-    characterSpacing,
-    fontSize,
-    fontKitFont,
-    boxWidthInPt: width,
-  });
+  const lines = applyTextLineRange(
+    splitTextToSize({
+      value,
+      characterSpacing,
+      fontSize,
+      fontKitFont,
+      boxWidthInPt: width,
+    }),
+    schema.__textLineRange,
+  );
 
   // Text lines are rendered from the bottom upwards, we need to adjust the position down
   let yOffset = 0;
