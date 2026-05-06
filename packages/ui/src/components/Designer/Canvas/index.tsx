@@ -66,6 +66,19 @@ type ApplyAnchorSource = {
 const getSchemaLayout = (schema: SchemaForUI): SchemaLayoutRule | undefined =>
   (schema as SchemaForUI & { layout?: SchemaLayoutRule }).layout;
 
+const schemaAnchorIds = (schema: SchemaForUI): Set<string> =>
+  new Set([schema.id, schema.name].filter((id): id is string => Boolean(id)));
+
+const layoutTargetsSchema = (
+  layout: Extract<SchemaLayoutRule, { mode: 'anchored' }>,
+  schema: SchemaForUI,
+): boolean => {
+  const ids = schemaAnchorIds(schema);
+  const xTarget = 'ref' in layout.x ? layout.x.ref.schemaId : null;
+  const yTarget = 'ref' in layout.y ? layout.y.ref.schemaId : null;
+  return [xTarget, yTarget].some((target) => Boolean(target && ids.has(target)));
+};
+
 const findApplyAnchorSource = (
   schemas: SchemaForUI[],
   schemaIds: string[],
@@ -548,15 +561,21 @@ const Canvas = (props: Props, ref: Ref<HTMLDivElement>) => {
         break;
       case 'applyAnchorToSelection':
         if (applyAnchorSource) {
-          changeSchemas(
-            ids
-              .filter((id) => id !== applyAnchorSource.schema.id)
-              .map((schemaId) => ({
-                key: 'layout',
-                value: cloneDeep(applyAnchorSource.layout),
-                schemaId,
-              })),
-          );
+          const schemaById = new Map(contextSchemas.map((schema) => [schema.id, schema]));
+          const changes = ids
+            .filter((id) => id !== applyAnchorSource.schema.id)
+            .filter((id) => {
+              const schema = schemaById.get(id);
+              return schema ? !layoutTargetsSchema(applyAnchorSource.layout, schema) : true;
+            })
+            .map((schemaId) => ({
+              key: 'layout',
+              value: cloneDeep(applyAnchorSource.layout),
+              schemaId,
+            }));
+          if (changes.length > 0) {
+            changeSchemas(changes);
+          }
         }
         break;
       case 'delete':
