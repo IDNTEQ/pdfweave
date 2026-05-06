@@ -136,6 +136,15 @@ export type DesignDataPackage = {
   [key: string]: unknown;
 };
 
+export type SampleDataPanelOptions = {
+  enabled?: boolean;
+  defaultOpen?: boolean;
+  readOnly?: boolean;
+  debounceMs?: number;
+  onChange?: (parsed: unknown) => void;
+  [key: string]: unknown;
+};
+
 export type SchemaBindingColumn = {
   path: string;
   label?: string;
@@ -368,6 +377,7 @@ export type GenerateProps = Omit<z.infer<typeof GenerateProps>, 'plugins'> & { p
 export type UIOptions = z.infer<typeof UIOptions> & {
   theme?: UIOptionsTheme;
   designData?: DesignDataPackage;
+  sampleDataPanel?: SampleDataPanelOptions;
 };
 export type UIProps = Omit<z.infer<typeof UIProps>, 'plugins'> & { plugins?: Plugins };
 export type PreviewProps = Omit<z.infer<typeof PreviewProps>, 'plugins'> & { plugins?: Plugins };

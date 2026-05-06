@@ -33,6 +33,12 @@ export const Dict = z.object({
   addPageAfter: z.string(),
   removePage: z.string(),
   removePageConfirm: z.string(),
+  'designer.properties': z.string(),
+  'designer.sampleData': z.string(),
+  'designer.sampleData.readOnly': z.string(),
+  'designer.sampleData.valid': z.string(),
+  'designer.sampleData.invalid': z.string(),
+  'designer.sampleData.errorLine': z.string(),
   // --------------------validation-------------------
   'validation.uniqueName': z.string(),
   'validation.hexColor': z.string(),
@@ -293,12 +299,23 @@ const DesignDataPackage = z
   })
   .passthrough();
 
+const SampleDataPanel = z
+  .object({
+    enabled: z.boolean().optional(),
+    defaultOpen: z.boolean().optional(),
+    readOnly: z.boolean().optional(),
+    debounceMs: z.number().optional(),
+    onChange: z.custom<(_: unknown) => void>((value) => typeof value === 'function').optional(),
+  })
+  .passthrough();
+
 export const UIOptions = CommonOptions.extend({
   lang: Lang.optional(),
   labels: z.record(z.string(), z.string()).optional(),
   theme: z.record(z.string(), z.unknown()).optional(),
   icons: z.record(z.string(), z.string()).optional(),
   designData: DesignDataPackage.optional(),
+  sampleDataPanel: SampleDataPanel.optional(),
   requiredByDefault: z.boolean().optional(),
   maxZoom: z.number().optional(),
   sidebarOpen: z.boolean().optional(),
