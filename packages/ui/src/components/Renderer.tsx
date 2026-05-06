@@ -9,6 +9,7 @@ import {
   Plugin,
   UIOptions,
   cloneDeep,
+  LayoutMeasureResult,
 } from '@pdfweave/common';
 import { theme as antdTheme } from 'antd';
 import { SELECTABLE_CLASSNAME } from '../constants.js';
@@ -26,6 +27,9 @@ type RendererProps = Omit<
   scale: number;
   selectable?: boolean;
   onContextMenu?: (event: React.MouseEvent<HTMLDivElement>) => void;
+  pageBoundsForClip?: { contentBottomY: number };
+  renderedHeight?: number;
+  onRenderedHeightChange?: (schemaId: string, height: number) => void;
 };
 
 type ReRenderCheckProps = {
@@ -35,6 +39,16 @@ type ReRenderCheckProps = {
   scale: number;
   schema: SchemaForUI;
   options: UIOptions;
+};
+
+const getMeasuredHeight = (schema: SchemaForUI, result: LayoutMeasureResult): number => {
+  if (Array.isArray(result.dynamicHeights) && result.dynamicHeights.length > 0) {
+    return result.dynamicHeights.reduce((sum, height) => sum + height, 0);
+  }
+  if (Array.isArray(result.fragments) && result.fragments.length > 0) {
+    return result.fragments.reduce((sum, fragment) => sum + fragment.height, 0);
+  }
+  return typeof result.height === 'number' ? result.height : schema.height;
 };
 
 const useRenderKey = (arg: ReRenderCheckProps) => {
@@ -63,47 +77,77 @@ const Wrapper = ({
   schema,
   selectable = true,
   onContextMenu,
-}: RendererProps & { children: ReactNode }) => (
-  <div
-    title={schema.name}
-    onMouseEnter={() => onChangeHoveringSchemaId && onChangeHoveringSchemaId(schema.id)}
-    onMouseLeave={() => onChangeHoveringSchemaId && onChangeHoveringSchemaId(null)}
-    onContextMenu={onContextMenu}
-    className={selectable ? SELECTABLE_CLASSNAME : ''}
-    id={schema.id}
-    style={{
-      position: 'absolute',
-      cursor: schema.readOnly ? 'initial' : 'pointer',
-      height: schema.height * ZOOM,
-      width: schema.width * ZOOM,
-      top: schema.position.y * ZOOM,
-      left: schema.position.x * ZOOM,
-      transform: `rotate(${schema.rotate ?? 0}deg)`,
-      opacity: schema.opacity ?? 1,
-      outline,
-    }}
-  >
-    {schema.required && (
-      <span
-        style={{
-          color: 'red',
-          position: 'absolute',
-          top: -12,
-          left: -12,
-          fontSize: 18,
-          fontWeight: 700,
-        }}
-      >
-        *
-      </span>
-    )}
-    {children}
-  </div>
-);
+  pageBoundsForClip,
+  renderedHeight,
+}: RendererProps & { children: ReactNode }) => {
+  const visualHeight = Math.max(schema.height, renderedHeight ?? schema.height);
+  const overflowsPageBounds = pageBoundsForClip
+    ? schema.position.y + visualHeight > pageBoundsForClip.contentBottomY
+    : false;
+  const clippedHeight = pageBoundsForClip
+    ? Math.max(0, pageBoundsForClip.contentBottomY - schema.position.y)
+    : schema.height;
+  const clipStyle = pageBoundsForClip && overflowsPageBounds
+    ? {
+        height: Math.min(visualHeight, clippedHeight) * ZOOM,
+        overflow: 'hidden',
+        maxHeight: clippedHeight * ZOOM,
+      }
+    : {};
+
+  return (
+    <div
+      title={schema.name}
+      onMouseEnter={() => onChangeHoveringSchemaId && onChangeHoveringSchemaId(schema.id)}
+      onMouseLeave={() => onChangeHoveringSchemaId && onChangeHoveringSchemaId(null)}
+      onContextMenu={onContextMenu}
+      className={selectable ? SELECTABLE_CLASSNAME : ''}
+      id={schema.id}
+      style={{
+        position: 'absolute',
+        cursor: schema.readOnly ? 'initial' : 'pointer',
+        height: schema.height * ZOOM,
+        width: schema.width * ZOOM,
+        top: schema.position.y * ZOOM,
+        left: schema.position.x * ZOOM,
+        transform: `rotate(${schema.rotate ?? 0}deg)`,
+        opacity: schema.opacity ?? 1,
+        outline,
+        ...clipStyle,
+      }}
+    >
+      {schema.required && (
+        <span
+          style={{
+            color: 'red',
+            position: 'absolute',
+            top: -12,
+            left: -12,
+            fontSize: 18,
+            fontWeight: 700,
+          }}
+        >
+          *
+        </span>
+      )}
+      {children}
+    </div>
+  );
+};
 
 const Renderer = (props: RendererProps) => {
-  const { schema, basePdf, value, mode, onChange, stopEditing, tabIndex, placeholder, scale } =
-    props;
+  const {
+    schema,
+    basePdf,
+    value,
+    mode,
+    onChange,
+    stopEditing,
+    tabIndex,
+    placeholder,
+    scale,
+    onRenderedHeightChange,
+  } = props;
 
   const pluginsRegistry = useContext(PluginsRegistry);
   const options = useContext(OptionsContext);
@@ -128,6 +172,7 @@ const Renderer = (props: RendererProps) => {
     i18n,
     scale,
     _cache,
+    onRenderedHeightChange,
   });
 
   renderArgsRef.current = {
@@ -145,6 +190,7 @@ const Renderer = (props: RendererProps) => {
     i18n,
     scale,
     _cache,
+    onRenderedHeightChange,
   };
 
   const renderKey = useRenderKey({
@@ -166,24 +212,54 @@ const Renderer = (props: RendererProps) => {
     element.dataset.pdfmeRenderReady = 'false';
     const render = renderArgs.plugin.ui;
 
-    void Promise.resolve(
-      render({
-        value: renderArgs.value,
-        schema: renderArgs.schema,
-        basePdf: renderArgs.basePdf,
-        rootElement: element,
-        mode: renderArgs.mode,
-        onChange: renderArgs.onChange,
-        stopEditing: renderArgs.stopEditing,
-        tabIndex: renderArgs.tabIndex,
-        placeholder: renderArgs.placeholder,
-        options: renderArgs.options,
-        theme: renderArgs.theme,
-        i18n: renderArgs.i18n,
-        scale: renderArgs.scale,
-        _cache: renderArgs._cache,
-      }),
-    ).finally(() => {
+    const renderSchema = async () => {
+      await Promise.resolve(
+        render({
+          value: renderArgs.value,
+          schema: renderArgs.schema,
+          basePdf: renderArgs.basePdf,
+          rootElement: element,
+          mode: renderArgs.mode,
+          onChange: renderArgs.onChange,
+          stopEditing: renderArgs.stopEditing,
+          tabIndex: renderArgs.tabIndex,
+          placeholder: renderArgs.placeholder,
+          options: renderArgs.options,
+          theme: renderArgs.theme,
+          i18n: renderArgs.i18n,
+          scale: renderArgs.scale,
+          _cache: renderArgs._cache,
+        }),
+      );
+
+      if (cancelled) {
+        return;
+      }
+
+      if (!renderArgs.plugin?.measure) {
+        renderArgs.onRenderedHeightChange?.(renderArgs.schema.id, renderArgs.schema.height);
+        return;
+      }
+
+      const result = await Promise.resolve(
+        renderArgs.plugin.measure({
+          value: renderArgs.value,
+          schema: renderArgs.schema,
+          basePdf: renderArgs.basePdf,
+          options: renderArgs.options,
+          _cache: renderArgs._cache,
+        }),
+      );
+      if (cancelled) {
+        return;
+      }
+      renderArgs.onRenderedHeightChange?.(
+        renderArgs.schema.id,
+        getMeasuredHeight(renderArgs.schema, result),
+      );
+    };
+
+    void renderSchema().finally(() => {
       if (!cancelled) {
         element.dataset.pdfmeRenderReady = 'true';
       }

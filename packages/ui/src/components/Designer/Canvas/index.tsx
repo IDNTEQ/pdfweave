@@ -34,6 +34,7 @@ import Moveable from './Moveable.js';
 import Guides from './Guides.js';
 import Mask from './Mask.js';
 import Padding from './Padding.js';
+import PageOverflowIndicator from './PageOverflowIndicator.js';
 import StaticSchema from '../../StaticSchema.js';
 import ContextMenu, { type DesignerContextMenuAction } from './ContextMenu.js';
 
@@ -44,6 +45,10 @@ const fmt4Num = (prop: string) => Number(prop.replace('px', ''));
 const fmt = (prop: string) => round(fmt4Num(prop) / ZOOM, 2);
 const isTopLeftResize = (d: string) => d === '-1,-1' || d === '-1,0' || d === '0,-1';
 const normalizeRotate = (angle: number) => ((angle % 360) + 360) % 360;
+const getBasePdfPadding = (basePdf: BasePdf): [number, number, number, number] => {
+  const maybePadding = (basePdf as { padding?: [number, number, number, number] }).padding;
+  return Array.isArray(maybePadding) ? maybePadding : [0, 0, 0, 0];
+};
 
 const DeleteButton = ({ activeElements: aes }: { activeElements: HTMLElement[] }) => {
   const { token } = theme.useToken();
@@ -114,6 +119,7 @@ interface Props {
   };
   paperRefs: MutableRefObject<HTMLDivElement[]>;
   sidebarOpen: boolean;
+  onPageOverflowChange?: (info: { pageIndex: number; overflowingSchemaCount: number }) => void;
 }
 
 const Canvas = (props: Props, ref: Ref<HTMLDivElement>) => {
@@ -134,6 +140,7 @@ const Canvas = (props: Props, ref: Ref<HTMLDivElement>) => {
     onChangeHoveringSchemaId,
     paperRefs,
     sidebarOpen,
+    onPageOverflowChange,
   } = props;
   const { token } = theme.useToken();
   const pluginsRegistry = useContext(PluginsRegistry);
@@ -150,8 +157,24 @@ const Canvas = (props: Props, ref: Ref<HTMLDivElement>) => {
     y: number;
     schemaIds: string[];
   } | null>(null);
+  const [renderedSchemaHeights, setRenderedSchemaHeights] = useState<Record<string, number>>({});
 
   const prevSchemas = usePrevious(schemasList[pageCursor]);
+  const [, , bottomPaddingMm] = getBasePdfPadding(basePdf);
+  const currentPageHeight = pageSizes[pageCursor]?.height ?? 0;
+  const currentContentBottomY = currentPageHeight - bottomPaddingMm;
+  const overflowingSchemaCount = useMemo(() => {
+    if (currentPageHeight <= 0) {
+      return 0;
+    }
+
+    return (schemasList[pageCursor] || []).filter((schema) => {
+      const renderedHeight = renderedSchemaHeights[schema.id] ?? schema.height;
+      return schema.position.y + Math.max(schema.height, renderedHeight) > currentContentBottomY;
+    }).length;
+  }, [currentContentBottomY, currentPageHeight, pageCursor, renderedSchemaHeights, schemasList]);
+  const hasOverflow = overflowingSchemaCount > 0;
+  const prevOverflowKey = useRef<string | null>(null);
 
   const onKeydown = (e: KeyboardEvent) => {
     if (e.shiftKey) setIsPressShiftKey(true);
@@ -176,6 +199,16 @@ const Canvas = (props: Props, ref: Ref<HTMLDivElement>) => {
 
     return destroyEvents;
   }, [initEvents, destroyEvents]);
+
+  useEffect(() => {
+    const overflowKey = `${pageCursor}:${overflowingSchemaCount}`;
+    if (prevOverflowKey.current === overflowKey) {
+      return;
+    }
+
+    prevOverflowKey.current = overflowKey;
+    onPageOverflowChange?.({ pageIndex: pageCursor, overflowingSchemaCount });
+  }, [onPageOverflowChange, overflowingSchemaCount, pageCursor]);
 
   useEffect(() => {
     moveable.current?.updateRect();
@@ -368,6 +401,15 @@ const Canvas = (props: Props, ref: Ref<HTMLDivElement>) => {
   };
 
   const activeIds = useMemo(() => activeElements.map((ae) => ae.id), [activeElements]);
+  const schemaPageIndexById = useMemo(() => {
+    const pageIndexById = new Map<string, number>();
+    schemasList.forEach((pageSchemas, index) => {
+      pageSchemas.forEach((schema) => {
+        pageIndexById.set(schema.id, index);
+      });
+    });
+    return pageIndexById;
+  }, [schemasList]);
 
   const expandIdsByGroups = useCallback(
     (ids: string[]) => {
@@ -396,6 +438,15 @@ const Canvas = (props: Props, ref: Ref<HTMLDivElement>) => {
     ids
       .map((id) => document.getElementById(id))
       .filter((element): element is HTMLElement => element instanceof HTMLElement);
+
+  const onRenderedHeightChange = useCallback((schemaId: string, height: number) => {
+    setRenderedSchemaHeights((current) => {
+      if (current[schemaId] === height) {
+        return current;
+      }
+      return { ...current, [schemaId]: height };
+    });
+  }, []);
 
   const selectContextTargets = (schema: SchemaForUI, target: HTMLElement) => {
     const ids = activeIds.includes(schema.id) ? activeIds : [schema.id];
@@ -576,6 +627,11 @@ const Canvas = (props: Props, ref: Ref<HTMLDivElement>) => {
               <DeleteButton activeElements={activeElements} />
             )}
             <Padding basePdf={basePdf} />
+            <PageOverflowIndicator
+              pageHeight={pageSizes[index]?.height ?? paperSize.height / ZOOM}
+              bottomPaddingMm={bottomPaddingMm}
+              hasOverflow={pageCursor === index && hasOverflow}
+            />
             <StaticSchema
               template={{ schemas: schemasList, basePdf }}
               input={Object.fromEntries(
@@ -634,6 +690,8 @@ const Canvas = (props: Props, ref: Ref<HTMLDivElement>) => {
           </>
         )}
         renderSchema={({ schema, index }) => {
+          const schemaPageIndex = schemaPageIndexById.get(schema.id) ?? pageCursor;
+          const schemaPageHeight = pageSizes[schemaPageIndex]?.height;
           const mode =
             editing && activeElements.map((ae) => ae.id).includes(schema.id)
               ? 'designer'
@@ -691,6 +749,13 @@ const Canvas = (props: Props, ref: Ref<HTMLDivElement>) => {
                   : token.colorPrimary
               }`}
               scale={scale}
+              renderedHeight={renderedSchemaHeights[schema.id]}
+              onRenderedHeightChange={onRenderedHeightChange}
+              pageBoundsForClip={
+                typeof schemaPageHeight === 'number'
+                  ? { contentBottomY: schemaPageHeight - bottomPaddingMm }
+                  : undefined
+              }
               onContextMenu={(event) => {
                 event.preventDefault();
                 event.stopPropagation();
