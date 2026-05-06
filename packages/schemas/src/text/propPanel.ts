@@ -27,6 +27,7 @@ import {
   FONT_VARIANT_FALLBACK_PLAIN,
   FONT_VARIANT_FALLBACK_SYNTHETIC,
   TEXT_OVERFLOW_EXPAND,
+  TEXT_OVERFLOW_HIDDEN,
   TEXT_OVERFLOW_VISIBLE,
 } from './constants.js';
 import { DEFAULT_OPACITY, HEX_COLOR_PATTERN } from '../constants.js';
@@ -34,8 +35,7 @@ import { getExtraFormatterSchema } from './extraFormatter.js';
 
 const UseDynamicFontSize = (props: PropPanelWidgetProps) => {
   const { rootElement, changeSchemas, activeSchema, i18n } = props;
-  const disabled =
-    (activeSchema as { overflow?: unknown })?.overflow === TEXT_OVERFLOW_EXPAND;
+  const disabled = (activeSchema as { overflow?: unknown })?.overflow === TEXT_OVERFLOW_EXPAND;
 
   const checkbox = document.createElement('input');
   checkbox.type = 'checkbox';
@@ -76,18 +76,33 @@ const OverflowWidget = (props: PropPanelWidgetProps) => {
 
   const select = document.createElement('select');
   select.style.cssText = 'width: 100%;';
+  const activeOverflow = (activeSchema as { overflow?: string }).overflow;
   select.value =
-    (activeSchema as { overflow?: string }).overflow === TEXT_OVERFLOW_EXPAND
-      ? TEXT_OVERFLOW_EXPAND
+    activeOverflow === TEXT_OVERFLOW_EXPAND || activeOverflow === TEXT_OVERFLOW_HIDDEN
+      ? activeOverflow
       : TEXT_OVERFLOW_VISIBLE;
 
   [
-    { label: 'Visible', value: TEXT_OVERFLOW_VISIBLE },
-    { label: 'Expand', value: TEXT_OVERFLOW_EXPAND },
+    {
+      label: 'Visible',
+      value: TEXT_OVERFLOW_VISIBLE,
+      title: 'Visible (default - content may extend past the box)',
+    },
+    {
+      label: 'Hidden',
+      value: TEXT_OVERFLOW_HIDDEN,
+      title: 'Hidden (clip content to the box; data past the box is hidden)',
+    },
+    {
+      label: 'Expand',
+      value: TEXT_OVERFLOW_EXPAND,
+      title: 'Expand (grow vertically to fit content; splits across pages)',
+    },
   ].forEach((optionConfig) => {
     const option = document.createElement('option');
     option.value = optionConfig.value;
     option.text = optionConfig.label;
+    option.title = optionConfig.title;
     select.appendChild(option);
   });
 
