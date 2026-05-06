@@ -405,7 +405,7 @@ const measureParagraphWidths = (
   return widths;
 };
 
-const getLineHeightAtSize = (line: RichTextLine, fontSize: number) => {
+export const getRichTextLineHeightAtSize = (line: RichTextLine, fontSize: number) => {
   if (line.runs.length === 0) return fontSize;
   return Math.max(...line.runs.map((run) => heightOfFontAtSize(run.fontKitFont, fontSize)));
 };
@@ -460,7 +460,7 @@ export const calculateDynamicRichTextFontSize = async (arg: {
       }
 
       if (lineIndex === 0) {
-        totalHeightInMm += pt2mm(getLineHeightAtSize(line, size) * lineHeight);
+        totalHeightInMm += pt2mm(getRichTextLineHeightAtSize(line, size) * lineHeight);
       } else {
         totalHeightInMm += pt2mm(size * lineHeight);
       }

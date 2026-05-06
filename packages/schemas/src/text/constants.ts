@@ -5,6 +5,7 @@ import {
   TEXT_FORMAT,
   FONT_VARIANT_FALLBACK,
 } from './types.js';
+import type { TextOverflow } from '@pdfweave/common';
 
 export const DEFAULT_FONT_SIZE = 13;
 
@@ -28,6 +29,8 @@ export const FONT_VARIANT_FALLBACK_SYNTHETIC = 'synthetic' as const satisfies FO
 export const FONT_VARIANT_FALLBACK_PLAIN = 'plain' as const satisfies FONT_VARIANT_FALLBACK;
 export const FONT_VARIANT_FALLBACK_ERROR = 'error' as const satisfies FONT_VARIANT_FALLBACK;
 export const DEFAULT_FONT_VARIANT_FALLBACK = FONT_VARIANT_FALLBACK_SYNTHETIC;
+export const TEXT_OVERFLOW_VISIBLE = 'visible' as const satisfies TextOverflow;
+export const TEXT_OVERFLOW_EXPAND = 'expand' as const satisfies TextOverflow;
 export const SYNTHETIC_BOLD_OFFSET_RATIO = 0.03;
 export const SYNTHETIC_BOLD_PDF_EXTRA_DRAWS = 2;
 export const SYNTHETIC_BOLD_CSS_TEXT_SHADOW = '0.025em 0 0 currentColor';

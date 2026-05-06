@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { Font as FontKitFont } from 'fontkit';
-import { Font, getDefaultFont, mm2pt } from '@pdfweave/common';
+import { BasePdf, Font, getDefaultFont, mm2pt } from '@pdfweave/common';
 import {
   calculateDynamicFontSize,
   getBrowserVerticalFontAdjustments,
@@ -29,6 +29,8 @@ import {
   type ResolvedRichTextRun,
 } from '../src/text/richText.js';
 import { LINE_START_FORBIDDEN_CHARS, LINE_END_FORBIDDEN_CHARS } from '../src/text/constants.js';
+import textPlugin from '../src/text/index.js';
+import { measureTextLines } from '../src/text/measure.js';
 
 import { FontWidthCalcValues, TextSchema } from '../src/text/types.js';
 
@@ -74,6 +76,130 @@ const getTextSchema = () => {
   };
   return textSchema;
 };
+
+const blankBasePdf: BasePdf = { width: 100, height: 100, padding: [10, 10, 10, 10] };
+
+const createMeasureSchema = (overrides: Partial<TextSchema> = {}): TextSchema => ({
+  ...getTextSchema(),
+  overflow: 'expand',
+  width: 28,
+  height: 8,
+  fontSize: 14,
+  lineHeight: 1,
+  characterSpacing: 0,
+  ...overrides,
+});
+
+const measureText = async (value: string, schema: TextSchema, basePdf = blankBasePdf) => {
+  const result = await textPlugin.measure?.({
+    value,
+    schema,
+    basePdf,
+    options: { font: getSampleFont() },
+    _cache: new Map(),
+  });
+  if (!result) throw new Error('text plugin did not return a measure result');
+  return result;
+};
+
+const expectFragments = (result: Awaited<ReturnType<typeof measureText>>) => {
+  if (!result.fragments) throw new Error('expected measure result to contain fragments');
+  return result.fragments;
+};
+
+describe('text overflow expand measure', () => {
+  test('short content keeps the authored height', async () => {
+    const schema = createMeasureSchema({ height: 30 });
+
+    await expect(measureText('Short text', schema)).resolves.toEqual({ height: schema.height });
+  });
+
+  test('long content that fits the current page grows to measured height', async () => {
+    const schema = createMeasureSchema({ position: { x: 0, y: 10 }, height: 4 });
+    const result = await measureText('Long text '.repeat(20), schema, {
+      width: 100,
+      height: 140,
+      padding: [10, 10, 10, 10],
+    });
+
+    expect(result.fragments).toBeUndefined();
+    expect(result.height).toBeGreaterThan(schema.height);
+    expect(result.height).toBeLessThan(120);
+  });
+
+  test('content that crosses the page returns line fragments with ranges', async () => {
+    const schema = createMeasureSchema({ position: { x: 0, y: 40 }, height: 4 });
+    const result = await measureText('Long text '.repeat(80), schema, {
+      width: 100,
+      height: 60,
+      padding: [10, 10, 10, 10],
+    });
+    const fragments = expectFragments(result);
+
+    expect(fragments.length).toBeGreaterThan(1);
+    expect(fragments.slice(0, 3).map((fragment) => fragment.lineRange)).toEqual([
+      { start: 0, end: 1 },
+      { start: 1, end: 2 },
+      { start: 2, end: 3 },
+    ]);
+  });
+
+  test('expand ignores dynamicFontSize and measures with the declared font size', async () => {
+    const schema = createMeasureSchema({
+      dynamicFontSize: { min: 4, max: 14, fit: 'vertical' },
+      height: 8,
+    });
+    const value = 'Dynamic font should not shrink this expanded text '.repeat(8);
+    const font = getSampleFont();
+    const cache = new Map<string | number, unknown>();
+
+    const declared = await measureTextLines({
+      value,
+      schema,
+      font,
+      _cache: cache,
+      ignoreDynamicFontSize: true,
+    });
+    const shrunk = await measureTextLines({
+      value,
+      schema: { ...schema, overflow: 'visible' },
+      font,
+      _cache: cache,
+      ignoreDynamicFontSize: false,
+    });
+    const result = await measureText(value, schema);
+
+    expect(declared.fontSize).toBe(schema.fontSize);
+    expect(shrunk.fontSize).toBeLessThan(declared.fontSize);
+    expect(result.height ?? result.fragments?.reduce((sum, fragment) => sum + fragment.height, 0)).toBeCloseTo(
+      declared.measuredHeight,
+      6,
+    );
+  });
+
+  test('empty text keeps the authored height', async () => {
+    const schema = createMeasureSchema({ height: 12 });
+
+    await expect(measureText('', schema)).resolves.toEqual({ height: schema.height });
+  });
+
+  test('a single unwrapped line can still become one line fragment', async () => {
+    const schema = createMeasureSchema({
+      position: { x: 0, y: 49 },
+      width: 500,
+      height: 1,
+    });
+    const result = await measureText('singleunwrappedword', schema, {
+      width: 100,
+      height: 60,
+      padding: [10, 10, 10, 10],
+    });
+    const fragments = expectFragments(result);
+
+    expect(fragments).toHaveLength(1);
+    expect(fragments[0].lineRange).toEqual({ start: 0, end: 1 });
+  });
+});
 
 describe('parseInlineMarkdown', () => {
   it('parses supported inline markdown styles', () => {

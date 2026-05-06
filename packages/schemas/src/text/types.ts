@@ -1,4 +1,4 @@
-import type { Schema } from '@pdfweave/common';
+import type { Schema, TextLineRange, TextOverflow } from '@pdfweave/common';
 import type { Font as FontKitFont } from 'fontkit';
 
 export type ALIGNMENT = 'left' | 'center' | 'right' | 'justify';
@@ -80,10 +80,12 @@ export type TextSchema = Schema & {
   };
   fontColor: string;
   backgroundColor: string;
+  overflow?: TextOverflow;
   /** See `TextTransform` JSDoc. Default: `'none'`. pdfme/pdfme#707. */
   textTransform?: TEXT_TRANSFORM;
   /** See `TextPadding` JSDoc. pdfme/pdfme#851. */
   padding?: TextPadding;
   /** See `TextBorder` JSDoc. pdfme/pdfme#851. */
   border?: TextBorder;
+  __textLineRange?: TextLineRange;
 };
