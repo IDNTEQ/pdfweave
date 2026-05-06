@@ -3,6 +3,7 @@ import {
   PropPanel,
   PropPanelWidgetProps,
   PropPanelSchema,
+  ChangeSchemaItem,
   getFallbackFontName,
 } from '@pdfweave/common';
 import type { TextSchema } from './types.js';
@@ -25,17 +26,24 @@ import {
   FONT_VARIANT_FALLBACK_ERROR,
   FONT_VARIANT_FALLBACK_PLAIN,
   FONT_VARIANT_FALLBACK_SYNTHETIC,
+  TEXT_OVERFLOW_EXPAND,
+  TEXT_OVERFLOW_VISIBLE,
 } from './constants.js';
 import { DEFAULT_OPACITY, HEX_COLOR_PATTERN } from '../constants.js';
 import { getExtraFormatterSchema } from './extraFormatter.js';
 
 const UseDynamicFontSize = (props: PropPanelWidgetProps) => {
   const { rootElement, changeSchemas, activeSchema, i18n } = props;
+  const disabled =
+    (activeSchema as { overflow?: unknown })?.overflow === TEXT_OVERFLOW_EXPAND;
 
   const checkbox = document.createElement('input');
   checkbox.type = 'checkbox';
   checkbox.checked = Boolean((activeSchema as { dynamicFontSize?: unknown })?.dynamicFontSize);
+  checkbox.disabled = disabled;
+  checkbox.title = disabled ? 'Disabled while Overflow is Expand' : '';
   checkbox.onchange = (e: Event) => {
+    if (disabled) return;
     const val = (e.target as HTMLInputElement).checked
       ? {
           min: DEFAULT_DYNAMIC_MIN_FONT_SIZE,
@@ -49,10 +57,52 @@ const UseDynamicFontSize = (props: PropPanelWidgetProps) => {
   const span = document.createElement('span');
   span.innerText = i18n('schemas.text.dynamicFontSize') || '';
   span.style.cssText = 'margin-left: 0.5rem';
+  span.title = disabled ? 'Disabled while Overflow is Expand' : '';
   label.style.cssText = 'display: flex; width: 100%;';
+  label.title = disabled ? 'Disabled while Overflow is Expand' : '';
   label.appendChild(checkbox);
   label.appendChild(span);
   rootElement.appendChild(label);
+};
+
+const OverflowWidget = (props: PropPanelWidgetProps) => {
+  const { rootElement, changeSchemas, activeSchema, i18n } = props;
+
+  const wrapper = document.createElement('label');
+  wrapper.style.cssText = 'display: flex; flex-direction: column; gap: 0.25rem; width: 100%;';
+
+  const label = document.createElement('span');
+  label.innerText = i18n('schemas.text.overflow') || 'Overflow';
+
+  const select = document.createElement('select');
+  select.style.cssText = 'width: 100%;';
+  select.value =
+    (activeSchema as { overflow?: string }).overflow === TEXT_OVERFLOW_EXPAND
+      ? TEXT_OVERFLOW_EXPAND
+      : TEXT_OVERFLOW_VISIBLE;
+
+  [
+    { label: 'Visible', value: TEXT_OVERFLOW_VISIBLE },
+    { label: 'Expand', value: TEXT_OVERFLOW_EXPAND },
+  ].forEach((optionConfig) => {
+    const option = document.createElement('option');
+    option.value = optionConfig.value;
+    option.text = optionConfig.label;
+    select.appendChild(option);
+  });
+
+  select.onchange = (event: Event) => {
+    const value = (event.target as HTMLSelectElement).value;
+    const changes: ChangeSchemaItem[] = [{ key: 'overflow', value, schemaId: activeSchema.id }];
+    if (value === TEXT_OVERFLOW_EXPAND) {
+      changes.push({ key: 'dynamicFontSize', value: undefined, schemaId: activeSchema.id });
+    }
+    changeSchemas(changes);
+  };
+
+  wrapper.appendChild(label);
+  wrapper.appendChild(select);
+  rootElement.appendChild(wrapper);
 };
 
 /**
@@ -118,10 +168,11 @@ export const propPanel: PropPanel<TextSchema> = {
     const fontNames = Object.keys(font);
     const fallbackFontName = getFallbackFontName(font);
 
-    const enableDynamicFont = Boolean(
-      (activeSchema as { dynamicFontSize?: unknown })?.dynamicFontSize,
-    );
     const activeTextSchema = activeSchema as unknown as TextSchema;
+    const isOverflowExpand = activeTextSchema.overflow === TEXT_OVERFLOW_EXPAND;
+    const enableDynamicFont =
+      !isOverflowExpand &&
+      Boolean((activeSchema as { dynamicFontSize?: unknown })?.dynamicFontSize);
     const hideTextFormat = activeTextSchema.type === 'text' && activeTextSchema.readOnly !== true;
     const enableInlineMarkdown =
       activeTextSchema.textFormat === TEXT_FORMAT_INLINE_MARKDOWN && !hideTextFormat;
@@ -203,6 +254,7 @@ export const propPanel: PropPanel<TextSchema> = {
           },
         },
       },
+      overflow: { type: 'string', widget: 'OverflowWidget', bind: false, span: 24 },
       fontColor: {
         title: i18n('schemas.textColor'),
         type: 'string',
@@ -352,7 +404,7 @@ export const propPanel: PropPanel<TextSchema> = {
 
     return textSchema;
   },
-  widgets: { UseDynamicFontSize, UseInlineMarkdown, PaddingTupleWidget },
+  widgets: { UseDynamicFontSize, OverflowWidget, UseInlineMarkdown, PaddingTupleWidget },
   defaultSchema: {
     name: '',
     type: 'text',
@@ -371,6 +423,7 @@ export const propPanel: PropPanel<TextSchema> = {
     lineHeight: DEFAULT_LINE_HEIGHT,
     characterSpacing: DEFAULT_CHARACTER_SPACING,
     dynamicFontSize: undefined,
+    overflow: TEXT_OVERFLOW_VISIBLE,
     fontColor: DEFAULT_FONT_COLOR,
     fontName: undefined,
     backgroundColor: '',
