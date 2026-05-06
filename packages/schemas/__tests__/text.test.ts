@@ -2,7 +2,10 @@ import { readFileSync } from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { Font as FontKitFont } from 'fontkit';
-import { BasePdf, Font, getDefaultFont, mm2pt } from '@pdfweave/common';
+import * as fontkit from 'fontkit';
+import { PDFDocument } from '@pdfweave/pdf-lib';
+import * as pdfLib from '@pdfweave/pdf-lib';
+import { BLANK_PDF, BasePdf, Font, getDefaultFont, mm2pt } from '@pdfweave/common';
 import {
   calculateDynamicFontSize,
   getBrowserVerticalFontAdjustments,
@@ -31,6 +34,7 @@ import {
 import { LINE_START_FORBIDDEN_CHARS, LINE_END_FORBIDDEN_CHARS } from '../src/text/constants.js';
 import textPlugin from '../src/text/index.js';
 import { measureTextLines } from '../src/text/measure.js';
+import { pdfRender } from '../src/text/pdfRender.js';
 
 import { FontWidthCalcValues, TextSchema } from '../src/text/types.js';
 
@@ -107,6 +111,53 @@ const expectFragments = (result: Awaited<ReturnType<typeof measureText>>) => {
   return result.fragments;
 };
 
+const renderTextPdf = async (value: string, schema: TextSchema) => {
+  const pdfDoc = await PDFDocument.create();
+  // @ts-expect-error registerFontkit method is not in type definitions but exists at runtime
+  pdfDoc.registerFontkit(fontkit);
+  const page = pdfDoc.addPage();
+  const textCalls: Array<Record<string, unknown>> = [];
+  const origDrawText = page.drawText.bind(page);
+  page.drawText = (text: string, args: Parameters<typeof origDrawText>[1]) => {
+    textCalls.push({ text, ...(args ?? {}) });
+    return origDrawText(text, args);
+  };
+
+  await pdfRender({
+    value,
+    schema,
+    basePdf: BLANK_PDF,
+    pdfLib,
+    pdfDoc,
+    page,
+    options: { font: getSampleFont() },
+    _cache: new Map(),
+  } as Parameters<typeof pdfRender>[0]);
+
+  return textCalls;
+};
+
+const getMeasuredLineHeights = async (value: string, schema: TextSchema) => {
+  const { lineHeights } = await measureTextLines({
+    value,
+    schema,
+    font: getSampleFont(),
+    _cache: new Map(),
+  });
+  return lineHeights;
+};
+
+const heightForLineCount = async (value: string, schema: TextSchema, lineCount: number) => {
+  const lineHeights = await getMeasuredLineHeights(value, schema);
+  return lineHeights.slice(0, lineCount).reduce((sum, height) => sum + height, 0) + 0.001;
+};
+
+describe('text plugin default schema', () => {
+  test('new Designer text schemas default to overflow expand', () => {
+    expect(textPlugin.propPanel.defaultSchema.overflow).toBe('expand');
+  });
+});
+
 describe('text overflow expand measure', () => {
   test('short content keeps the authored height', async () => {
     const schema = createMeasureSchema({ height: 30 });
@@ -171,10 +222,9 @@ describe('text overflow expand measure', () => {
 
     expect(declared.fontSize).toBe(schema.fontSize);
     expect(shrunk.fontSize).toBeLessThan(declared.fontSize);
-    expect(result.height ?? result.fragments?.reduce((sum, fragment) => sum + fragment.height, 0)).toBeCloseTo(
-      declared.measuredHeight,
-      6,
-    );
+    expect(
+      result.height ?? result.fragments?.reduce((sum, fragment) => sum + fragment.height, 0),
+    ).toBeCloseTo(declared.measuredHeight, 6);
   });
 
   test('empty text keeps the authored height', async () => {
@@ -198,6 +248,74 @@ describe('text overflow expand measure', () => {
 
     expect(fragments).toHaveLength(1);
     expect(fragments[0].lineRange).toEqual({ start: 0, end: 1 });
+  });
+});
+
+describe('text overflow hidden measure and render', () => {
+  const hardBreakValue = 'alpha\nbeta\ngamma\ndelta';
+
+  test('long content reports the authored height during layout', async () => {
+    const schema = createMeasureSchema({ overflow: 'hidden', height: 8 });
+
+    await expect(measureText('Long text '.repeat(80), schema)).resolves.toEqual({
+      height: schema.height,
+    });
+  });
+
+  test('short content that fits renders every line', async () => {
+    const baseSchema = createMeasureSchema({ overflow: 'hidden', width: 100, height: 100 });
+    const schema = {
+      ...baseSchema,
+      height: await heightForLineCount(hardBreakValue, baseSchema, 4),
+    };
+    const calls = await renderTextPdf(hardBreakValue, schema);
+
+    expect(calls.map((call) => call.text)).toEqual(['alpha', 'beta', 'gamma', 'delta']);
+  });
+
+  test('long content that overflows renders only complete lines that fit', async () => {
+    const baseSchema = createMeasureSchema({ overflow: 'hidden', width: 100, height: 100 });
+    const schema = {
+      ...baseSchema,
+      height: await heightForLineCount(hardBreakValue, baseSchema, 2),
+    };
+    const calls = await renderTextPdf(hardBreakValue, schema);
+
+    expect(calls.map((call) => call.text)).toEqual(['alpha', 'beta']);
+  });
+
+  test('dynamic font size shrinks before hidden clipping when all lines can fit', async () => {
+    const baseSchema = createMeasureSchema({
+      overflow: 'hidden',
+      width: 100,
+      height: 0,
+      dynamicFontSize: { min: 4, max: 14, fit: 'vertical' },
+    });
+    const schema = {
+      ...baseSchema,
+      height: await heightForLineCount(hardBreakValue, baseSchema, 4),
+    };
+    const calls = await renderTextPdf(hardBreakValue, schema);
+
+    expect(calls).toHaveLength(4);
+    expect(calls.every((call) => call.size === 4)).toBe(true);
+  });
+
+  test('dynamic font size shrinks before hidden clipping when content still overflows', async () => {
+    const baseSchema = createMeasureSchema({
+      overflow: 'hidden',
+      width: 100,
+      height: 0,
+      dynamicFontSize: { min: 4, max: 14, fit: 'vertical' },
+    });
+    const schema = {
+      ...baseSchema,
+      height: await heightForLineCount(hardBreakValue, baseSchema, 2),
+    };
+    const calls = await renderTextPdf(hardBreakValue, schema);
+
+    expect(calls.map((call) => call.text)).toEqual(['alpha', 'beta']);
+    expect(calls.every((call) => call.size === 4)).toBe(true);
   });
 });
 
@@ -620,7 +738,7 @@ describe('calculateDynamicFontSize with Default font', () => {
     textSchema.dynamicFontSize = { min: 10, max: 30, fit: 'vertical' };
     const value = 'test with a length string\n and a new line';
     const startingFontSize = 18;
-    const result = calculateDynamicFontSize({textSchema, fontKitFont, value, startingFontSize});
+    const result = calculateDynamicFontSize({ textSchema, fontKitFont, value, startingFontSize });
 
     expect(result).toBe(19.25);
   });
@@ -630,7 +748,7 @@ describe('calculateDynamicFontSize with Default font', () => {
     textSchema.dynamicFontSize = { min: 10, max: 30, fit: 'horizontal' };
     const value = 'test with a length string\n and a new line';
     const startingFontSize = 36;
-    const result = calculateDynamicFontSize({textSchema, fontKitFont, value, startingFontSize});
+    const result = calculateDynamicFontSize({ textSchema, fontKitFont, value, startingFontSize });
 
     expect(result).toBe(11.25);
   });
@@ -650,7 +768,6 @@ describe('calculateDynamicFontSize with Custom font', () => {
   beforeAll(async () => {
     fontKitFont = await getFontKitFont('SauceHanSansJP', getSampleFont(), new Map());
   });
-
 
   it('should return smaller font size when dynamicFontSizeSetting is provided with horizontal fit', async () => {
     const textSchema = getTextSchema();
@@ -701,7 +818,7 @@ describe('calculateDynamicFontSize with Custom font', () => {
 describe('getFontDescentInPt test', () => {
   test('it gets a descent size relative to the font size', () => {
     expect(getFontDescentInPt({ descent: -400, unitsPerEm: 1000 } as FontKitFont, 12)).toBe(
-      -4.800000000000001
+      -4.800000000000001,
     );
     expect(getFontDescentInPt({ descent: 54, unitsPerEm: 1000 } as FontKitFont, 20)).toBe(1.08);
     expect(getFontDescentInPt({ descent: -512, unitsPerEm: 2048 } as FontKitFont, 54)).toBe(-13.5);

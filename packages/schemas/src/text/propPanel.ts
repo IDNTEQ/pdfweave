@@ -438,7 +438,7 @@ export const propPanel: PropPanel<TextSchema> = {
     lineHeight: DEFAULT_LINE_HEIGHT,
     characterSpacing: DEFAULT_CHARACTER_SPACING,
     dynamicFontSize: undefined,
-    overflow: TEXT_OVERFLOW_VISIBLE,
+    overflow: TEXT_OVERFLOW_EXPAND,
     fontColor: DEFAULT_FONT_COLOR,
     fontName: undefined,
     backgroundColor: '',

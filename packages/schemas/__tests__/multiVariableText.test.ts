@@ -7,10 +7,14 @@ import { parseInlineMarkdown, stripInlineMarkdown } from '../src/text/inlineMark
 import { MultiVariableTextSchema } from '../src/multiVariableText/types.js';
 import multiVariableTextPlugin from '../src/multiVariableText/index.js';
 import { measureTextLines } from '../src/text/measure.js';
+import { pdfRender } from '../src/multiVariableText/pdfRender.js';
 import { readFileSync } from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { BasePdf, Font } from '@pdfweave/common';
+import * as fontkit from 'fontkit';
+import { PDFDocument } from '@pdfweave/pdf-lib';
+import * as pdfLib from '@pdfweave/pdf-lib';
+import { BLANK_PDF, type BasePdf, type Font } from '@pdfweave/common';
 import {
   countUniqueVariableNames,
   getVariableIndices,
@@ -70,6 +74,52 @@ const expectFragments = (result: Awaited<ReturnType<typeof measureMvt>>) => {
   if (!result.fragments) throw new Error('expected measure result to contain fragments');
   return result.fragments;
 };
+
+const renderMvtPdf = async (schema: MultiVariableTextSchema, body: string) => {
+  const pdfDoc = await PDFDocument.create();
+  // @ts-expect-error registerFontkit method is not in type definitions but exists at runtime
+  pdfDoc.registerFontkit(fontkit);
+  const page = pdfDoc.addPage();
+  const textCalls: Array<Record<string, unknown>> = [];
+  const origDrawText = page.drawText.bind(page);
+  page.drawText = (text: string, args: Parameters<typeof origDrawText>[1]) => {
+    textCalls.push({ text, ...(args ?? {}) });
+    return origDrawText(text, args);
+  };
+
+  await pdfRender({
+    value: JSON.stringify({ body }),
+    schema,
+    basePdf: BLANK_PDF,
+    pdfLib,
+    pdfDoc,
+    page,
+    options: { font: getSampleFont() },
+    _cache: new Map(),
+  } as Parameters<typeof pdfRender>[0]);
+
+  return textCalls;
+};
+
+const heightForLineCount = async (
+  value: string,
+  schema: MultiVariableTextSchema,
+  lineCount: number,
+) => {
+  const { lineHeights } = await measureTextLines({
+    value,
+    schema,
+    font: getSampleFont(),
+    _cache: new Map(),
+  });
+  return lineHeights.slice(0, lineCount).reduce((sum, height) => sum + height, 0) + 0.001;
+};
+
+describe('multiVariableText plugin default schema', () => {
+  test('new Designer multiVariableText schemas default to overflow expand', () => {
+    expect(multiVariableTextPlugin.propPanel.defaultSchema.overflow).toBe('expand');
+  });
+});
 
 describe('substituteVariables', () => {
   it('should substitute variables in a string', () => {
@@ -213,10 +263,9 @@ describe('multiVariableText overflow expand measure', () => {
 
     expect(declared.fontSize).toBe(schema.fontSize);
     expect(shrunk.fontSize).toBeLessThan(declared.fontSize);
-    expect(result.height ?? result.fragments?.reduce((sum, fragment) => sum + fragment.height, 0)).toBeCloseTo(
-      declared.measuredHeight,
-      6,
-    );
+    expect(
+      result.height ?? result.fragments?.reduce((sum, fragment) => sum + fragment.height, 0),
+    ).toBeCloseTo(declared.measuredHeight, 6);
   });
 
   test('empty resolved content keeps the authored height', async () => {
@@ -244,6 +293,97 @@ describe('multiVariableText overflow expand measure', () => {
 
     expect(fragments).toHaveLength(1);
     expect(fragments[0].lineRange).toEqual({ start: 0, end: 1 });
+  });
+});
+
+describe('multiVariableText overflow hidden measure and render', () => {
+  const hardBreakValue = 'alpha\nbeta\ngamma\ndelta';
+
+  test('long resolved content reports the authored height during layout', async () => {
+    const schema = createMeasureSchema({
+      text: '{body}',
+      variables: ['body'],
+      overflow: 'hidden',
+      height: 8,
+    });
+
+    await expect(
+      measureMvt(JSON.stringify({ body: 'Long text '.repeat(80) }), schema),
+    ).resolves.toEqual({
+      height: schema.height,
+    });
+  });
+
+  test('short resolved content that fits renders every line', async () => {
+    const baseSchema = createMeasureSchema({
+      text: '{body}',
+      variables: ['body'],
+      overflow: 'hidden',
+      width: 100,
+      height: 100,
+    });
+    const schema = {
+      ...baseSchema,
+      height: await heightForLineCount(hardBreakValue, baseSchema, 4),
+    };
+    const calls = await renderMvtPdf(schema, hardBreakValue);
+
+    expect(calls.map((call) => call.text)).toEqual(['alpha', 'beta', 'gamma', 'delta']);
+  });
+
+  test('long resolved content that overflows renders only complete lines that fit', async () => {
+    const baseSchema = createMeasureSchema({
+      text: '{body}',
+      variables: ['body'],
+      overflow: 'hidden',
+      width: 100,
+      height: 100,
+    });
+    const schema = {
+      ...baseSchema,
+      height: await heightForLineCount(hardBreakValue, baseSchema, 2),
+    };
+    const calls = await renderMvtPdf(schema, hardBreakValue);
+
+    expect(calls.map((call) => call.text)).toEqual(['alpha', 'beta']);
+  });
+
+  test('dynamic font size shrinks before hidden clipping when all lines can fit', async () => {
+    const baseSchema = createMeasureSchema({
+      text: '{body}',
+      variables: ['body'],
+      overflow: 'hidden',
+      width: 100,
+      height: 0,
+      dynamicFontSize: { min: 4, max: 14, fit: 'vertical' },
+    });
+    const schema = {
+      ...baseSchema,
+      height: await heightForLineCount(hardBreakValue, baseSchema, 4),
+    };
+    const calls = await renderMvtPdf(schema, hardBreakValue);
+
+    expect(calls).toHaveLength(4);
+    expect(calls.every((call) => call.size === 4)).toBe(true);
+  });
+
+  test('dynamic font size shrinks before hidden clipping when resolved content still overflows', async () => {
+    const baseSchema = createMeasureSchema({
+      text: '{body}',
+      variables: ['body'],
+      overflow: 'hidden',
+      width: 100,
+      height: 0,
+      dynamicFontSize: { min: 4, max: 14, fit: 'vertical' },
+    });
+    const schema = {
+      ...baseSchema,
+      height: await heightForLineCount(hardBreakValue, baseSchema, 2),
+    };
+    const calls = await renderMvtPdf(schema, hardBreakValue);
+
+    expect(calls.map((call) => call.text)).toEqual(['alpha', 'beta']);
+    expect(calls.every((call) => call.size === 4)).toBe(true);
   });
 });
 
@@ -284,7 +424,7 @@ describe('validateVariables', () => {
   it('should throw an error for missing required variables', () => {
     const value = JSON.stringify({ var1: 'value1' });
     expect(() => validateVariables(value, schema)).toThrow(
-      '[@pdfweave/generator] variable var2 is missing for field test'
+      '[@pdfweave/generator] variable var2 is missing for field test',
     );
   });
 

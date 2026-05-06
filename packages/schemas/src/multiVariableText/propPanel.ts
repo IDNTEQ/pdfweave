@@ -2,6 +2,7 @@ import { propPanel as parentPropPanel } from '../text/propPanel.js';
 import { PropPanel, PropPanelWidgetProps } from '@pdfweave/common';
 import { MultiVariableTextSchema } from './types.js';
 import { getVariableNames } from './variables.js';
+import { TEXT_OVERFLOW_EXPAND } from '../text/constants.js';
 
 const mapDynamicVariables = (props: PropPanelWidgetProps) => {
   const { rootElement, changeSchemas, activeSchema, i18n, options } = props;
@@ -131,6 +132,7 @@ export const propPanel: PropPanel<MultiVariableTextSchema> = {
     text: 'Add text here using {} for variables ',
     width: 50,
     height: 15,
+    overflow: TEXT_OVERFLOW_EXPAND,
     content: '{}',
     variables: [],
   },
