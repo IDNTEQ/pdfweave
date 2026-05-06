@@ -42,6 +42,7 @@ import ErrorScreen from '../ErrorScreen.js';
 import CtlBar from '../CtlBar.js';
 
 type AnchoredLayoutRule = Extract<SchemaLayoutRule, { mode: 'anchored' }>;
+export type PageOverflowInfo = { pageIndex: number; overflowingSchemaCount: number };
 
 const isAnchoredLayoutRule = (layout: unknown): layout is AnchoredLayoutRule =>
   typeof layout === 'object' &&
@@ -99,6 +100,7 @@ const TemplateEditor = ({
   onChangeTemplate,
   onPageCursorChange,
   requestedPageCursor,
+  onPageOverflowChange,
 }: Omit<DesignerProps, 'domContainer'> & {
   size: Size;
   onSaveTemplate: (t: Template) => void;
@@ -106,6 +108,7 @@ const TemplateEditor = ({
 } & {
   onChangeTemplate: (t: Template) => void;
   onPageCursorChange: (newPageCursor: number, totalPages: number) => void;
+  onPageOverflowChange?: (info: PageOverflowInfo) => void;
   /**
    * Page cursor requested by the parent class wrapper (e.g. via
    * `Designer.updateTemplate(template, { page })`). When provided this is
@@ -693,6 +696,7 @@ const TemplateEditor = ({
             removeSchemas={removeSchemas}
             designerActions={designerActions}
             sidebarOpen={sidebarOpen}
+            onPageOverflowChange={onPageOverflowChange}
             onEdit={onEdit}
           />
         </div>

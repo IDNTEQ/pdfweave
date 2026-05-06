@@ -9,8 +9,13 @@ import {
 } from '@pdfweave/common';
 import { BaseUIClass } from './class.js';
 import { DESTROYED_ERR_MSG } from './constants.js';
-import DesignerComponent from './components/Designer/index.js';
+import DesignerComponent, { type PageOverflowInfo } from './components/Designer/index.js';
 import AppContextProvider from './components/AppContextProvider.js';
+
+export type { PageOverflowInfo };
+export type DesignerConstructorProps = DesignerProps & {
+  onPageOverflowChange?: (info: PageOverflowInfo) => void;
+};
 
 /**
  * Optional behaviour switches for {@link Designer.updateTemplate}.
@@ -32,12 +37,15 @@ class Designer extends BaseUIClass {
   private onSaveTemplateCallback?: (template: Template) => void;
   private onChangeTemplateCallback?: (template: Template) => void;
   private onPageChangeCallback?: (pageInfo: { currentPage: number; totalPages: number }) => void;
+  private onPageOverflowChangeCallback?: (info: PageOverflowInfo) => void;
   private pageCursor: number = 0;
   private pendingPageCursor: number | null = null;
 
-  constructor(props: DesignerProps) {
-    super(props);
-    checkDesignerProps(props);
+  constructor(props: DesignerConstructorProps) {
+    const { onPageOverflowChange, ...designerProps } = props;
+    super(designerProps);
+    checkDesignerProps(designerProps);
+    this.onPageOverflowChangeCallback = onPageOverflowChange;
   }
 
   public saveTemplate() {
@@ -78,6 +86,10 @@ class Designer extends BaseUIClass {
 
   public onPageChange(cb: (pageInfo: { currentPage: number; totalPages: number }) => void) {
     this.onPageChangeCallback = cb;
+  }
+
+  public onPageOverflowChange(cb: (info: PageOverflowInfo) => void) {
+    this.onPageOverflowChangeCallback = cb;
   }
 
   public getPageCursor() {
@@ -125,6 +137,11 @@ class Designer extends BaseUIClass {
                 currentPage: newPageCursor,
                 totalPages: totalPages,
               });
+            }
+          }}
+          onPageOverflowChange={(info) => {
+            if (this.onPageOverflowChangeCallback) {
+              this.onPageOverflowChangeCallback(info);
             }
           }}
           requestedPageCursor={this.pendingPageCursor}
