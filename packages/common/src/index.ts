@@ -89,6 +89,8 @@ import {
   getDynamicHeights,
   PAGE_BREAK_SCHEMA_TYPE,
 } from './dynamicTemplate.js';
+import { resolveAnchorTargetPoint } from './anchorLayout.js';
+import type { AnchorAxis, ResolvedAnchorTarget } from './anchorLayout.js';
 import { replacePlaceholders } from './expression.js';
 import type { ReplacePlaceholdersOptions } from './expression.js';
 import { pluginRegistry } from './pluginRegistry.js';
@@ -128,6 +130,7 @@ export {
   getDynamicTemplate,
   getDynamicHeights,
   PAGE_BREAK_SCHEMA_TYPE,
+  resolveAnchorTargetPoint,
   formatDesignDataValue,
   getDesignDataInput,
   getDesignDataVariables,
@@ -197,4 +200,6 @@ export type {
   UIRenderProps,
   Mode,
   ReplacePlaceholdersOptions,
+  AnchorAxis,
+  ResolvedAnchorTarget,
 };
