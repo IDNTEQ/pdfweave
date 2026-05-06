@@ -10,12 +10,23 @@ const Sidebar = (props: SidebarProps) => {
   const { sidebarOpen, setSidebarOpen, activeElements, schemas } = props;
 
   const { token } = theme.useToken();
-  const getActiveSchemas = () =>
-    schemas.filter((s) => activeElements.map((ae) => ae.id).includes(s.id));
-  const getLastActiveSchema = () => {
-    const activeSchemas = getActiveSchemas();
-    return activeSchemas[activeSchemas.length - 1];
+  const getActiveSchemas = () => {
+    const activeIds = new Set(activeElements.map((ae) => ae.id));
+    const selectedSchemas = schemas.filter((schema) => activeIds.has(schema.id));
+    const activeGroups = new Set(
+      selectedSchemas
+        .map((schema) => schema.group)
+        .filter((group): group is string => Boolean(group)),
+    );
+
+    if (activeGroups.size === 0) return selectedSchemas;
+
+    return schemas.filter(
+      (schema) => activeIds.has(schema.id) || Boolean(schema.group && activeGroups.has(schema.group)),
+    );
   };
+  const activeSchemas = getActiveSchemas();
+  const getLastActiveSchema = () => activeSchemas[activeSchemas.length - 1];
 
   const iconProps = { strokeWidth: 1.5, size: 20 };
 
@@ -59,10 +70,10 @@ const Sidebar = (props: SidebarProps) => {
           borderLeft: `1px solid ${token.colorSplit}`,
         }}
       >
-        {getActiveSchemas().length === 0 ? (
+        {activeSchemas.length === 0 ? (
           <NoSelectionSidebar {...props} />
         ) : (
-          <DetailView {...props} activeSchema={getLastActiveSchema()} />
+          <DetailView {...props} activeSchema={getLastActiveSchema()} activeSchemas={activeSchemas} />
         )}
       </div>
     </div>

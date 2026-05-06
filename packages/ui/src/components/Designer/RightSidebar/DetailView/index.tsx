@@ -18,7 +18,7 @@ import { debounce, isAnchoredLayout } from '../../../../helper.js';
 import { DESIGNER_CLASSNAME } from '../../../../constants.js';
 import { theme, Typography, Button, Divider } from 'antd';
 import AlignWidget from './AlignWidget.js';
-import AnchorLayoutWidget from './AnchorLayoutWidget.js';
+import AnchorLayoutWidget, { type AnchorLayoutField } from './AnchorLayoutWidget.js';
 import BindingWidget from './BindingWidget.js';
 import WidgetRenderer from './WidgetRenderer.js';
 import ButtonGroupWidget from './ButtonGroupWidget.js';
@@ -42,12 +42,18 @@ type DetailViewProps = Pick<
   | 'deselectSchema'
 > & {
   activeSchema: SchemaForUI;
+  activeSchemas: SchemaForUI[];
 };
 
 type WidgetMap = Record<string, (props: PropPanelWidgetProps) => React.JSX.Element>;
 
 type AnchoredLayoutRule = Extract<SchemaLayoutRule, { mode: 'anchored' }>;
 type Axis = 'x' | 'y';
+type AnchorFieldValue = string | null | undefined;
+type SharedAnchorLayoutState = {
+  mixedFields: Set<AnchorLayoutField>;
+  placeholderFields: Set<AnchorLayoutField>;
+};
 
 const getAnchoredLayout = (schema: SchemaForUI): AnchoredLayoutRule | null => {
   const layout = (schema as SchemaForUI & { layout?: SchemaLayoutRule }).layout;
@@ -56,6 +62,43 @@ const getAnchoredLayout = (schema: SchemaForUI): AnchoredLayoutRule | null => {
 
 const finiteOffset = (value: number | undefined): number =>
   typeof value === 'number' && Number.isFinite(value) ? value : 0;
+
+const getHorizontalTarget = (layout: AnchoredLayoutRule): string | null =>
+  layout.x.mode === 'pageLeft' ? null : layout.x.ref.schemaId;
+
+const getVerticalTarget = (layout: AnchoredLayoutRule): string | null =>
+  layout.y.mode === 'pageTop' ? null : layout.y.ref.schemaId;
+
+const getFieldComparison = (values: AnchorFieldValue[]) => {
+  const first = values[0];
+  const mixed = values.some((value) => value !== first);
+  const hasConcreteValue = values.some((value) => value !== null && value !== undefined);
+  return {
+    mixed,
+    placeholder: mixed || !hasConcreteValue,
+  };
+};
+
+const buildSharedAnchorLayoutState = (activeSchemas: SchemaForUI[]): SharedAnchorLayoutState => {
+  const layouts = activeSchemas.map(getAnchoredLayout);
+  const fields: Record<AnchorLayoutField, AnchorFieldValue[]> = {
+    horizontalRule: layouts.map((layout) => layout?.x.mode),
+    horizontalTarget: layouts.map((layout) => (layout ? getHorizontalTarget(layout) : undefined)),
+    verticalRule: layouts.map((layout) => layout?.y.mode),
+    verticalTarget: layouts.map((layout) => (layout ? getVerticalTarget(layout) : undefined)),
+  };
+  const mixedFields = new Set<AnchorLayoutField>();
+  const placeholderFields = new Set<AnchorLayoutField>();
+
+  Object.entries(fields).forEach(([field, values]) => {
+    const comparison = getFieldComparison(values);
+    const anchorField = field as AnchorLayoutField;
+    if (comparison.mixed) mixedFields.add(anchorField);
+    if (comparison.placeholder) placeholderFields.add(anchorField);
+  });
+
+  return { mixedFields, placeholderFields };
+};
 
 const getAnchoredPositionValue = (layout: AnchoredLayoutRule, axis: Axis): number =>
   axis === 'x' ? finiteOffset(layout.x.offsetMm) : finiteOffset(layout.y.offsetMm);
@@ -83,7 +126,8 @@ const getPositionAxisValue = (position: unknown, axis: Axis): unknown =>
 const DetailView = (props: DetailViewProps) => {
   const { token } = theme.useToken();
 
-  const { schemasList, changeSchemas, deselectSchema, activeSchema, pageSize, basePdf } = props;
+  const { schemasList, changeSchemas, deselectSchema, activeSchema, activeSchemas, pageSize, basePdf } =
+    props;
   const formInstance = useForm();
   // form-render returns a new wrapper each render; keep one so schema updates do not reset focused fields.
   const formRef = useRef(formInstance);
@@ -132,6 +176,11 @@ const DetailView = (props: DetailViewProps) => {
     }
     return newWidgets;
   }, [options, pluginsRegistry, props, token, typedI18n]);
+
+  const sharedAnchorLayoutState = useMemo(
+    () => buildSharedAnchorLayoutState(activeSchemas),
+    [activeSchemas],
+  );
 
   useEffect(() => form.resetFields(), [activeSchema.id, form]);
 
@@ -265,6 +314,44 @@ const DetailView = (props: DetailViewProps) => {
         });
     }
   }, 100);
+
+  if (activeSchemas.length > 1) {
+    return (
+      <SidebarFrame className={DESIGNER_CLASSNAME + 'detail-view'}>
+        <SidebarHeader>
+          <Button
+            className={DESIGNER_CLASSNAME + 'back-button'}
+            style={{
+              position: 'absolute',
+              left: SIDEBAR_H_PADDING_PX,
+              zIndex: 100,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transform: 'translateY(-50%)',
+              top: '50%',
+              paddingTop: '3px',
+            }}
+            onClick={deselectSchema}
+            icon={<Menu strokeWidth={1.5} size={20} />}
+          />
+          <Text strong style={{ textAlign: 'center', width: '100%' }}>
+            Anchor Layout
+          </Text>
+        </SidebarHeader>
+        <SidebarBody>
+          <AnchorLayoutWidget
+            activeSchema={activeSchema}
+            activeSchemas={activeSchemas}
+            changeSchemas={changeSchemas}
+            schemas={props.schemas}
+            mixedFields={sharedAnchorLayoutState.mixedFields}
+            placeholderFields={sharedAnchorLayoutState.placeholderFields}
+          />
+        </SidebarBody>
+      </SidebarFrame>
+    );
+  }
 
   const activePlugin = pluginsRegistry.findByType(activeSchema.type);
   if (!activePlugin) {
@@ -532,7 +619,10 @@ const DetailView = (props: DetailViewProps) => {
 };
 
 const propsAreUnchanged = (prevProps: DetailViewProps, nextProps: DetailViewProps) => {
-  return JSON.stringify(prevProps.activeSchema) == JSON.stringify(nextProps.activeSchema);
+  return (
+    JSON.stringify(prevProps.activeSchema) == JSON.stringify(nextProps.activeSchema) &&
+    JSON.stringify(prevProps.activeSchemas) == JSON.stringify(nextProps.activeSchemas)
+  );
 };
 
 export default React.memo(DetailView, propsAreUnchanged);
