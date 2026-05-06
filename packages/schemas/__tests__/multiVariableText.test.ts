@@ -5,11 +5,71 @@ import {
 } from '../src/multiVariableText/helper.js';
 import { parseInlineMarkdown, stripInlineMarkdown } from '../src/text/inlineMarkdown.js';
 import { MultiVariableTextSchema } from '../src/multiVariableText/types.js';
+import multiVariableTextPlugin from '../src/multiVariableText/index.js';
+import { measureTextLines } from '../src/text/measure.js';
+import { readFileSync } from 'node:fs';
+import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import type { BasePdf, Font } from '@pdfweave/common';
 import {
   countUniqueVariableNames,
   getVariableIndices,
   getVariableNames,
 } from '../src/multiVariableText/variables.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const sansData = readFileSync(path.join(__dirname, `/assets/fonts/SauceHanSansJP.ttf`));
+const serifData = readFileSync(path.join(__dirname, `/assets/fonts/SauceHanSerifJP.ttf`));
+
+const getSampleFont = (): Font => ({
+  SauceHanSansJP: { fallback: true, data: sansData },
+  SauceHanSerifJP: { data: serifData },
+});
+
+const blankBasePdf: BasePdf = { width: 100, height: 100, padding: [10, 10, 10, 10] };
+
+const createMeasureSchema = (
+  overrides: Partial<MultiVariableTextSchema> = {},
+): MultiVariableTextSchema => ({
+  name: 'mvt',
+  type: 'multiVariableText',
+  content: '{}',
+  text: 'Hello {name}',
+  variables: ['name'],
+  position: { x: 0, y: 10 },
+  width: 28,
+  height: 8,
+  alignment: 'left',
+  verticalAlignment: 'top',
+  fontColor: '#000000',
+  backgroundColor: '#ffffff',
+  lineHeight: 1,
+  characterSpacing: 0,
+  fontSize: 14,
+  overflow: 'expand',
+  ...overrides,
+});
+
+const measureMvt = async (
+  value: string,
+  schema: MultiVariableTextSchema,
+  basePdf = blankBasePdf,
+) => {
+  const result = await multiVariableTextPlugin.measure?.({
+    value,
+    schema,
+    basePdf,
+    options: { font: getSampleFont() },
+    _cache: new Map(),
+  });
+  if (!result) throw new Error('MVT plugin did not return a measure result');
+  return result;
+};
+
+const expectFragments = (result: Awaited<ReturnType<typeof measureMvt>>) => {
+  if (!result.fragments) throw new Error('expected measure result to contain fragments');
+  return result.fragments;
+};
 
 describe('substituteVariables', () => {
   it('should substitute variables in a string', () => {
@@ -78,6 +138,112 @@ describe('substituteVariables', () => {
       { text: ' uses ' },
       { text: 'PDF `42`', code: true },
     ]);
+  });
+});
+
+describe('multiVariableText overflow expand measure', () => {
+  test('short resolved content keeps the authored height', async () => {
+    const schema = createMeasureSchema({ height: 30 });
+
+    await expect(measureMvt(JSON.stringify({ name: 'Ada' }), schema)).resolves.toEqual({
+      height: schema.height,
+    });
+  });
+
+  test('long resolved content that fits the current page grows to measured height', async () => {
+    const schema = createMeasureSchema({ text: '{body}', variables: ['body'], height: 4 });
+    const result = await measureMvt(JSON.stringify({ body: 'Long text '.repeat(20) }), schema, {
+      width: 100,
+      height: 140,
+      padding: [10, 10, 10, 10],
+    });
+
+    expect(result.fragments).toBeUndefined();
+    expect(result.height).toBeGreaterThan(schema.height);
+    expect(result.height).toBeLessThan(120);
+  });
+
+  test('resolved content that crosses the page returns line fragments with ranges', async () => {
+    const schema = createMeasureSchema({
+      text: '{body}',
+      variables: ['body'],
+      position: { x: 0, y: 40 },
+      height: 4,
+    });
+    const result = await measureMvt(JSON.stringify({ body: 'Long text '.repeat(80) }), schema, {
+      width: 100,
+      height: 60,
+      padding: [10, 10, 10, 10],
+    });
+    const fragments = expectFragments(result);
+
+    expect(fragments.length).toBeGreaterThan(1);
+    expect(fragments.slice(0, 3).map((fragment) => fragment.lineRange)).toEqual([
+      { start: 0, end: 1 },
+      { start: 1, end: 2 },
+      { start: 2, end: 3 },
+    ]);
+  });
+
+  test('expand ignores dynamicFontSize and measures with the declared font size', async () => {
+    const schema = createMeasureSchema({
+      text: '{body}',
+      variables: ['body'],
+      dynamicFontSize: { min: 4, max: 14, fit: 'vertical' },
+      height: 8,
+    });
+    const value = 'Dynamic font should not shrink this expanded text '.repeat(8);
+    const font = getSampleFont();
+    const cache = new Map<string | number, unknown>();
+    const declared = await measureTextLines({
+      value,
+      schema,
+      font,
+      _cache: cache,
+      ignoreDynamicFontSize: true,
+    });
+    const shrunk = await measureTextLines({
+      value,
+      schema: { ...schema, overflow: 'visible' },
+      font,
+      _cache: cache,
+      ignoreDynamicFontSize: false,
+    });
+    const result = await measureMvt(JSON.stringify({ body: value }), schema);
+
+    expect(declared.fontSize).toBe(schema.fontSize);
+    expect(shrunk.fontSize).toBeLessThan(declared.fontSize);
+    expect(result.height ?? result.fragments?.reduce((sum, fragment) => sum + fragment.height, 0)).toBeCloseTo(
+      declared.measuredHeight,
+      6,
+    );
+  });
+
+  test('empty resolved content keeps the authored height', async () => {
+    const schema = createMeasureSchema({ text: '{body}', variables: ['body'], height: 12 });
+
+    await expect(measureMvt(JSON.stringify({ body: '' }), schema)).resolves.toEqual({
+      height: schema.height,
+    });
+  });
+
+  test('a single unwrapped resolved line can still become one line fragment', async () => {
+    const schema = createMeasureSchema({
+      text: '{body}',
+      variables: ['body'],
+      position: { x: 0, y: 49 },
+      width: 500,
+      height: 1,
+    });
+    const result = await measureMvt(JSON.stringify({ body: 'singleunwrappedword' }), schema, {
+      width: 100,
+      height: 60,
+      padding: [10, 10, 10, 10],
+    });
+    const fragments = expectFragments(result);
+
+    expect(fragments).toHaveLength(1);
+    expect(fragments[0].lineRange).toEqual({ start: 0, end: 1 });
   });
 });
 
