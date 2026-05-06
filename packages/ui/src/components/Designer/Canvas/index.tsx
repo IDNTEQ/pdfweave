@@ -35,6 +35,7 @@ import Guides from './Guides.js';
 import Mask from './Mask.js';
 import Padding from './Padding.js';
 import PageOverflowIndicator from './PageOverflowIndicator.js';
+import AnchorOverlay from './AnchorOverlay.js';
 import StaticSchema from '../../StaticSchema.js';
 import ContextMenu, { type DesignerContextMenuAction } from './ContextMenu.js';
 
@@ -401,6 +402,11 @@ const Canvas = (props: Props, ref: Ref<HTMLDivElement>) => {
   };
 
   const activeIds = useMemo(() => activeElements.map((ae) => ae.id), [activeElements]);
+  const focusedSchemaIds = useMemo(() => {
+    const ids = new Set(activeIds);
+    if (hoveringSchemaId) ids.add(hoveringSchemaId);
+    return ids;
+  }, [activeIds, hoveringSchemaId]);
   const schemaPageIndexById = useMemo(() => {
     const pageIndexById = new Map<string, number>();
     schemasList.forEach((pageSchemas, index) => {
@@ -631,6 +637,18 @@ const Canvas = (props: Props, ref: Ref<HTMLDivElement>) => {
               pageHeight={pageSizes[index]?.height ?? paperSize.height / ZOOM}
               bottomPaddingMm={bottomPaddingMm}
               hasOverflow={pageCursor === index && hasOverflow}
+            />
+            <AnchorOverlay
+              schemas={schemasList[index] || []}
+              focusedSchemaIds={focusedSchemaIds}
+              pageSize={
+                pageSizes[index] ?? {
+                  width: paperSize.width / ZOOM,
+                  height: paperSize.height / ZOOM,
+                }
+              }
+              basePdf={basePdf}
+              zoom={ZOOM}
             />
             <StaticSchema
               template={{ schemas: schemasList, basePdf }}
