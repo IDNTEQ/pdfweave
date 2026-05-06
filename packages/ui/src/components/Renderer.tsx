@@ -54,7 +54,8 @@ const getMeasuredHeight = (schema: SchemaForUI, result: LayoutMeasureResult): nu
 
 const useRenderKey = (arg: ReRenderCheckProps) => {
   const { plugin, value, mode, scale, schema, options } = arg;
-  const _options = cloneDeep(options);
+  const { sampleDataPanel: _sampleDataPanel, ...renderKeyOptions } = options;
+  const _options = cloneDeep(renderKeyOptions);
   if (_options.font) {
     Object.values(_options.font).forEach((fontObj) => {
       (fontObj as { data: string }).data = '...';
