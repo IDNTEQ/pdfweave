@@ -168,11 +168,20 @@ export type LayoutAnchorPoint = {
   y: number;
 };
 
+export type TextOverflow = 'visible' | 'expand';
+
+export type TextLineRange = {
+  start: number;
+  end?: number;
+};
+
 export type LayoutFragment = {
-  width: number;
   height: number;
+  width?: number;
   anchors?: Record<string, LayoutAnchorPoint>;
   pluginData?: unknown;
+  lineRange?: TextLineRange;
+  [key: string]: unknown;
 };
 
 export type LayoutMeasureResult = {

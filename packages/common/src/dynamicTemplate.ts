@@ -6,8 +6,10 @@ import {
   StationeryPdf,
   CommonOptions,
   LayoutMeasureResult,
+  LayoutFragment,
   Plugin,
   SchemaLayoutRule,
+  TextLineRange,
 } from './types.js';
 import { cloneDeep, treatsLikeBlank } from './helper.js';
 import { resolveSchemaValue } from './dataBinding.js';
@@ -63,8 +65,24 @@ interface LayoutItem {
   schema: Schema;
   baseY: number;
   height: number;
-  dynamicHeights: number[];
+  fragments: LayoutUnitFragment[];
 }
+
+type LayoutUnitFragmentSource = 'dynamicHeights' | 'fragments' | 'height';
+
+type LayoutUnitFragment = LayoutFragment & {
+  height: number;
+  __source: LayoutUnitFragmentSource;
+};
+
+const FRAGMENT_SCHEMA_RESERVED_KEYS = new Set([
+  'height',
+  'width',
+  'anchors',
+  'pluginData',
+  'lineRange',
+  '__source',
+]);
 
 const getSchemaAnchorIds = (schema: Schema): string[] =>
   Array.from(
@@ -167,6 +185,70 @@ function getDynamicHeightsFromLayoutResult(schema: Schema, result: LayoutMeasure
   }
 
   return [schema.height];
+}
+
+function layoutFragmentsFromHeights(
+  heights: number[],
+  source: LayoutUnitFragmentSource,
+): LayoutUnitFragment[] {
+  return heights.map((height) => ({ height, __source: source }));
+}
+
+function getLayoutFragmentsFromLayoutResult(
+  schema: Schema,
+  result: LayoutMeasureResult,
+): LayoutUnitFragment[] {
+  if (result.dynamicHeights && result.dynamicHeights.length > 0) {
+    return layoutFragmentsFromHeights(result.dynamicHeights, 'dynamicHeights');
+  }
+
+  if (result.fragments && result.fragments.length > 0) {
+    return result.fragments.map((fragment) => ({
+      ...fragment,
+      height: fragment.height,
+      __source: 'fragments',
+    }));
+  }
+
+  if (typeof result.height === 'number') {
+    return layoutFragmentsFromHeights([result.height], 'height');
+  }
+
+  return layoutFragmentsFromHeights([schema.height], 'height');
+}
+
+const getFragmentLineRange = (fragments: LayoutUnitFragment[]): TextLineRange | undefined => {
+  let start: number | undefined;
+  let end: number | undefined;
+  let hasOpenEndedRange = false;
+
+  fragments.forEach((fragment) => {
+    const range = fragment.lineRange;
+    if (!range) return;
+    start = start === undefined ? range.start : Math.min(start, range.start);
+    if (range.end === undefined) {
+      hasOpenEndedRange = true;
+      return;
+    }
+    end = end === undefined ? range.end : Math.max(end, range.end);
+  });
+
+  if (start === undefined) return undefined;
+  return { start, ...(hasOpenEndedRange || end === undefined ? {} : { end }) };
+};
+
+function applyFragmentSchemaData(schema: Schema, fragments: LayoutUnitFragment[]): void {
+  fragments.forEach((fragment) => {
+    Object.entries(fragment).forEach(([key, value]) => {
+      if (FRAGMENT_SCHEMA_RESERVED_KEYS.has(key)) return;
+      (schema as Schema & Record<string, unknown>)[key] = value;
+    });
+  });
+
+  const lineRange = getFragmentLineRange(fragments);
+  if (lineRange) {
+    (schema as Schema & { __textLineRange?: TextLineRange }).__textLineRange = lineRange;
+  }
 }
 
 /**
@@ -315,7 +397,7 @@ function normalizePageSchemas(
       schema: cloneDeep(schema),
       baseY: localY,
       height: schema.height,
-      dynamicHeights: [schema.height], // Will be updated later
+      fragments: layoutFragmentsFromHeights([schema.height], 'height'), // Will be updated later
     });
     orderMap.set(schema.name, index);
   });
@@ -337,7 +419,7 @@ function normalizePageSchemas(
  */
 function placeRowsOnPages(
   schema: Schema,
-  dynamicHeights: number[],
+  fragments: LayoutUnitFragment[],
   startGlobalY: number,
   contentHeight: number,
   paddingTop: number,
@@ -350,7 +432,10 @@ function placeRowsOnPages(
   if (currentYInPage < 0) currentYInPage = 0;
 
   let actualGlobalEndY = 0;
+  const dynamicHeights = fragments.map((fragment) => fragment.height);
   const isSplittable = dynamicHeights.length > 1;
+  const usesBodyRange =
+    isSplittable && fragments.every((fragment) => fragment.__source === 'dynamicHeights');
 
   while (currentRowIndex < dynamicHeights.length) {
     // Ensure page exists
@@ -390,7 +475,7 @@ function placeRowsOnPages(
     // BUT: if already at page top, don't move (prevents infinite loop when data row is too large)
     const isAtPageTop = currentYInPage <= EPSILON;
     if (
-      isSplittable &&
+      usesBodyRange &&
       startRowIndex === 0 &&
       currentRowIndex === 1 &&
       dynamicHeights.length > 1 &&
@@ -414,11 +499,12 @@ function placeRowsOnPages(
       height: chunkHeight,
       position: { ...schema.position, y: currentYInPage + paddingTop },
     };
+    applyFragmentSchemaData(newSchema, fragments.slice(startRowIndex, currentRowIndex));
 
     // Set bodyRange for splittable elements
     // dynamicHeights[0] = header row, dynamicHeights[1] = body[0]
     // So subtract 1 to convert to body index
-    if (isSplittable) {
+    if (usesBodyRange) {
       newSchema.__bodyRange = {
         start: startRowIndex === 0 ? 0 : startRowIndex - 1,
         end: currentRowIndex - 1,
@@ -496,7 +582,7 @@ function processDynamicPage(
 
     const actualGlobalEndY = placeRowsOnPages(
       item.schema,
-      item.dynamicHeights,
+      item.fragments,
       currentGlobalStartY,
       contentHeight,
       paddingTop,
@@ -592,23 +678,28 @@ export const getDynamicTemplate = async (
 
           if (getDynamicLayout) {
             return getDynamicLayout(value, measureArgs).then((result) => {
-              const heights = getDynamicHeightsFromLayoutResult(item.schema, result);
-              return heights.length === 0 ? [0] : heights;
+              const fragments = getLayoutFragmentsFromLayoutResult(item.schema, result);
+              return fragments.length === 0
+                ? layoutFragmentsFromHeights([0], 'height')
+                : fragments;
             });
           }
 
           if (getDynamicHeights) {
             return getDynamicHeights(value, measureArgs).then((heights) =>
-              heights.length === 0 ? [0] : heights,
+              layoutFragmentsFromHeights(
+                heights.length === 0 ? [0] : heights,
+                'dynamicHeights',
+              ),
             );
           }
 
-          return Promise.resolve([item.schema.height]);
+          return Promise.resolve(layoutFragmentsFromHeights([item.schema.height], 'height'));
         }),
       );
       // Update items with calculated heights
       for (let j = 0; j < chunkResults.length; j++) {
-        items[i + j].dynamicHeights = chunkResults[j];
+        items[i + j].fragments = chunkResults[j];
       }
     }
 

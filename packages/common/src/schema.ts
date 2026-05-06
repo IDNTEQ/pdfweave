@@ -137,6 +137,9 @@ const VerticalAnchorRule = z.discriminatedUnion('mode', [
   z.object({ mode: z.literal('belowBottomEdge'), ref: AnchorRef, offsetMm: z.number() }),
 ]);
 
+const TextOverflow = z.enum(['visible', 'expand']);
+const TextLineRange = z.object({ start: z.number(), end: z.number().optional() });
+
 const SchemaLayoutRule = z.discriminatedUnion('mode', [
   z.object({ mode: z.literal('absolute') }),
   z.object({ mode: z.literal('anchored'), x: HorizontalAnchorRule, y: VerticalAnchorRule }),
@@ -172,10 +175,12 @@ export const Schema = z
     opacity: z.number().optional(),
     readOnly: z.boolean().optional(),
     required: z.boolean().optional(),
+    overflow: TextOverflow.optional(),
     group: z.string().optional(),
     binding: SchemaBinding.optional(),
     layout: SchemaLayoutRule.optional(),
     __bodyRange: z.object({ start: z.number(), end: z.number().optional() }).optional(),
+    __textLineRange: TextLineRange.optional(),
     __isSplit: z.boolean().optional(),
   })
   .passthrough();

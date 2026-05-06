@@ -657,6 +657,52 @@ describe('getDynamicHeights (generic plugin.measure dispatch)', () => {
     expect(heights).toEqual([25, 18]);
   });
 
+  test('fans out text lineRange fragments onto synthesized split chunks', async () => {
+    const template: Template = {
+      schemas: [
+        [
+          {
+            name: 'expandText',
+            type: 'text',
+            content: '',
+            position: { x: 10, y: 10 },
+            width: 80,
+            height: 10,
+          },
+        ],
+      ],
+      basePdf: { width: 100, height: 50, padding: [10, 10, 10, 10] },
+    };
+
+    const dynamicTemplate = await getDynamicTemplate({
+      template,
+      input: { expandText: 'x' },
+      options: {},
+      _cache: new Map(),
+      getDynamicLayout: async () => ({
+        fragments: [
+          { height: 10, lineRange: { start: 0, end: 1 } },
+          { height: 10, lineRange: { start: 1, end: 2 } },
+          { height: 10, lineRange: { start: 2, end: 3 } },
+          { height: 10, lineRange: { start: 3, end: 4 } },
+        ],
+      }),
+    });
+
+    expect(dynamicTemplate.schemas).toHaveLength(2);
+    expect(dynamicTemplate.schemas[0][0]).toMatchObject({
+      name: 'expandText',
+      height: 30,
+      __textLineRange: { start: 0, end: 3 },
+    });
+    expect(dynamicTemplate.schemas[1][0]).toMatchObject({
+      name: 'expandText',
+      height: 10,
+      __textLineRange: { start: 3, end: 4 },
+    });
+    expect(dynamicTemplate.schemas[0][0].__bodyRange).toBeUndefined();
+  });
+
   test('falls back to the static schema height when no plugin is registered', async () => {
     const heights = await getDynamicHeights('any', measureArgs, undefined);
     expect(heights).toEqual([baseSchema.height]);
