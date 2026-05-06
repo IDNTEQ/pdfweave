@@ -12,11 +12,13 @@ import React, {
 import { theme, Button } from 'antd';
 import MoveableComponent, { OnDrag, OnRotate, OnResize } from 'react-moveable';
 import {
+  cloneDeep,
   ZOOM,
   SchemaForUI,
   Size,
   ChangeSchemas,
   BasePdf,
+  SchemaLayoutRule,
   isBlankPdf,
   getDesignDataInput,
   replacePlaceholders,
@@ -24,9 +26,14 @@ import {
 } from '@pdfweave/common';
 import { OptionsContext, PluginsRegistry } from '../../../contexts.js';
 import { X } from 'lucide-react';
-import { RULER_HEIGHT, RIGHT_SIDEBAR_WIDTH, DESIGNER_CLASSNAME } from '../../../constants.js';
+import {
+  RULER_HEIGHT,
+  RIGHT_SIDEBAR_WIDTH,
+  DESIGNER_CLASSNAME,
+  SELECTABLE_CLASSNAME,
+} from '../../../constants.js';
 import { usePrevious } from '../../../hooks.js';
-import { round, flatten, uuid, getRotatedBoundingBoxOffsets } from '../../../helper.js';
+import { round, flatten, uuid, getRotatedBoundingBoxOffsets, isAnchoredLayout } from '../../../helper.js';
 import Paper from '../../Paper.js';
 import Renderer from '../../Renderer.js';
 import Selecto from './Selecto.js';
@@ -49,6 +56,31 @@ const normalizeRotate = (angle: number) => ((angle % 360) + 360) % 360;
 const getBasePdfPadding = (basePdf: BasePdf): [number, number, number, number] => {
   const maybePadding = (basePdf as { padding?: [number, number, number, number] }).padding;
   return Array.isArray(maybePadding) ? maybePadding : [0, 0, 0, 0];
+};
+
+type ApplyAnchorSource = {
+  schema: SchemaForUI;
+  layout: Extract<SchemaLayoutRule, { mode: 'anchored' }>;
+};
+
+const getSchemaLayout = (schema: SchemaForUI): SchemaLayoutRule | undefined =>
+  (schema as SchemaForUI & { layout?: SchemaLayoutRule }).layout;
+
+const findApplyAnchorSource = (
+  schemas: SchemaForUI[],
+  schemaIds: string[],
+): ApplyAnchorSource | null => {
+  const schemaById = new Map(schemas.map((schema) => [schema.id, schema]));
+
+  for (let index = schemaIds.length - 1; index >= 0; index -= 1) {
+    const schema = schemaById.get(schemaIds[index]);
+    if (!schema) continue;
+
+    const layout = getSchemaLayout(schema);
+    if (isAnchoredLayout(layout)) return { schema, layout };
+  }
+
+  return null;
 };
 
 const DeleteButton = ({ activeElements: aes }: { activeElements: HTMLElement[] }) => {
@@ -402,6 +434,8 @@ const Canvas = (props: Props, ref: Ref<HTMLDivElement>) => {
   };
 
   const activeIds = useMemo(() => activeElements.map((ae) => ae.id), [activeElements]);
+  const activeIdsRef = useRef<string[]>(activeIds);
+  activeIdsRef.current = activeIds;
   const focusedSchemaIds = useMemo(() => {
     const ids = new Set(activeIds);
     if (hoveringSchemaId) ids.add(hoveringSchemaId);
@@ -440,10 +474,15 @@ const Canvas = (props: Props, ref: Ref<HTMLDivElement>) => {
     [pageCursor, schemasList],
   );
 
-  const getElementsByIds = (ids: string[]) =>
-    ids
-      .map((id) => document.getElementById(id))
+  const getElementsByIds = (ids: string[]) => {
+    const selectableElements = Array.from(document.getElementsByClassName(SELECTABLE_CLASSNAME));
+    return ids
+      .map(
+        (id) =>
+          selectableElements.find((element) => element.id === id) ?? document.getElementById(id),
+      )
       .filter((element): element is HTMLElement => element instanceof HTMLElement);
+  };
 
   const onRenderedHeightChange = useCallback((schemaId: string, height: number) => {
     setRenderedSchemaHeights((current) => {
@@ -459,6 +498,32 @@ const Canvas = (props: Props, ref: Ref<HTMLDivElement>) => {
     const targets = getElementsByIds(expandIdsByGroups(ids));
     return targets.length > 0 ? targets : [target];
   };
+
+  const toggleShiftClickSelection = (schema: SchemaForUI, target: HTMLElement) => {
+    const nextIds = new Set(activeIdsRef.current);
+    if (nextIds.has(schema.id)) {
+      nextIds.delete(schema.id);
+    } else {
+      nextIds.add(schema.id);
+    }
+
+    const targets = getElementsByIds(expandIdsByGroups(Array.from(nextIds)));
+    onEdit(targets.length > 0 ? targets : [target]);
+    setEditing(false);
+  };
+
+  const contextSchemas = useMemo(() => {
+    const ids = new Set(contextMenu?.schemaIds ?? []);
+    return (schemasList[pageCursor] || []).filter((schema) => ids.has(schema.id));
+  }, [contextMenu, pageCursor, schemasList]);
+
+  const applyAnchorSource = useMemo(
+    () =>
+      contextMenu && contextMenu.schemaIds.length > 1
+        ? findApplyAnchorSource(contextSchemas, contextMenu.schemaIds)
+        : null,
+    [contextMenu, contextSchemas],
+  );
 
   const onContextMenuAction = (action: DesignerContextMenuAction) => {
     const ids = contextMenu?.schemaIds ?? [];
@@ -481,6 +546,19 @@ const Canvas = (props: Props, ref: Ref<HTMLDivElement>) => {
       case 'ungroup':
         designerActions.ungroup(ids);
         break;
+      case 'applyAnchorToSelection':
+        if (applyAnchorSource) {
+          changeSchemas(
+            ids
+              .filter((id) => id !== applyAnchorSource.schema.id)
+              .map((schemaId) => ({
+                key: 'layout',
+                value: cloneDeep(applyAnchorSource.layout),
+                schemaId,
+              })),
+          );
+        }
+        break;
       case 'delete':
         designerActions.remove(ids);
         break;
@@ -495,11 +573,6 @@ const Canvas = (props: Props, ref: Ref<HTMLDivElement>) => {
     }
     setContextMenu(null);
   };
-
-  const contextSchemas = useMemo(() => {
-    const ids = new Set(contextMenu?.schemaIds ?? []);
-    return (schemasList[pageCursor] || []).filter((schema) => ids.has(schema.id));
-  }, [contextMenu, pageCursor, schemasList]);
 
   const rotatable = useMemo(() => {
     const selectedSchemas = (schemasList[pageCursor] || []).filter((s) =>
@@ -594,17 +667,23 @@ const Canvas = (props: Props, ref: Ref<HTMLDivElement>) => {
           // Use type assertions to safely access properties
           const inputEvent = e.inputEvent as MouseEvent | TouchEvent;
           const added = e.added as HTMLElement[];
-          const removed = e.removed as HTMLElement[];
           const selected = e.selected as HTMLElement[];
 
-          const isClick = inputEvent.type === 'mousedown';
-          let newActiveElements: HTMLElement[] = isClick ? selected : [];
+          const isDragStartInput =
+            inputEvent.type === 'mousedown' || inputEvent.type === 'touchstart';
+          const isClick = isDragStartInput && e.isDragStartEnd;
+          const mouseEvent = inputEvent as MouseEvent;
+          const isShiftClick =
+            isClick && mouseEvent && typeof mouseEvent.shiftKey === 'boolean' && mouseEvent.shiftKey;
+          let newActiveElements: HTMLElement[] = [];
 
-          if (!isClick && added.length > 0) {
-            newActiveElements = activeElements.concat(added);
-          }
-          if (!isClick && removed.length > 0) {
-            newActiveElements = activeElements.filter((ae) => !removed.includes(ae));
+          if (isShiftClick) {
+            const nextElements = activeElements.concat(selected.length > 0 ? selected : added);
+            newActiveElements = nextElements.filter(
+              (element, index, elements) => elements.findIndex((item) => item.id === element.id) === index,
+            );
+          } else {
+            newActiveElements = selected;
           }
           onEdit(newActiveElements);
 
@@ -613,7 +692,6 @@ const Canvas = (props: Props, ref: Ref<HTMLDivElement>) => {
           }
 
           // For MacOS CMD+SHIFT+3/4 screenshots where the keydown event is never received, check mouse too
-          const mouseEvent = inputEvent as MouseEvent;
           if (mouseEvent && typeof mouseEvent.shiftKey === 'boolean' && !mouseEvent.shiftKey) {
             setIsPressShiftKey(false);
           }
@@ -786,6 +864,13 @@ const Canvas = (props: Props, ref: Ref<HTMLDivElement>) => {
                   schemaIds: targets.map((target) => target.id),
                 });
               }}
+              onMouseDownCapture={(event) => {
+                if (!event.shiftKey) return;
+                event.preventDefault();
+                event.stopPropagation();
+                event.nativeEvent.stopImmediatePropagation();
+                toggleShiftClickSelection(schema, event.currentTarget);
+              }}
             />
           );
         }}
@@ -797,6 +882,9 @@ const Canvas = (props: Props, ref: Ref<HTMLDivElement>) => {
         canPaste={designerActions.canPaste()}
         canGroup={contextSchemas.length > 1}
         canUngroup={contextSchemas.some((schema) => Boolean(schema.group))}
+        applyAnchorSourceSchemaName={
+          applyAnchorSource ? applyAnchorSource.schema.name || applyAnchorSource.schema.id : undefined
+        }
         onAction={onContextMenuAction}
         onClose={() => setContextMenu(null)}
       />

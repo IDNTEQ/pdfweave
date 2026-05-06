@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { theme } from 'antd';
 import {
+  Anchor,
   BringToFront,
   Clipboard,
   Copy,
@@ -19,6 +20,7 @@ export type DesignerContextMenuAction =
   | 'duplicate'
   | 'group'
   | 'ungroup'
+  | 'applyAnchorToSelection'
   | 'delete'
   | 'bringToFront'
   | 'sendToBack';
@@ -37,11 +39,22 @@ type Props = {
   canPaste: boolean;
   canGroup: boolean;
   canUngroup: boolean;
+  applyAnchorSourceSchemaName?: string;
   onAction: (action: DesignerContextMenuAction) => void;
   onClose: () => void;
 };
 
-const ContextMenu = ({ open, x, y, canPaste, canGroup, canUngroup, onAction, onClose }: Props) => {
+const ContextMenu = ({
+  open,
+  x,
+  y,
+  canPaste,
+  canGroup,
+  canUngroup,
+  applyAnchorSourceSchemaName,
+  onAction,
+  onClose,
+}: Props) => {
   const { token } = theme.useToken();
 
   useEffect(() => {
@@ -73,6 +86,15 @@ const ContextMenu = ({ open, x, y, canPaste, canGroup, canUngroup, onAction, onC
     { action: 'duplicate', label: 'Duplicate', icon: <CopyPlus size={iconSize} /> },
     { action: 'group', label: 'Group', disabled: !canGroup, icon: <Group size={iconSize} /> },
     { action: 'ungroup', label: 'Ungroup', disabled: !canUngroup, icon: <Ungroup size={iconSize} /> },
+    ...(applyAnchorSourceSchemaName
+      ? [
+          {
+            action: 'applyAnchorToSelection' as const,
+            label: `Apply ${applyAnchorSourceSchemaName}'s anchor to selection`,
+            icon: <Anchor size={iconSize} />,
+          },
+        ]
+      : []),
     { action: 'delete', label: 'Delete', icon: <Trash2 size={iconSize} /> },
     { action: 'bringToFront', label: 'Bring to Front', icon: <BringToFront size={iconSize} /> },
     { action: 'sendToBack', label: 'Send to Back', icon: <SendToBack size={iconSize} /> },

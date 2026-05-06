@@ -27,6 +27,7 @@ type RendererProps = Omit<
   scale: number;
   selectable?: boolean;
   onContextMenu?: (event: React.MouseEvent<HTMLDivElement>) => void;
+  onMouseDownCapture?: (event: React.MouseEvent<HTMLDivElement>) => void;
   pageBoundsForClip?: { contentBottomY: number };
   renderedHeight?: number;
   onRenderedHeightChange?: (schemaId: string, height: number) => void;
@@ -77,6 +78,7 @@ const Wrapper = ({
   schema,
   selectable = true,
   onContextMenu,
+  onMouseDownCapture,
   pageBoundsForClip,
   renderedHeight,
 }: RendererProps & { children: ReactNode }) => {
@@ -101,6 +103,7 @@ const Wrapper = ({
       onMouseEnter={() => onChangeHoveringSchemaId && onChangeHoveringSchemaId(schema.id)}
       onMouseLeave={() => onChangeHoveringSchemaId && onChangeHoveringSchemaId(null)}
       onContextMenu={onContextMenu}
+      onMouseDownCapture={onMouseDownCapture}
       className={selectable ? SELECTABLE_CLASSNAME : ''}
       id={schema.id}
       style={{
