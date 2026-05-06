@@ -93,11 +93,9 @@ the new features, switching is one find-and-replace and a `pnpm install`.
 - **pdfme Cloud** — pdfme has a hosted service. PDFweave is library-only.
 - **Smaller bundle / fewer dependencies** — pdfme is leaner. PDFweave's
   binding + anchor system adds weight to `@pdfweave/common`.
-- **Faster upstream releases** — pdfme has a larger contributor pool.
-  PDFweave releases are slower and more deliberate.
 
-If those things matter more to you than the four PDFweave additions,
-**use pdfme**. We mean that — there's no shame in either choice.
+If those things matter more to you than the PDFweave additions, **use
+pdfme**. Both are good choices.
 
 ---
 
