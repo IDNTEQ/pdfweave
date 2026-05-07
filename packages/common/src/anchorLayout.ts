@@ -6,6 +6,12 @@ import type {
   Size,
   VerticalAnchorRule,
 } from './types.js';
+import {
+  buildSchemaIndex,
+  findAnchorReferentX,
+  findAnchorReferentY,
+  getAnchoredLayout,
+} from './anchorGeometry.js';
 
 export type AnchorAxis = 'x' | 'y';
 
@@ -25,27 +31,20 @@ const getBasePdfPadding = (basePdf: BasePdf): [number, number, number, number] =
     : [0, 0, 0, 0];
 };
 
-const getSchemaAnchorIds = (schema: Schema): string[] =>
-  Array.from(
-    new Set(
-      [schema.name, schema.id].filter(
-        (id): id is string => typeof id === 'string' && id.length > 0,
-      ),
-    ),
-  );
-
-const buildSchemaLookup = (schemas: Schema[]): Map<string, Schema> => {
-  const lookup = new Map<string, Schema>();
-  schemas.forEach((schema) => {
-    getSchemaAnchorIds(schema).forEach((id) => lookup.set(id, schema));
-  });
-  return lookup;
-};
-
 const horizontalSourceY = (schema: Schema): number => schema.position.y + schema.height / 2;
 
 const verticalSourceX = (schema: Schema): number => schema.position.x + schema.width / 2;
 
+/**
+ * Compute the visual anchor source point for the designer overlay.
+ *
+ * Unlike `resolveAnchor` in `anchorGeometry`, the page-anchor cases here
+ * include the `basePdf` padding so the lock badge sits *visually* on the
+ * page edge inside the printable area. The other call sites (reflow,
+ * designer edits) treat `pageLeft`/`pageTop` offsets as absolute mm —
+ * that's the right thing for positioning a schema, but wrong for drawing
+ * the relationship triangle.
+ */
 export function resolveAnchorTargetPoint(args: {
   axis: AnchorAxis;
   basePdf: BasePdf;
@@ -54,10 +53,10 @@ export function resolveAnchorTargetPoint(args: {
   schemas: Schema[];
 }): ResolvedAnchorTarget | null {
   const { axis, basePdf, schema, schemas } = args;
-  const layout = schema.layout;
-  if (layout?.mode !== 'anchored') return null;
+  const layout = getAnchoredLayout(schema);
+  if (!layout) return null;
 
-  const lookup = buildSchemaLookup(schemas);
+  const lookup = buildSchemaIndex(schemas);
   const [topPaddingMm, , , leftPaddingMm] = getBasePdfPadding(basePdf);
 
   if (axis === 'x') {
@@ -71,7 +70,7 @@ export function resolveAnchorTargetPoint(args: {
       };
     }
 
-    const targetSchema = lookup.get(rule.ref.schemaId);
+    const targetSchema = findAnchorReferentX(schema, lookup);
     if (!targetSchema) return null;
 
     return {
@@ -97,7 +96,7 @@ export function resolveAnchorTargetPoint(args: {
     };
   }
 
-  const targetSchema = lookup.get(rule.ref.schemaId);
+  const targetSchema = findAnchorReferentY(schema, lookup);
   if (!targetSchema) return null;
 
   return {
