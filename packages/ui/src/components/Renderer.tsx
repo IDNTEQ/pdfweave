@@ -8,7 +8,6 @@ import {
   Schema,
   Plugin,
   UIOptions,
-  cloneDeep,
   LayoutMeasureResult,
 } from '@pdfweave/common';
 import { theme as antdTheme } from 'antd';
@@ -52,22 +51,87 @@ const getMeasuredHeight = (schema: SchemaForUI, result: LayoutMeasureResult): nu
   return typeof result.height === 'number' ? result.height : schema.height;
 };
 
+const isWindowLike = (value: object): boolean =>
+  'window' in value && (value as { window?: unknown }).window === value;
+
+const isDomNode = (value: object): boolean =>
+  typeof Node !== 'undefined' && value instanceof Node;
+
+export const safeStringifyForRenderKey = (value: unknown): string => {
+  const seen = new WeakSet<object>();
+  try {
+    return JSON.stringify(value, (_key, current) => {
+      // bigint: JSON.stringify throws on bigint by default; produce a stable string.
+      if (typeof current === 'bigint') {
+        return `[BigInt:${current.toString()}n]`;
+      }
+      // undefined: silently dropped by JSON.stringify, which can collapse two structurally
+      // distinct objects to the same render key. Emit a stable placeholder instead.
+      if (typeof current === 'undefined') {
+        return '[undefined]';
+      }
+      // symbol: also dropped/coerced; emit a stable placeholder.
+      if (typeof current === 'symbol') {
+        return `[Symbol:${current.description ?? ''}]`;
+      }
+      if (typeof current === 'function') {
+        return `[Function ${current.name || 'anonymous'}]`;
+      }
+      if (typeof current !== 'object' || current === null) {
+        // Date is an object; it is converted to an ISO string by Date.prototype.toJSON
+        // before reaching the replacer, so it arrives here as a string and is intentionally
+        // left as-is (stable, structurally informative, no special branch needed).
+        return current;
+      }
+      if (isWindowLike(current)) {
+        return '[Window]';
+      }
+      if (isDomNode(current)) {
+        return `[${current.nodeName}]`;
+      }
+      if (ArrayBuffer.isView(current)) {
+        return `[${current.constructor.name}:${current.byteLength}]`;
+      }
+      if (current instanceof ArrayBuffer) {
+        return `[ArrayBuffer:${current.byteLength}]`;
+      }
+      if (seen.has(current)) {
+        return '[Circular]';
+      }
+      seen.add(current);
+      return current;
+    });
+  } catch {
+    return '[Unserializable]';
+  }
+};
+
+const renderKeyOptions = (options: UIOptions): UIOptions => {
+  const { sampleDataPanel: _sampleDataPanel, ...optionsForKey } = options;
+  if (!optionsForKey.font) {
+    return optionsForKey;
+  }
+
+  return {
+    ...optionsForKey,
+    font: Object.fromEntries(
+      Object.entries(optionsForKey.font).map(([fontName, fontObj]) => [
+        fontName,
+        { ...fontObj, data: '...' },
+      ]),
+    ) as UIOptions['font'],
+  };
+};
+
 const useRenderKey = (arg: ReRenderCheckProps) => {
   const { plugin, value, mode, scale, schema, options } = arg;
-  const { sampleDataPanel: _sampleDataPanel, ...renderKeyOptions } = options;
-  const _options = cloneDeep(renderKeyOptions);
-  if (_options.font) {
-    Object.values(_options.font).forEach((fontObj) => {
-      (fontObj as { data: string }).data = '...';
-    });
-  }
-  const optionStr = JSON.stringify(_options);
+  const optionStr = safeStringifyForRenderKey(renderKeyOptions(options));
 
   return useMemo(() => {
     if (plugin?.uninterruptedEditMode && mode === 'designer') {
       return mode;
     } else {
-      return JSON.stringify([value, mode, scale, schema, optionStr]);
+      return safeStringifyForRenderKey([value, mode, scale, schema, optionStr]);
     }
   }, [value, mode, scale, schema, optionStr, plugin]);
 };
@@ -216,25 +280,50 @@ const Renderer = (props: RendererProps) => {
     element.dataset.pdfmeRenderReady = 'false';
     const render = renderArgs.plugin.ui;
 
+    const renderErrorPlaceholder = (host: HTMLElement, pluginName: string, err: unknown) => {
+      // Recognisable, self-contained placeholder. Kept inline (no new component file) per
+      // the hardening scope: blanking the field is worse than showing an explicit error.
+      host.innerHTML = '';
+      const placeholder = document.createElement('div');
+      placeholder.dataset.pdfmePluginError = 'true';
+      placeholder.style.cssText =
+        'box-sizing:border-box;width:100%;height:100%;border:1px dashed red;color:red;font-size:11px;padding:4px;overflow:hidden;background:rgba(255,0,0,0.04);';
+      placeholder.textContent = `Plugin error: ${pluginName}`;
+      placeholder.title = err instanceof Error ? err.message : String(err);
+      host.appendChild(placeholder);
+    };
+
     const renderSchema = async () => {
-      await Promise.resolve(
-        render({
-          value: renderArgs.value,
-          schema: renderArgs.schema,
-          basePdf: renderArgs.basePdf,
-          rootElement: element,
-          mode: renderArgs.mode,
-          onChange: renderArgs.onChange,
-          stopEditing: renderArgs.stopEditing,
-          tabIndex: renderArgs.tabIndex,
-          placeholder: renderArgs.placeholder,
-          options: renderArgs.options,
-          theme: renderArgs.theme,
-          i18n: renderArgs.i18n,
-          scale: renderArgs.scale,
-          _cache: renderArgs._cache,
-        }),
-      );
+      const pluginName = renderArgs.schema.type;
+      try {
+        await Promise.resolve(
+          render({
+            value: renderArgs.value,
+            schema: renderArgs.schema,
+            basePdf: renderArgs.basePdf,
+            rootElement: element,
+            mode: renderArgs.mode,
+            onChange: renderArgs.onChange,
+            stopEditing: renderArgs.stopEditing,
+            tabIndex: renderArgs.tabIndex,
+            placeholder: renderArgs.placeholder,
+            options: renderArgs.options,
+            theme: renderArgs.theme,
+            i18n: renderArgs.i18n,
+            scale: renderArgs.scale,
+            _cache: renderArgs._cache,
+          }),
+        );
+      } catch (err) {
+        if (cancelled) return;
+        console.error(
+          `[@pdfweave/ui] Plugin ui() threw for schema id="${renderArgs.schema.id}" type="${pluginName}":`,
+          err,
+        );
+        renderErrorPlaceholder(element, pluginName, err);
+        renderArgs.onRenderedHeightChange?.(renderArgs.schema.id, renderArgs.schema.height);
+        return;
+      }
 
       if (cancelled) {
         return;
@@ -245,15 +334,28 @@ const Renderer = (props: RendererProps) => {
         return;
       }
 
-      const result = await Promise.resolve(
-        renderArgs.plugin.measure({
-          value: renderArgs.value,
-          schema: renderArgs.schema,
-          basePdf: renderArgs.basePdf,
-          options: renderArgs.options,
-          _cache: renderArgs._cache,
-        }),
-      );
+      let result: LayoutMeasureResult;
+      try {
+        result = await Promise.resolve(
+          renderArgs.plugin.measure({
+            value: renderArgs.value,
+            schema: renderArgs.schema,
+            basePdf: renderArgs.basePdf,
+            options: renderArgs.options,
+            _cache: renderArgs._cache,
+          }),
+        );
+      } catch (err) {
+        if (cancelled) return;
+        console.error(
+          `[@pdfweave/ui] Plugin measure() threw for schema id="${renderArgs.schema.id}" type="${pluginName}":`,
+          err,
+        );
+        // Fall back to the schema's declared height; ui() already rendered successfully so
+        // we don't replace the rendered output with the error placeholder here.
+        renderArgs.onRenderedHeightChange?.(renderArgs.schema.id, renderArgs.schema.height);
+        return;
+      }
       if (cancelled) {
         return;
       }
