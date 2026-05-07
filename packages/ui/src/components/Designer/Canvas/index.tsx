@@ -46,6 +46,7 @@ import AnchorOverlay from './AnchorOverlay.js';
 import StaticSchema from '../../StaticSchema.js';
 import ContextMenu, { type DesignerContextMenuAction } from './ContextMenu.js';
 import { useRenderedHeights } from './hooks/useRenderedHeights.js';
+import { useShiftKeyTracker } from './hooks/useShiftKeyTracker.js';
 
 const mm2px = (mm: number) => mm * 3.7795275591;
 
@@ -197,8 +198,7 @@ const Canvas = (props: Props, ref: Ref<HTMLDivElement>) => {
   const horizontalGuides = useRef<GuidesInterface[]>([]);
   const moveable = useRef<MoveableComponent>(null);
 
-  const [isPressShiftKey, setIsPressShiftKey] = useState(false);
-  const [editing, setEditing] = useState(false);
+  const { isPressShiftKey, setIsPressShiftKey, editing, setEditing } = useShiftKeyTracker();
   const [contextMenu, setContextMenu] = useState<{
     x: number;
     y: number;
@@ -222,30 +222,6 @@ const Canvas = (props: Props, ref: Ref<HTMLDivElement>) => {
   }, [currentContentBottomY, currentPageHeight, pageCursor, renderedSchemaHeights, schemasList]);
   const hasOverflow = overflowingSchemaCount > 0;
   const prevOverflowKey = useRef<string | null>(null);
-
-  const onKeydown = (e: KeyboardEvent) => {
-    if (e.shiftKey) setIsPressShiftKey(true);
-  };
-  const onKeyup = (e: KeyboardEvent) => {
-    if (e.key === 'Shift' || !e.shiftKey) setIsPressShiftKey(false);
-    if (e.key === 'Escape' || e.key === 'Esc') setEditing(false);
-  };
-
-  const initEvents = useCallback(() => {
-    window.addEventListener('keydown', onKeydown);
-    window.addEventListener('keyup', onKeyup);
-  }, []);
-
-  const destroyEvents = useCallback(() => {
-    window.removeEventListener('keydown', onKeydown);
-    window.removeEventListener('keyup', onKeyup);
-  }, []);
-
-  useEffect(() => {
-    initEvents();
-
-    return destroyEvents;
-  }, [initEvents, destroyEvents]);
 
   useEffect(() => {
     const overflowKey = `${pageCursor}:${overflowingSchemaCount}`;
