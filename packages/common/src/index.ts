@@ -92,26 +92,6 @@ import {
 } from './dynamicTemplate.js';
 import { resolveAnchorTargetPoint } from './anchorLayout.js';
 import type { AnchorAxis, ResolvedAnchorTarget } from './anchorLayout.js';
-import {
-  ANCHOR_EPSILON,
-  buildSchemaIndex,
-  detectAnchorCycle,
-  findAnchorReferentX,
-  findAnchorReferentY,
-  getAnchoredLayout,
-  getSchemaAnchorIds,
-  isAnchoredLayout,
-  resolveAnchor,
-  resolveAnchorX,
-  resolveAnchorY,
-  reverseAnchorOffsetX,
-  reverseAnchorOffsetY,
-} from './anchorGeometry.js';
-import type {
-  AnchoredLayoutRule,
-  AnchoredSchema,
-  SchemaIndex,
-} from './anchorGeometry.js';
 import { replacePlaceholders } from './expression.js';
 import type { ReplacePlaceholdersOptions } from './expression.js';
 import { pluginRegistry } from './pluginRegistry.js';
@@ -152,19 +132,6 @@ export {
   getDynamicHeights,
   PAGE_BREAK_SCHEMA_TYPE,
   resolveAnchorTargetPoint,
-  ANCHOR_EPSILON,
-  buildSchemaIndex,
-  detectAnchorCycle,
-  findAnchorReferentX,
-  findAnchorReferentY,
-  getAnchoredLayout,
-  getSchemaAnchorIds,
-  isAnchoredLayout,
-  resolveAnchor,
-  resolveAnchorX,
-  resolveAnchorY,
-  reverseAnchorOffsetX,
-  reverseAnchorOffsetY,
   formatDesignDataValue,
   getDesignDataInput,
   getDesignDataVariables,
@@ -237,7 +204,28 @@ export type {
   ReplacePlaceholdersOptions,
   AnchorAxis,
   ResolvedAnchorTarget,
+};
+
+// Anchor geometry — re-exported via `export from` to keep the public surface
+// stable across the anchor extraction (Phase 4). New consumers can import
+// directly from this module's exports.
+export {
+  ANCHOR_EPSILON,
+  buildSchemaIndex,
+  detectAnchorCycle,
+  findAnchorReferentX,
+  findAnchorReferentY,
+  getAnchoredLayout,
+  getSchemaAnchorIds,
+  isAnchoredLayout,
+  resolveAnchor,
+  resolveAnchorX,
+  resolveAnchorY,
+  reverseAnchorOffsetX,
+  reverseAnchorOffsetY,
+} from './anchorGeometry.js';
+export type {
   AnchoredLayoutRule,
   AnchoredSchema,
   SchemaIndex,
-};
+} from './anchorGeometry.js';
