@@ -40,6 +40,7 @@ import { usePageOverflow } from './hooks/usePageOverflow.js';
 import { useSelectionHelpers } from './hooks/useSelectionHelpers.js';
 import { useContextMenu } from './hooks/useContextMenu.js';
 import { useDragResize } from './hooks/useDragResize.js';
+import { useMarqueeSelection } from './hooks/useMarqueeSelection.js';
 
 const DELETE_BTN_ID = uuid();
 const fmt4Num = (prop: string) => Number(prop.replace('px', ''));
@@ -215,7 +216,6 @@ const Canvas = (props: Props, ref: Ref<HTMLDivElement>) => {
   };
 
   const {
-    activeIds,
     focusedSchemaIds,
     schemaPageIndexById,
     selectContextTargets,
@@ -227,6 +227,18 @@ const Canvas = (props: Props, ref: Ref<HTMLDivElement>) => {
     pageCursor,
     onEdit,
     onEditingChange: setEditing,
+  });
+
+  const { onSelectoDragStart, onSelectoSelect } = useMarqueeSelection({
+    paperRefs,
+    pageCursor,
+    moveable,
+    activeElements,
+    deleteButtonId: DELETE_BTN_ID,
+    onEdit,
+    removeSchemas,
+    setEditing,
+    setIsPressShiftKey,
   });
 
   return (
@@ -249,59 +261,8 @@ const Canvas = (props: Props, ref: Ref<HTMLDivElement>) => {
       <Selecto
         container={paperRefs.current[pageCursor]}
         continueSelect={isPressShiftKey}
-        onDragStart={(e) => {
-          // Use type assertion to safely access inputEvent properties
-          const inputEvent = e.inputEvent as MouseEvent | TouchEvent;
-          const target = inputEvent.target as Element | null;
-          const isMoveableElement = moveable.current?.isMoveableElement(target as Element);
-
-          if ((inputEvent.type === 'touchstart' && e.isTrusted) || isMoveableElement) {
-            e.stop();
-          }
-
-          if (paperRefs.current[pageCursor] === target) {
-            onEdit([]);
-          }
-
-          // Check if the target is an HTMLElement and has an id property
-          const targetElement = target as HTMLElement | null;
-          if (targetElement && targetElement.id === DELETE_BTN_ID) {
-            removeSchemas(activeElements.map((ae) => ae.id));
-          }
-        }}
-        onSelect={(e) => {
-          // Use type assertions to safely access properties
-          const inputEvent = e.inputEvent as MouseEvent | TouchEvent;
-          const added = e.added as HTMLElement[];
-          const selected = e.selected as HTMLElement[];
-
-          const isDragStartInput =
-            inputEvent.type === 'mousedown' || inputEvent.type === 'touchstart';
-          const isClick = isDragStartInput && e.isDragStartEnd;
-          const mouseEvent = inputEvent as MouseEvent;
-          const isShiftClick =
-            isClick && mouseEvent && typeof mouseEvent.shiftKey === 'boolean' && mouseEvent.shiftKey;
-          let newActiveElements: HTMLElement[] = [];
-
-          if (isShiftClick) {
-            const nextElements = activeElements.concat(selected.length > 0 ? selected : added);
-            newActiveElements = nextElements.filter(
-              (element, index, elements) => elements.findIndex((item) => item.id === element.id) === index,
-            );
-          } else {
-            newActiveElements = selected;
-          }
-          onEdit(newActiveElements);
-
-          if (newActiveElements != activeElements) {
-            setEditing(false);
-          }
-
-          // For MacOS CMD+SHIFT+3/4 screenshots where the keydown event is never received, check mouse too
-          if (mouseEvent && typeof mouseEvent.shiftKey === 'boolean' && !mouseEvent.shiftKey) {
-            setIsPressShiftKey(false);
-          }
-        }}
+        onDragStart={onSelectoDragStart}
+        onSelect={onSelectoSelect}
       />
       <Paper
         paperRefs={paperRefs}
