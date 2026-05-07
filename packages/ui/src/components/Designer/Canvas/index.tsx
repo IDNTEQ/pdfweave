@@ -18,20 +18,14 @@ import {
 } from '@pdfweave/common';
 import { OptionsContext, PluginsRegistry } from '../../../contexts.js';
 import { X } from 'lucide-react';
-import { RULER_HEIGHT, RIGHT_SIDEBAR_WIDTH, DESIGNER_CLASSNAME } from '../../../constants.js';
+import { RIGHT_SIDEBAR_WIDTH, DESIGNER_CLASSNAME } from '../../../constants.js';
 import { usePrevious } from '../../../hooks.js';
 import { uuid } from '../../../helper.js';
 import Paper from '../../Paper.js';
 import Selecto from './Selecto.js';
-import Moveable from './Moveable.js';
-import Guides from './Guides.js';
-import Mask from './Mask.js';
-import Padding from './Padding.js';
-import PageOverflowIndicator from './PageOverflowIndicator.js';
-import AnchorOverlay from './AnchorOverlay.js';
-import StaticSchema from '../../StaticSchema.js';
 import ContextMenu from './ContextMenu.js';
 import CanvasSchema from './CanvasSchema.js';
+import CanvasPage from './CanvasPage.js';
 import { useRenderedHeights } from './hooks/useRenderedHeights.js';
 import { useShiftKeyTracker } from './hooks/useShiftKeyTracker.js';
 import { usePageOverflow } from './hooks/usePageOverflow.js';
@@ -205,9 +199,6 @@ const Canvas = (props: Props, ref: Ref<HTMLDivElement>) => {
     pluginsRegistry,
   });
 
-  const getGuideLines = (guides: GuidesInterface[], index: number) =>
-    guides[index] && guides[index].getGuides().map((g) => g * ZOOM);
-
   const onClickMoveable = () => {
     // Just set editing to true without trying to access event properties
     setEditing(true);
@@ -271,84 +262,37 @@ const Canvas = (props: Props, ref: Ref<HTMLDivElement>) => {
         backgrounds={backgrounds}
         hasRulers={true}
         renderPaper={({ index, paperSize }) => (
-          <>
-            {!editing && activeElements.length > 0 && pageCursor === index && (
-              <DeleteButton activeElements={activeElements} />
-            )}
-            <Padding basePdf={basePdf} />
-            <PageOverflowIndicator
-              pageHeight={pageSizes[index]?.height ?? paperSize.height / ZOOM}
-              bottomPaddingMm={bottomPaddingMm}
-              hasOverflow={pageCursor === index && hasOverflow}
-            />
-            <AnchorOverlay
-              schemas={schemasList[index] || []}
-              focusedSchemaIds={focusedSchemaIds}
-              pageSize={
-                pageSizes[index] ?? {
-                  width: paperSize.width / ZOOM,
-                  height: paperSize.height / ZOOM,
-                }
-              }
-              basePdf={basePdf}
-              zoom={ZOOM}
-            />
-            <StaticSchema
-              template={{ schemas: schemasList, basePdf }}
-              input={Object.fromEntries(
-                schemasList.flat().map(({ name, content = '' }) => [name, content]),
-              )}
-              scale={scale}
-              totalPages={schemasList.length}
-              currentPage={index + 1}
-            />
-            <Guides
-              paperSize={paperSize}
-              horizontalRef={(e) => {
-                if (e) horizontalGuides.current[index] = e;
-              }}
-              verticalRef={(e) => {
-                if (e) verticalGuides.current[index] = e;
-              }}
-            />
-            {pageCursor !== index ? (
-              <Mask
-                width={paperSize.width + RULER_HEIGHT}
-                height={paperSize.height + RULER_HEIGHT}
-              />
-            ) : (
-              !editing && (
-                <Moveable
-                  ref={moveable}
-                  target={activeElements}
-                  bounds={{
-                    // pdfme#284: expand the moveable bounds so rotated schemas
-                    // can be dragged so their rotated bounding box reaches the
-                    // canvas edge. The on-canvas check still happens in
-                    // `onDrag` using the rotated bounding box.
-                    left: -dragBoundsExpansion.leftPad * ZOOM,
-                    top: -dragBoundsExpansion.topPad * ZOOM,
-                    bottom: paperSize.height + dragBoundsExpansion.bottomPad * ZOOM,
-                    right: paperSize.width + dragBoundsExpansion.rightPad * ZOOM,
-                  }}
-                  horizontalGuidelines={getGuideLines(horizontalGuides.current, index)}
-                  verticalGuidelines={getGuideLines(verticalGuides.current, index)}
-                  keepRatio={isPressShiftKey}
-                  rotatable={rotatable}
-                  onDrag={onDrag}
-                  onDragEnd={onDragEnd}
-                  onDragGroupEnd={onDragEnds}
-                  onRotate={onRotate}
-                  onRotateEnd={onRotateEnd}
-                  onRotateGroupEnd={onRotateEnds}
-                  onResize={onResize}
-                  onResizeEnd={onResizeEnd}
-                  onResizeGroupEnd={onResizeEnds}
-                  onClick={onClickMoveable}
-                />
-              )
-            )}
-          </>
+          <CanvasPage
+            index={index}
+            paperSize={paperSize}
+            pageCursor={pageCursor}
+            pageSizes={pageSizes}
+            basePdf={basePdf}
+            schemasList={schemasList}
+            scale={scale}
+            bottomPaddingMm={bottomPaddingMm}
+            hasOverflow={hasOverflow}
+            focusedSchemaIds={focusedSchemaIds}
+            editing={editing}
+            activeElements={activeElements}
+            isPressShiftKey={isPressShiftKey}
+            rotatable={rotatable}
+            dragBoundsExpansion={dragBoundsExpansion}
+            moveableRef={moveable}
+            horizontalGuidesRef={horizontalGuides}
+            verticalGuidesRef={verticalGuides}
+            deleteButton={<DeleteButton activeElements={activeElements} />}
+            onDrag={onDrag}
+            onDragEnd={onDragEnd}
+            onDragEnds={onDragEnds}
+            onRotate={onRotate}
+            onRotateEnd={onRotateEnd}
+            onRotateEnds={onRotateEnds}
+            onResize={onResize}
+            onResizeEnd={onResizeEnd}
+            onResizeEnds={onResizeEnds}
+            onClickMoveable={onClickMoveable}
+          />
         )}
         renderSchema={({ schema, index }) => {
           const schemaPageIndex = schemaPageIndexById.get(schema.id) ?? pageCursor;

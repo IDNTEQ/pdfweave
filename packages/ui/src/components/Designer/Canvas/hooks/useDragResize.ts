@@ -215,7 +215,7 @@ export const useDragResize = ({
     Object.assign(s, obj);
   };
 
-  const rotatable = useMemo(() => {
+  const rotatable = useMemo<boolean>(() => {
     const selectedSchemas = (schemasList[pageCursor] || []).filter((s) =>
       activeElements.map((ae) => ae.id).includes(s.id),
     );
@@ -231,7 +231,7 @@ export const useDragResize = ({
 
     return uniqueSchemaTypes.every((type) => {
       const matchingSchema = defaultSchemas.find((ds) => ds && 'type' in ds && ds.type === type);
-      return matchingSchema && 'rotate' in matchingSchema;
+      return Boolean(matchingSchema && 'rotate' in matchingSchema);
     });
   }, [activeElements, pageCursor, schemasList, pluginsRegistry]);
 
