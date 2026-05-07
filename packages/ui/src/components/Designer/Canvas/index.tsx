@@ -45,6 +45,7 @@ import PageOverflowIndicator from './PageOverflowIndicator.js';
 import AnchorOverlay from './AnchorOverlay.js';
 import StaticSchema from '../../StaticSchema.js';
 import ContextMenu, { type DesignerContextMenuAction } from './ContextMenu.js';
+import { useRenderedHeights } from './hooks/useRenderedHeights.js';
 
 const mm2px = (mm: number) => mm * 3.7795275591;
 
@@ -203,7 +204,7 @@ const Canvas = (props: Props, ref: Ref<HTMLDivElement>) => {
     y: number;
     schemaIds: string[];
   } | null>(null);
-  const [renderedSchemaHeights, setRenderedSchemaHeights] = useState<Record<string, number>>({});
+  const { renderedSchemaHeights, onRenderedHeightChange } = useRenderedHeights();
 
   const prevSchemas = usePrevious(schemasList[pageCursor]);
   const [, , bottomPaddingMm] = getBasePdfPadding(basePdf);
@@ -496,15 +497,6 @@ const Canvas = (props: Props, ref: Ref<HTMLDivElement>) => {
       )
       .filter((element): element is HTMLElement => element instanceof HTMLElement);
   };
-
-  const onRenderedHeightChange = useCallback((schemaId: string, height: number) => {
-    setRenderedSchemaHeights((current) => {
-      if (current[schemaId] === height) {
-        return current;
-      }
-      return { ...current, [schemaId]: height };
-    });
-  }, []);
 
   const selectContextTargets = (schema: SchemaForUI, target: HTMLElement) => {
     const ids = activeIds.includes(schema.id) ? activeIds : [schema.id];
