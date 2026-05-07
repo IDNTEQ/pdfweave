@@ -59,6 +59,7 @@
     "antd": "^6.3.7",
     "clsx": "^2.1.1",
     "dayjs": "^1.11.20",
+    "dequal": "^2.0.3",
     "dompurify": "^3.4.1",
     "form-render": "^2.5.5",
     "hotkeys-js": "^4.0.3",

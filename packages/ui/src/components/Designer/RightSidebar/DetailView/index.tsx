@@ -1,4 +1,14 @@
+// Equality strategy (issue #28): the React.memo wrapper at the bottom of this
+// file uses `dequal` (a small dependency-free deep-equal) for prop comparison
+// instead of the previous `JSON.stringify` round-trip. dequal short-circuits
+// on identity and on type mismatches, so the typical "nothing changed" case
+// becomes O(1) — JSON.stringify always serialised every nested field even
+// when the parent reference matched. We picked option A (deep-equal lib)
+// over deriving a normalised cache key because activeSchema and activeSchemas
+// already memoise upstream; this is the cheap path. Same logic also replaces
+// the JSON.stringify in formAndSchemaValuesDiffer below.
 import { useForm } from 'form-render';
+import { dequal } from 'dequal';
 import type { Schema as FormRenderSchema } from 'form-render';
 import React, { useRef, useContext, useEffect, useCallback, useMemo } from 'react';
 import type {
@@ -250,7 +260,7 @@ const DetailView = (props: DetailViewProps) => {
     const displaySchema = getSchemaValuesForForm(activeSchema) as unknown as Record<string, unknown>;
     const formAndSchemaValuesDiffer = (formValue: unknown, schemaValue: unknown): boolean => {
       if (typeof formValue === 'object' && formValue !== null) {
-        return JSON.stringify(formValue) !== JSON.stringify(schemaValue);
+        return !dequal(formValue, schemaValue);
       }
       return formValue !== schemaValue;
     };
@@ -618,11 +628,8 @@ const DetailView = (props: DetailViewProps) => {
   );
 };
 
-const propsAreUnchanged = (prevProps: DetailViewProps, nextProps: DetailViewProps) => {
-  return (
-    JSON.stringify(prevProps.activeSchema) == JSON.stringify(nextProps.activeSchema) &&
-    JSON.stringify(prevProps.activeSchemas) == JSON.stringify(nextProps.activeSchemas)
-  );
-};
+const propsAreUnchanged = (prevProps: DetailViewProps, nextProps: DetailViewProps) =>
+  dequal(prevProps.activeSchema, nextProps.activeSchema) &&
+  dequal(prevProps.activeSchemas, nextProps.activeSchemas);
 
 export default React.memo(DetailView, propsAreUnchanged);
