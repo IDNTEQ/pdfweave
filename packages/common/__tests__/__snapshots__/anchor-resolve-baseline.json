@@ -1,0 +1,39 @@
+[
+  [
+    {
+      "name": "header",
+      "x": 15,
+      "y": 12,
+      "width": 80,
+      "height": 12
+    },
+    {
+      "name": "logo",
+      "x": 100,
+      "y": 12,
+      "width": 20,
+      "height": 12
+    },
+    {
+      "name": "subtitle",
+      "x": 15,
+      "y": 28,
+      "width": 80,
+      "height": 8
+    },
+    {
+      "name": "badge",
+      "x": 81,
+      "y": 38,
+      "width": 14,
+      "height": 6
+    },
+    {
+      "name": "fixed",
+      "x": 100,
+      "y": 100,
+      "width": 30,
+      "height": 10
+    }
+  ]
+]
