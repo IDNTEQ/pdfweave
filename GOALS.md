@@ -1,5 +1,15 @@
 # PDFweave Goals
 
+> PDFweave is developed with significant AI assistance, and held to a
+> quality bar most hand-written codebases do not enforce: type-aware
+> static analysis, cognitive-complexity caps, coverage thresholds,
+> dependency scanning, reproducible builds, all checked into the
+> repository and ratcheted upward over time. The cost of writing code
+> has fallen; the cost of verifying it has not. That gap is where
+> serious software now has to live.
+>
+> Proving clanker-code can be good code.
+
 ## Mission
 
 Be the best open-source PDF data-binding solution on the internet — the
