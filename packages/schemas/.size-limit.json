@@ -1,0 +1,20 @@
+[
+  {
+    "name": "@pdfweave/schemas (gzip)",
+    "path": "dist/index.js",
+    "gzip": true,
+    "limit": "50 KB"
+  },
+  {
+    "name": "@pdfweave/schemas/builtins entry (gzip)",
+    "path": "dist/builtins.js",
+    "gzip": true,
+    "limit": "1 KB"
+  },
+  {
+    "name": "@pdfweave/schemas/utils (gzip)",
+    "path": "dist/utils.js",
+    "gzip": true,
+    "limit": "3 KB"
+  }
+]

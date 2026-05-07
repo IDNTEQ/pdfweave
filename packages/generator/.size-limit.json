@@ -1,0 +1,8 @@
+[
+  {
+    "name": "@pdfweave/generator (gzip)",
+    "path": "dist/index.js",
+    "gzip": true,
+    "limit": "7 KB"
+  }
+]

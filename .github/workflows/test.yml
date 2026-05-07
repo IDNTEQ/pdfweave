@@ -29,6 +29,8 @@ jobs:
       - name: ESLint strict (deep gate)
         run: npm run lint:strict
       - run: npm run build
+      - name: Bundle size check
+        run: npm run size
       - run: npm run test
         env:
           CI: true

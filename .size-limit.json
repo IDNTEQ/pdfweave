@@ -1,0 +1,62 @@
+[
+  {
+    "name": "@pdfweave/common (gzip)",
+    "path": "packages/common/dist/index.js",
+    "gzip": true,
+    "limit": "110 KB"
+  },
+  {
+    "name": "@pdfweave/schemas (gzip)",
+    "path": "packages/schemas/dist/index.js",
+    "gzip": true,
+    "limit": "50 KB"
+  },
+  {
+    "name": "@pdfweave/schemas/builtins entry (gzip)",
+    "path": "packages/schemas/dist/builtins.js",
+    "gzip": true,
+    "limit": "1 KB"
+  },
+  {
+    "name": "@pdfweave/schemas/utils (gzip)",
+    "path": "packages/schemas/dist/utils.js",
+    "gzip": true,
+    "limit": "3 KB"
+  },
+  {
+    "name": "@pdfweave/generator (gzip)",
+    "path": "packages/generator/dist/index.js",
+    "gzip": true,
+    "limit": "7 KB"
+  },
+  {
+    "name": "@pdfweave/ui (gzip)",
+    "path": "packages/ui/dist/index.js",
+    "gzip": true,
+    "limit": "3.7 MB"
+  },
+  {
+    "name": "@pdfweave/cli (gzip)",
+    "path": "packages/cli/dist/index.js",
+    "gzip": true,
+    "limit": "29 KB"
+  },
+  {
+    "name": "@pdfweave/converter (browser, gzip)",
+    "path": "packages/converter/dist/index.js",
+    "gzip": true,
+    "limit": "2 KB"
+  },
+  {
+    "name": "@pdfweave/converter (node, gzip)",
+    "path": "packages/converter/dist/index.node.js",
+    "gzip": true,
+    "limit": "2 KB"
+  },
+  {
+    "name": "@pdfweave/manipulator (gzip)",
+    "path": "packages/manipulator/dist/index.js",
+    "gzip": true,
+    "limit": "2 KB"
+  }
+]

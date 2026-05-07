@@ -1,0 +1,8 @@
+[
+  {
+    "name": "@pdfweave/common (gzip)",
+    "path": "dist/index.js",
+    "gzip": true,
+    "limit": "110 KB"
+  }
+]

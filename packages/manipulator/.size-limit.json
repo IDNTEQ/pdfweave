@@ -1,0 +1,8 @@
+[
+  {
+    "name": "@pdfweave/manipulator (gzip)",
+    "path": "dist/index.js",
+    "gzip": true,
+    "limit": "2 KB"
+  }
+]

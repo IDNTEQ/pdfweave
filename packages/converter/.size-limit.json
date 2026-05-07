@@ -1,0 +1,14 @@
+[
+  {
+    "name": "@pdfweave/converter (browser, gzip)",
+    "path": "dist/index.js",
+    "gzip": true,
+    "limit": "2 KB"
+  },
+  {
+    "name": "@pdfweave/converter (node, gzip)",
+    "path": "dist/index.node.js",
+    "gzip": true,
+    "limit": "2 KB"
+  }
+]
