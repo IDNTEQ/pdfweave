@@ -55,8 +55,14 @@ bar; this document tracks the actual work.
 
 - Schema diff / migration tool — emit a structured diff between two
   template versions for review pipelines.
-- WASM-only render path — drop the React Designer dependency for
-  server-only generation use cases.
+- Edge-runtime support *(on ice)* — split the schemas package so a
+  server-only entry (`@pdfweave/schemas/server`) re-exports only
+  `pdfRender` paths and drops React from the server dep tree; audit
+  generator's Node API usage; document Cloudflare Workers / Deno / Bun
+  compatibility. (Previously written as "WASM-only render path"; that
+  framing overpromised — this is JS-runtime portability, not WASM
+  compilation. True WASM compilation is a separate, much larger
+  question that's not being pursued.)
 - i18n for the Designer beyond English / Portuguese.
 
 ## Done
