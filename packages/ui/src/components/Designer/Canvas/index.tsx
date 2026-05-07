@@ -12,13 +12,11 @@ import React, {
 import { theme, Button } from 'antd';
 import MoveableComponent, { OnDrag, OnRotate, OnResize } from 'react-moveable';
 import {
-  cloneDeep,
   ZOOM,
   SchemaForUI,
   Size,
   ChangeSchemas,
   BasePdf,
-  SchemaLayoutRule,
   isBlankPdf,
   getDesignDataInput,
   replacePlaceholders,
@@ -28,7 +26,7 @@ import { OptionsContext, PluginsRegistry } from '../../../contexts.js';
 import { X } from 'lucide-react';
 import { RULER_HEIGHT, RIGHT_SIDEBAR_WIDTH, DESIGNER_CLASSNAME } from '../../../constants.js';
 import { usePrevious } from '../../../hooks.js';
-import { round, flatten, uuid, getRotatedBoundingBoxOffsets, isAnchoredLayout } from '../../../helper.js';
+import { round, flatten, uuid, getRotatedBoundingBoxOffsets } from '../../../helper.js';
 import Paper from '../../Paper.js';
 import Renderer from '../../Renderer.js';
 import Selecto from './Selecto.js';
@@ -39,11 +37,12 @@ import Padding from './Padding.js';
 import PageOverflowIndicator from './PageOverflowIndicator.js';
 import AnchorOverlay from './AnchorOverlay.js';
 import StaticSchema from '../../StaticSchema.js';
-import ContextMenu, { type DesignerContextMenuAction } from './ContextMenu.js';
+import ContextMenu from './ContextMenu.js';
 import { useRenderedHeights } from './hooks/useRenderedHeights.js';
 import { useShiftKeyTracker } from './hooks/useShiftKeyTracker.js';
 import { usePageOverflow } from './hooks/usePageOverflow.js';
 import { useSelectionHelpers } from './hooks/useSelectionHelpers.js';
+import { useContextMenu } from './hooks/useContextMenu.js';
 
 const mm2px = (mm: number) => mm * 3.7795275591;
 
@@ -52,44 +51,6 @@ const fmt4Num = (prop: string) => Number(prop.replace('px', ''));
 const fmt = (prop: string) => round(fmt4Num(prop) / ZOOM, 2);
 const isTopLeftResize = (d: string) => d === '-1,-1' || d === '-1,0' || d === '0,-1';
 const normalizeRotate = (angle: number) => ((angle % 360) + 360) % 360;
-
-type ApplyAnchorSource = {
-  schema: SchemaForUI;
-  layout: Extract<SchemaLayoutRule, { mode: 'anchored' }>;
-};
-
-const getSchemaLayout = (schema: SchemaForUI): SchemaLayoutRule | undefined =>
-  (schema as SchemaForUI & { layout?: SchemaLayoutRule }).layout;
-
-const schemaAnchorIds = (schema: SchemaForUI): Set<string> =>
-  new Set([schema.id, schema.name].filter((id): id is string => Boolean(id)));
-
-const layoutTargetsSchema = (
-  layout: Extract<SchemaLayoutRule, { mode: 'anchored' }>,
-  schema: SchemaForUI,
-): boolean => {
-  const ids = schemaAnchorIds(schema);
-  const xTarget = 'ref' in layout.x ? layout.x.ref.schemaId : null;
-  const yTarget = 'ref' in layout.y ? layout.y.ref.schemaId : null;
-  return [xTarget, yTarget].some((target) => Boolean(target && ids.has(target)));
-};
-
-const findApplyAnchorSource = (
-  schemas: SchemaForUI[],
-  schemaIds: string[],
-): ApplyAnchorSource | null => {
-  const schemaById = new Map(schemas.map((schema) => [schema.id, schema]));
-
-  for (let index = schemaIds.length - 1; index >= 0; index -= 1) {
-    const schema = schemaById.get(schemaIds[index]);
-    if (!schema) continue;
-
-    const layout = getSchemaLayout(schema);
-    if (isAnchoredLayout(layout)) return { schema, layout };
-  }
-
-  return null;
-};
 
 const DeleteButton = ({ activeElements: aes }: { activeElements: HTMLElement[] }) => {
   const { token } = theme.useToken();
@@ -192,12 +153,20 @@ const Canvas = (props: Props, ref: Ref<HTMLDivElement>) => {
   const moveable = useRef<MoveableComponent>(null);
 
   const { isPressShiftKey, setIsPressShiftKey, editing, setEditing } = useShiftKeyTracker();
-  const [contextMenu, setContextMenu] = useState<{
-    x: number;
-    y: number;
-    schemaIds: string[];
-  } | null>(null);
   const { renderedSchemaHeights, onRenderedHeightChange } = useRenderedHeights();
+  const {
+    contextMenu,
+    setContextMenu,
+    contextSchemas,
+    applyAnchorSource,
+    onContextMenuAction,
+    closeContextMenu,
+  } = useContextMenu({
+    pageCursor,
+    schemasList,
+    changeSchemas,
+    designerActions,
+  });
 
   const prevSchemas = usePrevious(schemasList[pageCursor]);
   const { bottomPaddingMm, hasOverflow } = usePageOverflow({
@@ -414,74 +383,6 @@ const Canvas = (props: Props, ref: Ref<HTMLDivElement>) => {
     onEditingChange: setEditing,
   });
 
-  const contextSchemas = useMemo(() => {
-    const ids = new Set(contextMenu?.schemaIds ?? []);
-    return (schemasList[pageCursor] || []).filter((schema) => ids.has(schema.id));
-  }, [contextMenu, pageCursor, schemasList]);
-
-  const applyAnchorSource = useMemo(
-    () =>
-      contextMenu && contextMenu.schemaIds.length > 1
-        ? findApplyAnchorSource(contextSchemas, contextMenu.schemaIds)
-        : null,
-    [contextMenu, contextSchemas],
-  );
-
-  const onContextMenuAction = (action: DesignerContextMenuAction) => {
-    const ids = contextMenu?.schemaIds ?? [];
-    switch (action) {
-      case 'copy':
-        designerActions.copy(ids);
-        break;
-      case 'cut':
-        designerActions.cut(ids);
-        break;
-      case 'paste':
-        designerActions.paste();
-        break;
-      case 'duplicate':
-        designerActions.duplicate(ids);
-        break;
-      case 'group':
-        designerActions.group(ids);
-        break;
-      case 'ungroup':
-        designerActions.ungroup(ids);
-        break;
-      case 'applyAnchorToSelection':
-        if (applyAnchorSource) {
-          const schemaById = new Map(contextSchemas.map((schema) => [schema.id, schema]));
-          const changes = ids
-            .filter((id) => id !== applyAnchorSource.schema.id)
-            .filter((id) => {
-              const schema = schemaById.get(id);
-              return schema ? !layoutTargetsSchema(applyAnchorSource.layout, schema) : true;
-            })
-            .map((schemaId) => ({
-              key: 'layout',
-              value: cloneDeep(applyAnchorSource.layout),
-              schemaId,
-            }));
-          if (changes.length > 0) {
-            changeSchemas(changes);
-          }
-        }
-        break;
-      case 'delete':
-        designerActions.remove(ids);
-        break;
-      case 'bringToFront':
-        designerActions.bringToFront(ids);
-        break;
-      case 'sendToBack':
-        designerActions.sendToBack(ids);
-        break;
-      default:
-        break;
-    }
-    setContextMenu(null);
-  };
-
   const rotatable = useMemo(() => {
     const selectedSchemas = (schemasList[pageCursor] || []).filter((s) =>
       activeElements.map((ae) => ae.id).includes(s.id),
@@ -537,7 +438,7 @@ const Canvas = (props: Props, ref: Ref<HTMLDivElement>) => {
       onContextMenu={(event) => {
         if (event.currentTarget === event.target) {
           event.preventDefault();
-          setContextMenu(null);
+          closeContextMenu();
         }
       }}
       style={{
@@ -794,7 +695,7 @@ const Canvas = (props: Props, ref: Ref<HTMLDivElement>) => {
           applyAnchorSource ? applyAnchorSource.schema.name || applyAnchorSource.schema.id : undefined
         }
         onAction={onContextMenuAction}
-        onClose={() => setContextMenu(null)}
+        onClose={() => closeContextMenu()}
       />
     </div>
   );
