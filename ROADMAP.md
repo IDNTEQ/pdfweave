@@ -17,7 +17,7 @@ bar; this document tracks the actual work.
 - [x] **Phase 2** — Coverage + CRAP. vitest v8 coverage per package;
       `scripts/crap.mjs` joins coverage with cognitive-complexity →
       `crap-report.json`. CI fails if any function CRAP > 30.
-- [ ] **Phase 3** — CI artifacts + security:
+- [x] **Phase 3** — CI artifacts + security:
   - vitest junit XML + dorny/test-reporter (PR check)
   - coverage HTML + lcov (artifact + PR comment)
   - CRAP report (PR comment)

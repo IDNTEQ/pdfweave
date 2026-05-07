@@ -111,6 +111,17 @@ upstream pdfme's stability profile.
 
 ---
 
+## Quality
+
+[![Tests](https://github.com/IDNTEQ/pdfweave/actions/workflows/test.yml/badge.svg)](https://github.com/IDNTEQ/pdfweave/actions/workflows/test.yml)
+[![CodeQL](https://github.com/IDNTEQ/pdfweave/actions/workflows/codeql.yml/badge.svg)](https://github.com/IDNTEQ/pdfweave/actions/workflows/codeql.yml)
+[![OSV-Scanner](https://github.com/IDNTEQ/pdfweave/actions/workflows/osv-scanner.yml/badge.svg)](https://github.com/IDNTEQ/pdfweave/actions/workflows/osv-scanner.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE.md)
+[![Quality bar](https://img.shields.io/badge/quality_bar-GOALS.md-blue)](GOALS.md)
+[![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](CODE_OF_CONDUCT.md)
+
+---
+
 ## Maintainership
 
 PDFweave is maintained by [IDNTEQ](https://github.com/IDNTEQ) and
