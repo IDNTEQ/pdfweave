@@ -14,7 +14,7 @@ bar; this document tracks the actual work.
       cognitive-complexity ≤ 15, `eslint-plugin-unicorn`,
       `eslint-plugin-security`, `eslint-plugin-jsdoc` on public API only.
       Lands in **warn** mode; ratchet to error per-file in Phase 4.
-- [ ] **Phase 2** — Coverage + CRAP. vitest v8 coverage per package;
+- [x] **Phase 2** — Coverage + CRAP. vitest v8 coverage per package;
       `scripts/crap.mjs` joins coverage with cognitive-complexity →
       `crap-report.json`. CI fails if any function CRAP > 30.
 - [ ] **Phase 3** — CI artifacts + security:
