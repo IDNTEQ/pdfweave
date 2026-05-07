@@ -6,6 +6,11 @@ import type { Font } from '@pdfweave/common';
 import { CliError, fail } from './contract.js';
 
 const CACHE_DIR = join(homedir(), '.pdfweave', 'fonts');
+// Compat (kept as `.pdfme/fonts`): real users may have a populated
+// upstream-pdfme font cache on disk. `ensureFontCacheMigrated` moves
+// it to `~/.pdfweave/fonts` on first run. Renaming this path would
+// silently miss every legacy cache.
+// See docs/branding-audit-2026-05-07.md.
 const LEGACY_CACHE_DIR = join(homedir(), '.pdfme', 'fonts');
 const NOTO_SANS_JP_URL =
   'https://github.com/google/fonts/raw/main/ofl/notosansjp/NotoSansJP%5Bwght%5D.ttf';

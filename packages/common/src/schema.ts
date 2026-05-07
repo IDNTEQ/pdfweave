@@ -234,6 +234,9 @@ export const Template = z
   .object({
     schemas: SchemaPageArray,
     basePdf: BasePdf,
+    // Compat (kept as `pdfmeVersion`): this field is written into stored
+    // template JSON. Renaming would reject every existing template on
+    // load. See docs/branding-audit-2026-05-07.md.
     pdfmeVersion: z.string().optional(),
   })
   .passthrough();

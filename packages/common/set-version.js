@@ -6,12 +6,26 @@ import { fileURLToPath } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_VERSION = 'x.x.x';
 
+// Compat (kept as `PDFME_VERSION`): the generated `src/version.ts`
+// re-exports this name as a public API constant. Consumers import
+// `PDFME_VERSION` from `@pdfweave/common` to stamp the engine version
+// into stored templates (see `Template.pdfmeVersion`). Renaming would
+// be a breaking API change. The generated file is gitignored, so this
+// rationale lives here.
+// See docs/branding-audit-2026-05-07.md.
+const VERSION_HEADER = [
+  '// Public API: `PDFME_VERSION` is exported from `@pdfweave/common`.',
+  '// The name is preserved for backward compatibility with consumers',
+  '// that imported it before the pdfme→pdfweave fork rename.',
+  '// See docs/branding-audit-2026-05-07.md.',
+].join('\n');
+
 const updateVersion = (version) => {
   const filePath = path.join(__dirname, 'src/version.ts');
   let content = '';
 
   if (!fs.existsSync(filePath)) {
-    content = `export const PDFME_VERSION = '${version}';\n`;
+    content = `${VERSION_HEADER}\nexport const PDFME_VERSION = '${version}';\n`;
   } else {
     content = fs.readFileSync(filePath, 'utf8');
     const versionRegex = /export const PDFME_VERSION = '.*';/;
