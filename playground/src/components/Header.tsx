@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { PDFME_VERSION } from '@pdfme/common';
+import { PDFME_VERSION } from '@pdfweave/common';
 import { Dialog, DialogBackdrop, DialogPanel, DialogTitle } from '@headlessui/react';
 
 const externalIcon = (

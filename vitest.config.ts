@@ -169,7 +169,7 @@ const testConfig = {
   hookTimeout: selectedWorkspace?.hookTimeout,
   fileParallelism: selectedWorkspace?.fileParallelism,
   reporters,
-  coverage: coverageConfig,
+  ...(coverageConfig ? { coverage: coverageConfig } : {}),
   ...(selectedWorkspace?.environment ? { environment: selectedWorkspace.environment } : {}),
 };
 

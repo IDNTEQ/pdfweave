@@ -1,6 +1,6 @@
-import { Template, Font, checkTemplate, getInputFromTemplate, getDefaultFont } from '@pdfme/common';
-import { Form, Viewer, Designer } from '@pdfme/ui';
-import { generate, generateForm } from '@pdfme/generator';
+import { Template, Font, checkTemplate, getInputFromTemplate, getDefaultFont } from '@pdfweave/common';
+import { Form, Viewer, Designer } from '@pdfweave/ui';
+import { generate, generateForm } from '@pdfweave/generator';
 import { getPlugins } from './plugins';
 
 export function fromKebabCase(str: string): string {

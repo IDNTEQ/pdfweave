@@ -2,8 +2,8 @@ import React, { useRef, useEffect, useCallback, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { Code2 } from 'lucide-react';
-import { cloneDeep, Template, checkTemplate, Lang, isBlankPdf } from '@pdfme/common';
-import { Designer } from '@pdfme/ui';
+import { cloneDeep, Template, checkTemplate, Lang, isBlankPdf } from '@pdfweave/common';
+import { Designer } from '@pdfweave/ui';
 import {
   getFontsData,
   getTemplateById,

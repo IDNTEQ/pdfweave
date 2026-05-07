@@ -15,7 +15,7 @@ import {
   select,
   checkbox,
   radioGroup,
-} from '@pdfme/schemas';
+} from '@pdfweave/schemas';
 
 export const getPlugins = () => {
   return {

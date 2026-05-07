@@ -3,9 +3,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import pLimit from 'p-limit';
-import { getDefaultFont, getInputFromTemplate } from '@pdfme/common';
-import { pdf2img } from '@pdfme/converter';
-import { generate } from '@pdfme/generator';
+import { getDefaultFont, getInputFromTemplate } from '@pdfweave/common';
+import { pdf2img } from '@pdfweave/converter';
+import { generate } from '@pdfweave/generator';
 import {
   multiVariableText,
   text,
@@ -23,7 +23,7 @@ import {
   select,
   checkbox,
   radioGroup,
-} from '@pdfme/schemas';
+} from '@pdfweave/schemas';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

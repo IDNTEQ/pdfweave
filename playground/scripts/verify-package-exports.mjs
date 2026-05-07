@@ -7,15 +7,15 @@ const __dirname = path.dirname(__filename);
 const playgroundRoot = path.resolve(__dirname, '..');
 
 const trackedSpecifiers = [
-  '@pdfme/common',
-  '@pdfme/converter',
-  '@pdfme/generator',
-  '@pdfme/manipulator',
-  '@pdfme/schemas',
-  '@pdfme/schemas/builtins',
-  '@pdfme/schemas/tables',
-  '@pdfme/schemas/utils',
-  '@pdfme/ui',
+  '@pdfweave/common',
+  '@pdfweave/converter',
+  '@pdfweave/generator',
+  '@pdfweave/manipulator',
+  '@pdfweave/schemas',
+  '@pdfweave/schemas/builtins',
+  '@pdfweave/schemas/tables',
+  '@pdfweave/schemas/utils',
+  '@pdfweave/ui',
 ];
 
 const trackedDirs = ['src', 'scripts', 'e2e', 'node-playground'];
@@ -74,4 +74,4 @@ for (const specifier of trackedSpecifiers) {
   }
 }
 
-console.log('Verified playground @pdfme imports and package exports.');
+console.log('Verified playground @pdfweave imports and package exports.');

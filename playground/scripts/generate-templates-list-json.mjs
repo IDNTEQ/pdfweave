@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { PDFME_VERSION } from '@pdfme/common';
+import { PDFME_VERSION } from '@pdfweave/common';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

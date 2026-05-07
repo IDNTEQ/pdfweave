@@ -1,7 +1,7 @@
 import puppeteer, { Browser, Page } from 'puppeteer';
-import { pdf2img } from '@pdfme/converter';
-import { Template, Schema, cloneDeep } from '@pdfme/common';
-import { text, table, image, barcodes, select, checkbox, radioGroup } from '@pdfme/schemas';
+import { pdf2img } from '@pdfweave/converter';
+import { Template, Schema, cloneDeep } from '@pdfweave/common';
+import { text, table, image, barcodes, select, checkbox, radioGroup } from '@pdfweave/schemas';
 import { ChildProcessWithoutNullStreams, spawn } from 'node:child_process';
 import { stripVTControlCharacters } from 'node:util';
 import type { MatchImageOptions } from 'vitest-image-snapshot';

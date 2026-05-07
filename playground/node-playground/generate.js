@@ -1,8 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { BLANK_PDF } from '@pdfme/common';
-import { generate } from '@pdfme/generator';
+import { BLANK_PDF } from '@pdfweave/common';
+import { generate } from '@pdfweave/generator';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

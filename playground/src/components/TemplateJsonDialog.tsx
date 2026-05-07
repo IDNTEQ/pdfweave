@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Check, X } from 'lucide-react';
-import { Template, checkTemplate } from '@pdfme/common';
+import { Template, checkTemplate } from '@pdfweave/common';
 
 const ASSET_PLACEHOLDER_PREFIX = '__PDFME_ASSET__:';
 const EMBEDDED_ASSET_MIN_LENGTH = 1000;
@@ -28,8 +28,8 @@ type TemplateJsonDialogProps = {
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   Object.prototype.toString.call(value) === '[object Object]';
 
-const formatJsonPath = (path: JsonPathSegment[]) =>
-  path.reduce(
+const formatJsonPath = (path: JsonPathSegment[]): string =>
+  path.reduce<string>(
     (result, segment) =>
       typeof segment === 'number' ? `${result}[${segment}]` : `${result}.${segment}`,
     '$',
