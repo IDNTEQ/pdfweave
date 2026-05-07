@@ -26,6 +26,9 @@ If you want a JSON template + Node generator + React designer that
 for teams whose templates need to bind to real data, reflow correctly
 across pages, and ship branded stationery.
 
+See [GOALS.md](GOALS.md) for the mission and quality bar, and
+[ROADMAP.md](ROADMAP.md) for the live punch list.
+
 ---
 
 ## Quick start
