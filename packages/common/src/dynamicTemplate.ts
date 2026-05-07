@@ -13,6 +13,12 @@ import {
 } from './types.js';
 import { cloneDeep, treatsLikeBlank } from './helper.js';
 import { resolveSchemaValue } from './dataBinding.js';
+import {
+  ANCHOR_EPSILON,
+  buildSchemaIndex,
+  resolveAnchorX,
+  resolveAnchorY,
+} from './anchorGeometry.js';
 
 /** Floating point tolerance for comparisons */
 const EPSILON = 0.01;
@@ -84,84 +90,36 @@ const FRAGMENT_SCHEMA_RESERVED_KEYS = new Set([
   '__source',
 ]);
 
-const getSchemaAnchorIds = (schema: Schema): string[] =>
-  Array.from(
-    new Set(
-      [schema.name, schema.id].filter(
-        (id): id is string => typeof id === 'string' && id.length > 0,
-      ),
-    ),
-  );
-
-const getSchemaLayout = (schema: Schema): SchemaLayoutRule | undefined =>
-  (schema as Schema & { layout?: SchemaLayoutRule }).layout;
-
-function buildSchemaLookup(pageSchemas: Schema[]): Map<string, Schema> {
-  const lookup = new Map<string, Schema>();
-  pageSchemas.forEach((schema) => {
-    getSchemaAnchorIds(schema).forEach((id) => lookup.set(id, schema));
-  });
-  return lookup;
-}
-
-function resolveAnchoredX(schema: Schema, layout: SchemaLayoutRule, lookup: Map<string, Schema>) {
-  if (layout.mode !== 'anchored') return;
-
-  const { x } = layout;
-  if (x.mode === 'pageLeft') {
-    schema.position.x = x.offsetMm;
-    return;
-  }
-
-  const target = lookup.get(x.ref.schemaId);
-  if (!target) return;
-
-  const targetRight = target.position.x + target.width;
-  if (x.mode === 'afterRightEdge') {
-    schema.position.x = targetRight + x.offsetMm;
-    return;
-  }
-
-  schema.position.x = targetRight - schema.width + (x.offsetMm ?? 0);
-}
-
-function resolveAnchoredY(schema: Schema, layout: SchemaLayoutRule, lookup: Map<string, Schema>) {
-  if (layout.mode !== 'anchored') return;
-
-  const { y } = layout;
-  if (y.mode === 'pageTop') {
-    schema.position.y = y.offsetMm;
-    return;
-  }
-
-  const target = lookup.get(y.ref.schemaId);
-  if (!target) return;
-
-  schema.position.y = target.position.y + target.height + y.offsetMm;
-}
-
+/**
+ * Iteratively forward-resolve anchored schemas on a page, mutating
+ * `schema.position` in place. Anchor geometry is delegated to
+ * `anchorGeometry`; this function is the reflow-engine's iteration driver
+ * (multi-pass to handle chains of anchors) and divergence guard.
+ */
 function resolveAnchoredSchemas(pageSchemas: Schema[]): void {
-  const lookup = buildSchemaLookup(pageSchemas);
+  const lookup = buildSchemaIndex(pageSchemas);
 
   for (let pass = 0; pass < pageSchemas.length; pass += 1) {
     let changed = false;
 
-    pageSchemas.forEach((schema) => {
-      const layout = getSchemaLayout(schema);
-      if (!layout || layout.mode !== 'anchored') return;
+    for (const schema of pageSchemas) {
+      const layout = (schema as Schema & { layout?: SchemaLayoutRule }).layout;
+      if (!layout || layout.mode !== 'anchored') continue;
 
       const previousX = schema.position.x;
       const previousY = schema.position.y;
-      resolveAnchoredX(schema, layout, lookup);
-      resolveAnchoredY(schema, layout, lookup);
+      const nextX = resolveAnchorX(schema, lookup);
+      const nextY = resolveAnchorY(schema, lookup);
+      if (nextX !== null) schema.position.x = nextX;
+      if (nextY !== null) schema.position.y = nextY;
 
       if (
-        Math.abs(previousX - schema.position.x) > EPSILON ||
-        Math.abs(previousY - schema.position.y) > EPSILON
+        Math.abs(previousX - schema.position.x) > ANCHOR_EPSILON ||
+        Math.abs(previousY - schema.position.y) > ANCHOR_EPSILON
       ) {
         changed = true;
       }
-    });
+    }
 
     if (!changed) return;
 
