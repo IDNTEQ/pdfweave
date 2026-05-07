@@ -1,0 +1,932 @@
+[
+  {
+    "file": "packages/pdf-lib/src/api/svg.ts",
+    "function": "parseAttributes",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/common/src/helper.ts",
+    "function": "isUrlSafeToFetch",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/cli/src/diagnostics.ts",
+    "function": "validateTemplate",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/ui/src/components/Designer/RightSidebar/DetailView/BindingWidget.tsx",
+    "function": "BindingWidget",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/cli/src/commands/generate.ts",
+    "function": "<anonymous>",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/ui/src/components/Designer/RightSidebar/DetailView/index.tsx",
+    "function": "validatePosition",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/cli/src/diagnostics.ts",
+    "function": "collectInputHints",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/cli/src/diagnostics.ts",
+    "function": "buildFieldInputHint",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/schemas/src/tables/dynamicTemplate.ts",
+    "function": "getDynamicHeightsForTable",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/cli/src/commands/validate.ts",
+    "function": "<anonymous>",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/schemas/src/tables/uiRender.ts",
+    "function": "uiRender",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/pdf-lib/src/core/crypto.ts",
+    "function": "prepareKeyData",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/schemas/src/text/propPanel.ts",
+    "function": "schema",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/cli/src/commands/doctor.ts",
+    "function": "diagnoseOutputPath",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/pdf-lib/src/api/PDFPage.ts",
+    "function": "drawRectangle",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/pdf-lib/src/api/operations.ts",
+    "function": "drawSvgPath",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/pdf-lib/src/api/svg.ts",
+    "function": "transformationToMatrix",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/schemas/src/graphics/image.ts",
+    "function": "ui",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/cli/src/commands/doctor.ts",
+    "function": "diagnoseFonts",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/ui/src/components/Designer/RightSidebar/DetailView/BindingWidget.tsx",
+    "function": "commitPath",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/ui/src/components/Designer/RightSidebar/DetailView/BindingWidget.tsx",
+    "function": "<anonymous>",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/ui/src/components/Designer/RightSidebar/DetailView/index.tsx",
+    "function": "DetailView",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/ui/src/helper.ts",
+    "function": "<anonymous>",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/cli/src/commands/doctor.ts",
+    "function": "<anonymous>",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/cli/src/commands/pdf2img.ts",
+    "function": "<anonymous>",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/cli/src/diagnostics.ts",
+    "function": "getMultiVariableTextInputIssue",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/schemas/src/graphics/image.ts",
+    "function": "schema",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/pdf-lib/src/api/svg.ts",
+    "function": "drawSvg",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/pdf-lib/src/api/PDFPage.ts",
+    "function": "drawText",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/pdf-lib/src/api/PDFPage.ts",
+    "function": "drawEllipse",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/pdf-lib/src/utils/intersections.ts",
+    "function": "intersections",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/schemas/src/multiVariableText/propPanel.ts",
+    "function": "mapDynamicVariables",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/ui/src/components/Designer/Canvas/index.tsx",
+    "function": "onContextMenuAction",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/schemas/src/text/uiRender.ts",
+    "function": "uiRender",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/cli/src/diagnostics.ts",
+    "function": "getBarcodeRule",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/cli/src/diagnostics.ts",
+    "function": "summarizeBasePdf",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/cli/src/fonts.ts",
+    "function": "normalizeExplicitFontSource",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/pdf-lib/src/utils/validators.ts",
+    "function": "getType",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/cli/src/commands/doctor.ts",
+    "function": "printFontReport",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/cli/src/fonts.ts",
+    "function": "analyzeExplicitFontSource",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/pdf-lib/src/api/PDFPage.ts",
+    "function": "drawSvgPath",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/pdf-lib/src/utils/validators.ts",
+    "function": "createTypeErrorMsg",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/schemas/src/tables/uiRender.ts",
+    "function": "drawBorder",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/schemas/src/text/richTextPdfRender.ts",
+    "function": "<anonymous>",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/ui/src/components/Designer/Canvas/index.tsx",
+    "function": "<anonymous>",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/ui/src/components/Designer/RightSidebar/DetailView/AnchorLayoutWidget.tsx",
+    "function": "AnchorLayoutWidget",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/schemas/src/barcodes/uiRender.ts",
+    "function": "uiRender",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/cli/src/commands/doctor.ts",
+    "function": "buildInputDiagnosis",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/cli/src/diagnostics.ts",
+    "function": "collectRadioGroupMembers",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/schemas/src/multiVariableText/uiRender.ts",
+    "function": "keyPressShouldBeChecked",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/schemas/src/shapes/rectAndEllipse.ts",
+    "function": "ui",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/schemas/src/tables/uiRender.ts",
+    "function": "<anonymous>",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/ui/src/components/Designer/RightSidebar/DetailView/index.tsx",
+    "function": "<anonymous>",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/schemas/src/barcodes/helper.ts",
+    "function": "buildBwipOptions",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/cli/src/diagnostics.ts",
+    "function": "getRadioGroupSelectionIssues",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/cli/src/utils.ts",
+    "function": "inspectWriteTarget",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/pdf-lib/src/api/PDFPage.ts",
+    "function": "drawPage",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/pdf-lib/src/api/svg.ts",
+    "function": "text",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/pdf-lib/src/api/svg.ts",
+    "function": "<anonymous>",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/pdf-lib/src/core/crypto.ts",
+    "function": "hash",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/pdf-lib/src/utils/intersections.ts",
+    "function": "intersectionsLineAndEllipse",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/ui/src/components/Designer/Canvas/index.tsx",
+    "function": "onResize",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/ui/src/components/Designer/RightSidebar/DetailView/AlignWidget.tsx",
+    "function": "align",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/ui/src/components/Designer/index.tsx",
+    "function": "TemplateEditor",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/pdf-lib/src/core/crypto.ts",
+    "function": "CipherTransformFactory.constructor",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/cli/src/contract.ts",
+    "function": "assertNoUnknownFlags",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/schemas/src/barcodes/pdfRender.ts",
+    "function": "pdfRender",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/pdf-lib/src/api/operations.ts",
+    "function": "drawRectangle",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/cli/src/commands/doctor.ts",
+    "function": "normalizeExplicitFontConfig",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/cli/src/commands/generate.ts",
+    "function": "assertSupportedSchemaTypes",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/cli/src/diagnostics.ts",
+    "function": "getStringMatrixShapeIssue",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/cli/src/diagnostics.ts",
+    "function": "isValidCalendarDate",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/cli/src/grid.ts",
+    "function": "drawGridLines",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/common/src/anchorLayout.ts",
+    "function": "resolveAnchorTargetPoint",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/pdf-lib/src/api/svg.ts",
+    "function": "parseSvgNode",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/pdf-lib/src/api/text/layout.ts",
+    "function": "layoutCombedText",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/schemas/src/graphics/svg.ts",
+    "function": "ui",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/cli/src/commands/examples.ts",
+    "function": "<anonymous>",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/common/src/expression.ts",
+    "function": "evaluateAST",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/schemas/src/multiVariableText/uiRender.ts",
+    "function": "formUiRender",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/cli/src/commands/doctor.ts",
+    "function": "printInputReport",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/cli/src/diagnostics.ts",
+    "function": "describeValue",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/cli/src/fonts.ts",
+    "function": "fetchRemoteFontSource",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/cli/src/fonts.ts",
+    "function": "readResponseBodyWithLimit",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/cli/src/utils.ts",
+    "function": "loadInput",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/cli/src/utils.ts",
+    "function": "resolveBasePdf",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/pdf-lib/src/api/operations.ts",
+    "function": "drawLine",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/pdf-lib/src/core/crypto.ts",
+    "function": "_encrypt",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/pdf-lib/src/core/crypto.ts",
+    "function": "decodeUserPassword",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/pdf-lib/src/core/streams/DecodeStream.ts",
+    "function": "getBytes",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/pdf-lib/src/utils/intersections.ts",
+    "function": "intersectionsLine",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/pdf-lib/src/utils/intersections.ts",
+    "function": "intersectionsEllipse",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/pdf-lib/src/utils/intersections.ts",
+    "function": "intersectionsCircle",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/schemas/src/text/uiRender.ts",
+    "function": "getSlicedPlainTextValue",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/ui/src/components/Designer/Canvas/AnchorOverlay.tsx",
+    "function": "buildRelation",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/ui/src/components/Designer/RightSidebar/SampleDataEditor.tsx",
+    "function": "SampleDataEditor",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/cli/src/commands/doctor.ts",
+    "function": "printEnvironmentReport",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/cli/src/diagnostics.ts",
+    "function": "getEnumStringInputIssue",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/cli/src/diagnostics.ts",
+    "function": "getStringMatrixInputIssue",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/cli/src/diagnostics.ts",
+    "function": "buildStringMatrixErrorMessage",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/cli/src/fonts.ts",
+    "function": "analyzeUrlFontSource",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/cli/src/fonts.ts",
+    "function": "resolveFont",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/cli/src/grid.ts",
+    "function": "hslToHex",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/pdf-lib/src/api/PDFPage.ts",
+    "function": "drawLine",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/pdf-lib/src/api/svg.ts",
+    "function": "getBestFont",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/pdf-lib/src/api/svg.ts",
+    "function": "parseColor",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/pdf-lib/src/core/acroform/PDFAcroButton.ts",
+    "function": "removeExportValue",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/pdf-lib/src/core/crypto.ts",
+    "function": "encrypt",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/pdf-lib/src/core/crypto.ts",
+    "function": "calculatePDF20Hash",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/pdf-lib/src/utils/elements/Ellipse.ts",
+    "function": "isEqual",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/schemas/src/date/helper.ts",
+    "function": "position",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/schemas/src/text/richTextPdfRender.ts",
+    "function": "drawRun",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/schemas/src/text/uiRender.ts",
+    "function": "<anonymous>",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/ui/src/components/Designer/Canvas/index.tsx",
+    "function": "Canvas",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/ui/src/components/Designer/Canvas/index.tsx",
+    "function": "onDrag",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/ui/src/components/Designer/RightSidebar/DetailView/AlignWidget.tsx",
+    "function": "<anonymous>",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/ui/src/components/Designer/RightSidebar/DetailView/BindingWidget.tsx",
+    "function": "widthPercentages",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/ui/src/components/Designer/RightSidebar/DetailView/BindingWidget.tsx",
+    "function": "formatHintFromKind",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/ui/src/components/Designer/index.tsx",
+    "function": "<anonymous>",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/pdf-lib/src/core/streams/FlateStream.ts",
+    "function": "readBlock",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/schemas/src/tables/pdfRender.ts",
+    "function": "pdfRender",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/pdf-lib/src/core/streams/decode.ts",
+    "function": "decodeStream",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/ui/src/helper.ts",
+    "function": "undoRedoHandler",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/cli/src/commands/doctor.ts",
+    "function": "resolveDoctorInvocation",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/cli/src/commands/doctor.ts",
+    "function": "printDoctorInputVerbose",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/cli/src/commands/generate.ts",
+    "function": "describeGenerateInput",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/cli/src/commands/pdf2size.ts",
+    "function": "<anonymous>",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/cli/src/contract.ts",
+    "function": "normalizeCliError",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/cli/src/diagnostics.ts",
+    "function": "levenshtein",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/cli/src/diagnostics.ts",
+    "function": "isValidClockTime",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/cli/src/fonts.ts",
+    "function": "ensureFontCacheMigrated",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/cli/src/fonts.ts",
+    "function": "downloadNotoSansJP",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/cli/src/fonts.ts",
+    "function": "normalizeExplicitFontOption",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/cli/src/fonts.ts",
+    "function": "detectDataUriFormatHint",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/cli/src/fonts.ts",
+    "function": "getValueType",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/cli/src/utils.ts",
+    "function": "readJsonFromStdin",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/common/src/dataBinding.ts",
+    "function": "inferType",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/pdf-lib/src/api/PDFDocument.ts",
+    "function": "embedPages",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/pdf-lib/src/api/PDFEmbeddedFile.ts",
+    "function": "embed",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/pdf-lib/src/api/PDFPage.ts",
+    "function": "scaleAnnot",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/pdf-lib/src/api/svg.ts",
+    "function": "parseHTMLNode",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/pdf-lib/src/utils/elements/Arc.ts",
+    "function": "isEqual",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/pdf-lib/src/utils/elements/Segment.ts",
+    "function": "isEqual",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/pdf-lib/src/utils/strings.ts",
+    "function": "charAtIndex",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/ui/src/components/Designer/RightSidebar/DetailView/BindingWidget.tsx",
+    "function": "inferColumnsFromSample",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/ui/src/components/Designer/RightSidebar/DetailView/BindingWidget.tsx",
+    "function": "toggleColumn",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/ui/src/components/Designer/RightSidebar/TemplateDataPanel.tsx",
+    "function": "scalarSchemaFromVariable",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/ui/src/components/Designer/RightSidebar/index.tsx",
+    "function": "Sidebar",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/ui/src/components/Designer/index.tsx",
+    "function": "addSchema",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/ui/src/components/Preview.tsx",
+    "function": "<anonymous>",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/ui/src/helper.ts",
+    "function": "getValue",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/schemas/src/text/richTextPdfRender.ts",
+    "function": "renderInlineMarkdownText",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/common/src/dataBinding.ts",
+    "function": "formatDesignDataValue",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/schemas/src/text/pdfRender.ts",
+    "function": "pdfRender",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  },
+  {
+    "file": "packages/schemas/src/barcodes/helper.ts",
+    "function": "validateBarcodeInput",
+    "reason": "Phase 4 cleanup",
+    "until": "2026-08-01"
+  }
+]
