@@ -1,31 +1,17 @@
-import React, {
-  Ref,
-  useContext,
-  MutableRefObject,
-  useRef,
-  useEffect,
-  forwardRef,
-} from 'react';
-import { theme, Button } from 'antd';
+import React, { Ref, useContext, useRef, forwardRef } from 'react';
+import { theme } from 'antd';
 import MoveableComponent from 'react-moveable';
-import {
-  ZOOM,
-  SchemaForUI,
-  Size,
-  ChangeSchemas,
-  BasePdf,
-  getDesignDataInput,
-} from '@pdfweave/common';
+import { getDesignDataInput } from '@pdfweave/common';
 import { OptionsContext, PluginsRegistry } from '../../../contexts.js';
-import { X } from 'lucide-react';
 import { RIGHT_SIDEBAR_WIDTH, DESIGNER_CLASSNAME } from '../../../constants.js';
-import { usePrevious } from '../../../hooks.js';
 import { uuid } from '../../../helper.js';
 import Paper from '../../Paper.js';
 import Selecto from './Selecto.js';
 import ContextMenu from './ContextMenu.js';
 import CanvasSchema from './CanvasSchema.js';
 import CanvasPage from './CanvasPage.js';
+import DeleteButton from './DeleteButton.js';
+import type { CanvasProps, GuidesInterface } from './types.js';
 import { useRenderedHeights } from './hooks/useRenderedHeights.js';
 import { useShiftKeyTracker } from './hooks/useShiftKeyTracker.js';
 import { usePageOverflow } from './hooks/usePageOverflow.js';
@@ -33,83 +19,11 @@ import { useSelectionHelpers } from './hooks/useSelectionHelpers.js';
 import { useContextMenu } from './hooks/useContextMenu.js';
 import { useDragResize } from './hooks/useDragResize.js';
 import { useMarqueeSelection } from './hooks/useMarqueeSelection.js';
+import { useMoveableSync } from './hooks/useMoveableSync.js';
 
 const DELETE_BTN_ID = uuid();
-const fmt4Num = (prop: string) => Number(prop.replace('px', ''));
 
-const DeleteButton = ({ activeElements: aes }: { activeElements: HTMLElement[] }) => {
-  const { token } = theme.useToken();
-
-  const size = 26;
-  const top = Math.min(...aes.map(({ style }) => fmt4Num(style.top)));
-  const left = Math.max(...aes.map(({ style }) => fmt4Num(style.left) + fmt4Num(style.width))) + 10;
-
-  return (
-    <Button
-      id={DELETE_BTN_ID}
-      className={DESIGNER_CLASSNAME + 'delete-button'}
-      style={{
-        position: 'absolute',
-        zIndex: 1,
-        top,
-        left,
-        width: size,
-        height: size,
-        padding: 2,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderRadius: token.borderRadius,
-        color: token.colorWhite,
-        background: token.colorPrimary,
-      }}
-    >
-      <X style={{ pointerEvents: 'none' }} />
-    </Button>
-  );
-};
-
-interface GuidesInterface {
-  getGuides(): number[];
-  scroll(pos: number): void;
-  scrollGuides(pos: number): void;
-  loadGuides(guides: number[]): void;
-  resize(): void;
-}
-
-interface Props {
-  basePdf: BasePdf;
-  height: number;
-  hoveringSchemaId: string | null;
-  onChangeHoveringSchemaId: (id: string | null) => void;
-  pageCursor: number;
-  schemasList: SchemaForUI[][];
-  scale: number;
-  backgrounds: string[];
-  pageSizes: Size[];
-  size: Size;
-  activeElements: HTMLElement[];
-  onEdit: (targets: HTMLElement[]) => void;
-  changeSchemas: ChangeSchemas;
-  removeSchemas: (ids: string[]) => void;
-  designerActions: {
-    copy: (ids?: string[]) => void;
-    cut: (ids?: string[]) => void;
-    paste: () => void;
-    duplicate: (ids?: string[]) => void;
-    group: (ids?: string[]) => void;
-    ungroup: (ids?: string[]) => void;
-    remove: (ids?: string[]) => void;
-    bringToFront: (ids?: string[]) => void;
-    sendToBack: (ids?: string[]) => void;
-    canPaste: () => boolean;
-  };
-  paperRefs: MutableRefObject<HTMLDivElement[]>;
-  sidebarOpen: boolean;
-  onPageOverflowChange?: (info: { pageIndex: number; overflowingSchemaCount: number }) => void;
-}
-
-const Canvas = (props: Props, ref: Ref<HTMLDivElement>) => {
+const Canvas = (props: CanvasProps, ref: Ref<HTMLDivElement>) => {
   const {
     basePdf,
     pageCursor,
@@ -153,7 +67,6 @@ const Canvas = (props: Props, ref: Ref<HTMLDivElement>) => {
     designerActions,
   });
 
-  const prevSchemas = usePrevious(schemasList[pageCursor]);
   const { bottomPaddingMm, hasOverflow } = usePageOverflow({
     basePdf,
     pageCursor,
@@ -162,20 +75,7 @@ const Canvas = (props: Props, ref: Ref<HTMLDivElement>) => {
     renderedSchemaHeights,
     onPageOverflowChange,
   });
-
-  useEffect(() => {
-    moveable.current?.updateRect();
-    if (!prevSchemas) {
-      return;
-    }
-
-    const prevSchemaKeys = JSON.stringify(prevSchemas[pageCursor] || {});
-    const schemaKeys = JSON.stringify(schemasList[pageCursor] || {});
-
-    if (prevSchemaKeys === schemaKeys) {
-      moveable.current?.updateRect();
-    }
-  }, [pageCursor, schemasList, prevSchemas]);
+  useMoveableSync({ moveable, pageCursor, schemasList });
 
   const {
     onDrag,
@@ -281,7 +181,7 @@ const Canvas = (props: Props, ref: Ref<HTMLDivElement>) => {
             moveableRef={moveable}
             horizontalGuidesRef={horizontalGuides}
             verticalGuidesRef={verticalGuides}
-            deleteButton={<DeleteButton activeElements={activeElements} />}
+            deleteButton={<DeleteButton id={DELETE_BTN_ID} activeElements={activeElements} />}
             onDrag={onDrag}
             onDragEnd={onDragEnd}
             onDragEnds={onDragEnds}
@@ -294,41 +194,33 @@ const Canvas = (props: Props, ref: Ref<HTMLDivElement>) => {
             onClickMoveable={onClickMoveable}
           />
         )}
-        renderSchema={({ schema, index }) => {
-          const schemaPageIndex = schemaPageIndexById.get(schema.id) ?? pageCursor;
-          const outlineColor = `1px ${hoveringSchemaId === schema.id ? 'solid' : 'dashed'} ${
-            schema.readOnly && hoveringSchemaId !== schema.id
-              ? 'transparent'
-              : token.colorPrimary
-          }`;
-          return (
-            <CanvasSchema
-              schema={schema}
-              index={index}
-              basePdf={basePdf}
-              pageCursor={pageCursor}
-              pageSizes={pageSizes}
-              schemasList={schemasList}
-              schemaPageIndex={schemaPageIndex}
-              bottomPaddingMm={bottomPaddingMm}
-              designDataInput={designDataInput}
-              activeElements={activeElements}
-              hoveringSchemaId={hoveringSchemaId}
-              editing={editing}
-              scale={scale}
-              renderedHeight={renderedSchemaHeights[schema.id]}
-              outlineColor={outlineColor}
-              changeSchemas={changeSchemas}
-              onChangeHoveringSchemaId={onChangeHoveringSchemaId}
-              onRenderedHeightChange={onRenderedHeightChange}
-              onEdit={onEdit}
-              setEditing={setEditing}
-              setContextMenu={setContextMenu}
-              selectContextTargets={selectContextTargets}
-              toggleShiftClickSelection={toggleShiftClickSelection}
-            />
-          );
-        }}
+        renderSchema={({ schema, index }) => (
+          <CanvasSchema
+            schema={schema}
+            index={index}
+            basePdf={basePdf}
+            pageCursor={pageCursor}
+            pageSizes={pageSizes}
+            schemasList={schemasList}
+            schemaPageIndex={schemaPageIndexById.get(schema.id) ?? pageCursor}
+            bottomPaddingMm={bottomPaddingMm}
+            designDataInput={designDataInput}
+            activeElements={activeElements}
+            hoveringSchemaId={hoveringSchemaId}
+            editing={editing}
+            scale={scale}
+            renderedHeight={renderedSchemaHeights[schema.id]}
+            primaryColor={token.colorPrimary}
+            changeSchemas={changeSchemas}
+            onChangeHoveringSchemaId={onChangeHoveringSchemaId}
+            onRenderedHeightChange={onRenderedHeightChange}
+            onEdit={onEdit}
+            setEditing={setEditing}
+            setContextMenu={setContextMenu}
+            selectContextTargets={selectContextTargets}
+            toggleShiftClickSelection={toggleShiftClickSelection}
+          />
+        )}
       />
       <ContextMenu
         open={Boolean(contextMenu)}
@@ -346,4 +238,4 @@ const Canvas = (props: Props, ref: Ref<HTMLDivElement>) => {
     </div>
   );
 };
-export default forwardRef<HTMLDivElement, Props>(Canvas);
+export default forwardRef<HTMLDivElement, CanvasProps>(Canvas);

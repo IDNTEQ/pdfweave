@@ -31,7 +31,7 @@ interface CanvasSchemaProps {
   editing: boolean;
   scale: number;
   renderedHeight: number | undefined;
-  outlineColor: string;
+  primaryColor: string;
   changeSchemas: ChangeSchemas;
   onChangeHoveringSchemaId: (id: string | null) => void;
   onRenderedHeightChange: (id: string, height: number) => void;
@@ -41,6 +41,17 @@ interface CanvasSchemaProps {
   selectContextTargets: (schema: SchemaForUI, target: HTMLElement) => HTMLElement[];
   toggleShiftClickSelection: (schema: SchemaForUI, target: HTMLElement) => void;
 }
+
+const buildOutline = (
+  schema: SchemaForUI,
+  hoveringSchemaId: string | null,
+  primaryColor: string,
+): string => {
+  const isHovered = hoveringSchemaId === schema.id;
+  const stroke = isHovered ? 'solid' : 'dashed';
+  const color = schema.readOnly && !isHovered ? 'transparent' : primaryColor;
+  return `1px ${stroke} ${color}`;
+};
 
 const computeDisplayValue = (
   schema: SchemaForUI,
@@ -94,7 +105,7 @@ const CanvasSchema: React.FC<CanvasSchemaProps> = ({
   editing,
   scale,
   renderedHeight,
-  outlineColor,
+  primaryColor,
   changeSchemas,
   onChangeHoveringSchemaId,
   onRenderedHeightChange,
@@ -116,6 +127,7 @@ const CanvasSchema: React.FC<CanvasSchemaProps> = ({
   );
 
   const isOnCurrentPage = (schemasList[pageCursor] || []).some((s) => s.id === schema.id);
+  const outline = buildOutline(schema, hoveringSchemaId, primaryColor);
 
   return (
     <Renderer
@@ -137,7 +149,7 @@ const CanvasSchema: React.FC<CanvasSchemaProps> = ({
       stopEditing={() => {
         setEditing(false);
       }}
-      outline={outlineColor}
+      outline={outline}
       scale={scale}
       renderedHeight={renderedHeight}
       onRenderedHeightChange={onRenderedHeightChange}
