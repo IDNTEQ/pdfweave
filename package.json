@@ -4,11 +4,11 @@
   "private": true,
   "description": "PDFweave — a PDF template engine with first-class data binding, anchor layouts, smart tables, and stationery PDFs. Forked from PDFme.",
   "keywords": [
-    "pdfweave",
-    "pdf",
-    "templates",
     "data-binding",
+    "pdf",
+    "pdfweave",
     "react",
+    "templates",
     "typescript"
   ],
   "homepage": "https://pdfweave.dev",
