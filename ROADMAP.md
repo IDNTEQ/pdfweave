@@ -8,7 +8,7 @@ bar; this document tracks the actual work.
 ### Tooling — Quality push (May 2026)
 
 - [ ] **Phase 0** — Mission + roadmap + pinned tracking issue *(this PR)*
-- [ ] **Phase 1** — Layered linter: oxlint (fast, local) + ESLint flat
+- [x] **Phase 1** — Layered linter: oxlint (fast, local) + ESLint flat
       config (deep, CI). `@typescript-eslint/strict-type-checked`,
       `eslint-plugin-import` boundaries, `eslint-plugin-sonarjs`
       cognitive-complexity ≤ 15, `eslint-plugin-unicorn`,
