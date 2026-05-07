@@ -116,9 +116,11 @@ const renderRowUi = (args: {
   arg: UIRenderProps<TableSchema>;
   editingPosition: { rowIndex: number; colIndex: number };
   onChangeEditingPosition: (position: { rowIndex: number; colIndex: number }) => void;
+  resetEditingPosition: () => void;
   offsetY?: number;
 }) => {
-  const { rows, arg, onChangeEditingPosition, offsetY = 0, editingPosition } = args;
+  const { rows, arg, onChangeEditingPosition, offsetY = 0, editingPosition, resetEditingPosition } =
+    args;
   const value = JSON.parse(arg.value || '[]') as string[][];
 
   let rowOffsetY = offsetY;
@@ -193,17 +195,38 @@ const renderRowUi = (args: {
   });
 };
 
-const headEditingPosition = { rowIndex: -1, colIndex: -1 };
-const bodyEditingPosition = { rowIndex: -1, colIndex: -1 };
-const resetEditingPosition = () => {
-  headEditingPosition.rowIndex = -1;
-  headEditingPosition.colIndex = -1;
-  bodyEditingPosition.rowIndex = -1;
-  bodyEditingPosition.colIndex = -1;
+// Editing state must be per-table-instance: two tables on the same page used
+// to share these positions, so editing a cell in table A would visibly move
+// the editing focus in table B. We key on the schema object itself (via a
+// WeakMap) so the state is automatically reclaimed when the schema is
+// removed, and we don't depend on `schema.id` being set (it's optional on
+// the base Schema type).
+type EditingPosition = { rowIndex: number; colIndex: number };
+const makeEditingPosition = (): EditingPosition => ({ rowIndex: -1, colIndex: -1 });
+const headEditingPositions = new WeakMap<TableSchema, EditingPosition>();
+const bodyEditingPositions = new WeakMap<TableSchema, EditingPosition>();
+const getOrInitEditingPosition = (
+  store: WeakMap<TableSchema, EditingPosition>,
+  key: TableSchema,
+): EditingPosition => {
+  let pos = store.get(key);
+  if (!pos) {
+    pos = makeEditingPosition();
+    store.set(key, pos);
+  }
+  return pos;
 };
 
 export const uiRender = async (arg: UIRenderProps<TableSchema>) => {
   const { rootElement, onChange, schema, value, mode, scale } = arg;
+  const headEditingPosition = getOrInitEditingPosition(headEditingPositions, schema);
+  const bodyEditingPosition = getOrInitEditingPosition(bodyEditingPositions, schema);
+  const resetEditingPosition = () => {
+    headEditingPosition.rowIndex = -1;
+    headEditingPosition.colIndex = -1;
+    bodyEditingPosition.rowIndex = -1;
+    bodyEditingPosition.colIndex = -1;
+  };
   // Pass column count so a comma-flattened string (pdfme/pdfme#1299
   // recovery) can be reshaped into rows instead of crashing JSON.parse.
   const columnCount =
@@ -233,6 +256,7 @@ export const uiRender = async (arg: UIRenderProps<TableSchema>) => {
       arg,
       editingPosition: headEditingPosition,
       onChangeEditingPosition: (p) => handleChangeEditingPosition(p, headEditingPosition),
+      resetEditingPosition,
     });
   }
 
@@ -244,6 +268,7 @@ export const uiRender = async (arg: UIRenderProps<TableSchema>) => {
     onChangeEditingPosition: (p) => {
       handleChangeEditingPosition(p, bodyEditingPosition);
     },
+    resetEditingPosition,
     offsetY,
   });
 
