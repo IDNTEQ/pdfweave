@@ -21,7 +21,7 @@ const barcodeDefaults: { defaultSchema: BarcodeSchema }[] = [
     defaultSchema: {
       name: '',
       type: 'qrcode',
-      content: 'https://pdfme.com/',
+      content: 'https://pdfweave.dev/',
       position,
       ...defaultColors,
       width: 30,
