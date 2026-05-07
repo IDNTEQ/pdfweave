@@ -31,6 +31,8 @@ jobs:
       - run: npm run build
       - name: Bundle size check
         run: npm run size
+      - name: npm audit (high+, runtime only)
+        run: npm audit --omit=dev --audit-level=high
       - run: npm run test
         env:
           CI: true
