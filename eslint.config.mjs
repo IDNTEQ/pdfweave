@@ -75,6 +75,16 @@ const configWithWarnRules = (config, files = sourceFiles) => ({
 const disableRulesFromPlugin = (prefix, plugin) =>
   Object.fromEntries(Object.keys(plugin.rules).map((ruleName) => [`${prefix}/${ruleName}`, 'off']));
 
+const disableTypeScriptRules = (...ruleNames) =>
+  Object.fromEntries(ruleNames.map((ruleName) => [`@typescript-eslint/${ruleName}`, 'off']));
+
+const disableTypeScriptRulesMatching = (predicate) =>
+  Object.fromEntries(
+    Object.keys(tseslint.plugin.rules)
+      .filter(predicate)
+      .map((ruleName) => [`@typescript-eslint/${ruleName}`, 'off'])
+  );
+
 const packageBoundaryZones = packageNames.map((targetPackage) => ({
   target: `./packages/${targetPackage}/src`,
   from: packageNames
@@ -236,6 +246,52 @@ export default [
       ...warnRules(reactHooks.configs.flat.recommended.rules),
       'react/jsx-key': 'error',
       'react-hooks/rules-of-hooks': 'error',
+    },
+  },
+  {
+    name: 'pdfweave/tests-carve-out',
+    files: ['**/*.test.{ts,tsx}', '**/*.spec.{ts,tsx}', '**/__tests__/**/*.{ts,tsx}'],
+    rules: {
+      'sonarjs/no-duplicate-string': 'off',
+      'sonarjs/cognitive-complexity': 'off',
+      '@typescript-eslint/no-non-null-assertion': 'off',
+      'unicorn/no-null': 'off',
+      ...disableRulesFromPlugin('jsdoc', jsdoc),
+    },
+  },
+  {
+    name: 'pdfweave/pdf-lib-carve-out',
+    files: ['packages/pdf-lib/**/*.{ts,tsx}'],
+    rules: {
+      ...disableTypeScriptRules(
+        'no-explicit-any',
+        'restrict-template-expressions',
+        'ban-ts-comment',
+        'no-unused-vars',
+        'no-duplicate-enum-values',
+        'require-await',
+        'no-empty-object-type',
+        'no-unnecessary-type-assertion',
+        'no-extra-non-null-assertion',
+        'no-wrapper-object-types',
+        'no-unused-expressions',
+        'unbound-method',
+        'await-thenable',
+        'prefer-promise-reject-errors',
+        'no-redundant-type-constituents',
+        'no-floating-promises',
+        'no-misused-promises'
+      ),
+      ...disableTypeScriptRulesMatching((ruleName) => ruleName.startsWith('no-unsafe')),
+      ...disableRulesFromPlugin('sonarjs', sonarjs),
+      ...disableRulesFromPlugin('unicorn', unicorn),
+      ...disableRulesFromPlugin('security', security),
+      ...disableRulesFromPlugin('jsdoc', jsdoc),
+      'no-unused-vars': 'off',
+      'require-await': 'off',
+      'no-unused-expressions': 'off',
+      'no-unsafe-finally': 'off',
+      'import/no-cycle': 'off',
     },
   },
 ];
