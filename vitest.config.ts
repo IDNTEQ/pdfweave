@@ -73,6 +73,43 @@ const workspaceTests: Record<
 
 const selectedWorkspace = workspaceTests[workspacePath];
 const usePublishedPdfmeExports = workspacePath === 'playground';
+const coverageReporters = ['text-summary', 'json-summary', 'json', 'lcov', 'html'] as const;
+const coverageExcludes = [
+  'src/**/*.test.{ts,tsx}',
+  'src/**/*.spec.{ts,tsx}',
+  'src/**/__tests__/**',
+  'src/**/*.d.ts',
+  'src/**/index.ts',
+];
+const coverageThresholds: Record<
+  string,
+  { lines: number; branches: number; functions: number; statements: number } | undefined
+> = {
+  'packages/common': { lines: 60, branches: 50, functions: 60, statements: 60 },
+  // TODO ratchet schemas: current L57.51 / B44.94 / F55.55 / S56.52, target 60 / 50 / 60 / 60
+  'packages/schemas': { lines: 52, branches: 39, functions: 50, statements: 51 },
+  'packages/generator': { lines: 55, branches: 45, functions: 55, statements: 55 },
+  // TODO ratchet ui: current L46.75 / B23.01 / F34.39 / S44.56, target 40 / 30 / 40 / 40
+  'packages/ui': { lines: 41, branches: 18, functions: 29, statements: 39 },
+  'packages/converter': { lines: 40, branches: 30, functions: 40, statements: 40 },
+  // packages/manipulator only ships re-exports from src/index.ts which is excluded; nothing to gate.
+  'packages/manipulator': undefined,
+  // TODO ratchet cli: current L14.21 / B13.75 / F23.62 / S14.43, target 40 / 30 / 40 / 40
+  'packages/cli': { lines: 9, branches: 8, functions: 18, statements: 9 },
+  'packages/pdf-lib': undefined,
+};
+const selectedCoverageThresholds = coverageThresholds[workspacePath];
+const coverageConfig =
+  selectedWorkspace && workspacePath.startsWith('packages/')
+    ? {
+        provider: 'v8' as const,
+        reporter: coverageReporters,
+        reportsDirectory: './coverage',
+        include: ['src/**/*.{ts,tsx}'],
+        exclude: coverageExcludes,
+        ...(selectedCoverageThresholds ? { thresholds: selectedCoverageThresholds } : {}),
+      }
+    : undefined;
 const converterReplacement =
   workspacePath === 'packages/ui'
     ? path.resolve(repoRoot, 'packages/ui/__mocks__/converter.ts')
@@ -128,6 +165,7 @@ const testConfig = {
   testTimeout: selectedWorkspace?.testTimeout,
   hookTimeout: selectedWorkspace?.hookTimeout,
   fileParallelism: selectedWorkspace?.fileParallelism,
+  coverage: coverageConfig,
   ...(selectedWorkspace?.environment ? { environment: selectedWorkspace.environment } : {}),
 };
 

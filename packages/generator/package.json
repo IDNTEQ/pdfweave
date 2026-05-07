@@ -48,6 +48,7 @@
     "lint": "vp lint -c ../../.oxlintrc.json src",
     "fmt": "vp fmt -c ../../.oxfmtrc.json src --write",
     "test": "vitest run --config ../../vitest.config.ts",
+    "coverage": "vitest run --config ../../vitest.config.ts --coverage",
     "test:update-snapshots": "vitest run --config ../../vitest.config.ts -u"
   },
   "dependencies": {

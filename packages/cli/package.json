@@ -47,7 +47,8 @@
     "clean": "rimraf dist",
     "lint": "vp lint -c ../../.oxlintrc.json src",
     "fmt": "vp fmt -c ../../.oxfmtrc.json src --write",
-    "test": "npm run build && vitest run --config ../../vitest.config.ts"
+    "test": "npm run build && vitest run --config ../../vitest.config.ts",
+    "coverage": "npm run build && vitest run --config ../../vitest.config.ts --coverage"
   },
   "dependencies": {
     "@napi-rs/canvas": "^0.1.100",

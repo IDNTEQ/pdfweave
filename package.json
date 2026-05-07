@@ -45,6 +45,8 @@
     "ci": "npm run check && npm run build && npm --prefix playground run build",
     "typecheck": "node packages/common/set-version.js && tsc -b",
     "test": "vp run --filter '@pdfweave/*' test",
+    "coverage": "npm run coverage:packages && node scripts/coverage-aggregate.mjs",
+    "coverage:packages": "vp run --filter '@pdfweave/*' --concurrency-limit 2 coverage",
     "lint": "vp run --filter '@pdfweave/*' lint && npm --prefix playground run lint",
     "lint:fix": "vp lint -c .oxlintrc.json packages/cli/src packages/common/src packages/converter/src packages/generator/src packages/manipulator/src packages/pdf-lib/src packages/schemas/src packages/ui/src --fix && npm --prefix playground run lint -- --fix",
     "lint:strict": "eslint .",
@@ -53,6 +55,7 @@
   },
   "devDependencies": {
     "@types/node": "^25.6.0",
+    "@vitest/coverage-v8": "^4.1.5",
     "eslint": "^9.39.4",
     "eslint-import-resolver-typescript": "^4.4.4",
     "eslint-plugin-import": "^2.32.0",

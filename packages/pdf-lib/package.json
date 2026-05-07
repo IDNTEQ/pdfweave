@@ -54,7 +54,8 @@
     "clean": "rimraf --glob dist \"src/**/*.d.ts\"",
     "lint": "vp lint -c ../../.oxlintrc.json src",
     "fmt": "vp fmt -c ../../.oxfmtrc.json src --write",
-    "test": "vitest run --config ../../vitest.config.ts"
+    "test": "vitest run --config ../../vitest.config.ts",
+    "coverage": "vitest run --config ../../vitest.config.ts --coverage"
   },
   "dependencies": {
     "@pdf-lib/standard-fonts": "^1.0.0",
