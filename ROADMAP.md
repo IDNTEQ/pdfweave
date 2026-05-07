@@ -59,10 +59,7 @@ bar; this document tracks the actual work.
   server-only entry (`@pdfweave/schemas/server`) re-exports only
   `pdfRender` paths and drops React from the server dep tree; audit
   generator's Node API usage; document Cloudflare Workers / Deno / Bun
-  compatibility. (Previously written as "WASM-only render path"; that
-  framing overpromised — this is JS-runtime portability, not WASM
-  compilation. True WASM compilation is a separate, much larger
-  question that's not being pursued.)
+  compatibility.
 - i18n for the Designer beyond English / Portuguese.
 
 ## Done
