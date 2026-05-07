@@ -47,6 +47,7 @@ import StaticSchema from '../../StaticSchema.js';
 import ContextMenu, { type DesignerContextMenuAction } from './ContextMenu.js';
 import { useRenderedHeights } from './hooks/useRenderedHeights.js';
 import { useShiftKeyTracker } from './hooks/useShiftKeyTracker.js';
+import { usePageOverflow } from './hooks/usePageOverflow.js';
 
 const mm2px = (mm: number) => mm * 3.7795275591;
 
@@ -55,10 +56,6 @@ const fmt4Num = (prop: string) => Number(prop.replace('px', ''));
 const fmt = (prop: string) => round(fmt4Num(prop) / ZOOM, 2);
 const isTopLeftResize = (d: string) => d === '-1,-1' || d === '-1,0' || d === '0,-1';
 const normalizeRotate = (angle: number) => ((angle % 360) + 360) % 360;
-const getBasePdfPadding = (basePdf: BasePdf): [number, number, number, number] => {
-  const maybePadding = (basePdf as { padding?: [number, number, number, number] }).padding;
-  return Array.isArray(maybePadding) ? maybePadding : [0, 0, 0, 0];
-};
 
 type ApplyAnchorSource = {
   schema: SchemaForUI;
@@ -207,31 +204,14 @@ const Canvas = (props: Props, ref: Ref<HTMLDivElement>) => {
   const { renderedSchemaHeights, onRenderedHeightChange } = useRenderedHeights();
 
   const prevSchemas = usePrevious(schemasList[pageCursor]);
-  const [, , bottomPaddingMm] = getBasePdfPadding(basePdf);
-  const currentPageHeight = pageSizes[pageCursor]?.height ?? 0;
-  const currentContentBottomY = currentPageHeight - bottomPaddingMm;
-  const overflowingSchemaCount = useMemo(() => {
-    if (currentPageHeight <= 0) {
-      return 0;
-    }
-
-    return (schemasList[pageCursor] || []).filter((schema) => {
-      const renderedHeight = renderedSchemaHeights[schema.id] ?? schema.height;
-      return schema.position.y + Math.max(schema.height, renderedHeight) > currentContentBottomY;
-    }).length;
-  }, [currentContentBottomY, currentPageHeight, pageCursor, renderedSchemaHeights, schemasList]);
-  const hasOverflow = overflowingSchemaCount > 0;
-  const prevOverflowKey = useRef<string | null>(null);
-
-  useEffect(() => {
-    const overflowKey = `${pageCursor}:${overflowingSchemaCount}`;
-    if (prevOverflowKey.current === overflowKey) {
-      return;
-    }
-
-    prevOverflowKey.current = overflowKey;
-    onPageOverflowChange?.({ pageIndex: pageCursor, overflowingSchemaCount });
-  }, [onPageOverflowChange, overflowingSchemaCount, pageCursor]);
+  const { bottomPaddingMm, hasOverflow } = usePageOverflow({
+    basePdf,
+    pageCursor,
+    pageSizes,
+    schemasList,
+    renderedSchemaHeights,
+    onPageOverflowChange,
+  });
 
   useEffect(() => {
     moveable.current?.updateRect();
