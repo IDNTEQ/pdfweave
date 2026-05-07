@@ -26,12 +26,7 @@ import {
 } from '@pdfweave/common';
 import { OptionsContext, PluginsRegistry } from '../../../contexts.js';
 import { X } from 'lucide-react';
-import {
-  RULER_HEIGHT,
-  RIGHT_SIDEBAR_WIDTH,
-  DESIGNER_CLASSNAME,
-  SELECTABLE_CLASSNAME,
-} from '../../../constants.js';
+import { RULER_HEIGHT, RIGHT_SIDEBAR_WIDTH, DESIGNER_CLASSNAME } from '../../../constants.js';
 import { usePrevious } from '../../../hooks.js';
 import { round, flatten, uuid, getRotatedBoundingBoxOffsets, isAnchoredLayout } from '../../../helper.js';
 import Paper from '../../Paper.js';
@@ -48,6 +43,7 @@ import ContextMenu, { type DesignerContextMenuAction } from './ContextMenu.js';
 import { useRenderedHeights } from './hooks/useRenderedHeights.js';
 import { useShiftKeyTracker } from './hooks/useShiftKeyTracker.js';
 import { usePageOverflow } from './hooks/usePageOverflow.js';
+import { useSelectionHelpers } from './hooks/useSelectionHelpers.js';
 
 const mm2px = (mm: number) => mm * 3.7795275591;
 
@@ -403,75 +399,20 @@ const Canvas = (props: Props, ref: Ref<HTMLDivElement>) => {
     setEditing(true);
   };
 
-  const activeIds = useMemo(() => activeElements.map((ae) => ae.id), [activeElements]);
-  const activeIdsRef = useRef<string[]>(activeIds);
-  activeIdsRef.current = activeIds;
-  const focusedSchemaIds = useMemo(() => {
-    const ids = new Set(activeIds);
-    if (hoveringSchemaId) ids.add(hoveringSchemaId);
-    return ids;
-  }, [activeIds, hoveringSchemaId]);
-  const schemaPageIndexById = useMemo(() => {
-    const pageIndexById = new Map<string, number>();
-    schemasList.forEach((pageSchemas, index) => {
-      pageSchemas.forEach((schema) => {
-        pageIndexById.set(schema.id, index);
-      });
-    });
-    return pageIndexById;
-  }, [schemasList]);
-
-  const expandIdsByGroups = useCallback(
-    (ids: string[]) => {
-      const pageSchemas = schemasList[pageCursor] || [];
-      const selectedIds = new Set(ids);
-      const selectedGroups = new Set(
-        pageSchemas
-          .filter((schema) => selectedIds.has(schema.id) && schema.group)
-          .map((schema) => schema.group as string),
-      );
-
-      if (selectedGroups.size === 0) return ids;
-
-      pageSchemas.forEach((schema) => {
-        if (schema.group && selectedGroups.has(schema.group)) {
-          selectedIds.add(schema.id);
-        }
-      });
-
-      return pageSchemas.filter((schema) => selectedIds.has(schema.id)).map((schema) => schema.id);
-    },
-    [pageCursor, schemasList],
-  );
-
-  const getElementsByIds = (ids: string[]) => {
-    const selectableElements = Array.from(document.getElementsByClassName(SELECTABLE_CLASSNAME));
-    return ids
-      .map(
-        (id) =>
-          selectableElements.find((element) => element.id === id) ?? document.getElementById(id),
-      )
-      .filter((element): element is HTMLElement => element instanceof HTMLElement);
-  };
-
-  const selectContextTargets = (schema: SchemaForUI, target: HTMLElement) => {
-    const ids = activeIds.includes(schema.id) ? activeIds : [schema.id];
-    const targets = getElementsByIds(expandIdsByGroups(ids));
-    return targets.length > 0 ? targets : [target];
-  };
-
-  const toggleShiftClickSelection = (schema: SchemaForUI, target: HTMLElement) => {
-    const nextIds = new Set(activeIdsRef.current);
-    if (nextIds.has(schema.id)) {
-      nextIds.delete(schema.id);
-    } else {
-      nextIds.add(schema.id);
-    }
-
-    const targets = getElementsByIds(expandIdsByGroups(Array.from(nextIds)));
-    onEdit(targets.length > 0 ? targets : [target]);
-    setEditing(false);
-  };
+  const {
+    activeIds,
+    focusedSchemaIds,
+    schemaPageIndexById,
+    selectContextTargets,
+    toggleShiftClickSelection,
+  } = useSelectionHelpers({
+    activeElements,
+    hoveringSchemaId,
+    schemasList,
+    pageCursor,
+    onEdit,
+    onEditingChange: setEditing,
+  });
 
   const contextSchemas = useMemo(() => {
     const ids = new Set(contextMenu?.schemaIds ?? []);
