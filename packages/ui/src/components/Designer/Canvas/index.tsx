@@ -15,8 +15,6 @@ import {
   ChangeSchemas,
   BasePdf,
   getDesignDataInput,
-  replacePlaceholders,
-  resolveSchemaValue,
 } from '@pdfweave/common';
 import { OptionsContext, PluginsRegistry } from '../../../contexts.js';
 import { X } from 'lucide-react';
@@ -24,7 +22,6 @@ import { RULER_HEIGHT, RIGHT_SIDEBAR_WIDTH, DESIGNER_CLASSNAME } from '../../../
 import { usePrevious } from '../../../hooks.js';
 import { uuid } from '../../../helper.js';
 import Paper from '../../Paper.js';
-import Renderer from '../../Renderer.js';
 import Selecto from './Selecto.js';
 import Moveable from './Moveable.js';
 import Guides from './Guides.js';
@@ -34,6 +31,7 @@ import PageOverflowIndicator from './PageOverflowIndicator.js';
 import AnchorOverlay from './AnchorOverlay.js';
 import StaticSchema from '../../StaticSchema.js';
 import ContextMenu from './ContextMenu.js';
+import CanvasSchema from './CanvasSchema.js';
 import { useRenderedHeights } from './hooks/useRenderedHeights.js';
 import { useShiftKeyTracker } from './hooks/useShiftKeyTracker.js';
 import { usePageOverflow } from './hooks/usePageOverflow.js';
@@ -354,90 +352,36 @@ const Canvas = (props: Props, ref: Ref<HTMLDivElement>) => {
         )}
         renderSchema={({ schema, index }) => {
           const schemaPageIndex = schemaPageIndexById.get(schema.id) ?? pageCursor;
-          const schemaPageHeight = pageSizes[schemaPageIndex]?.height;
-          const mode =
-            editing && activeElements.map((ae) => ae.id).includes(schema.id)
-              ? 'designer'
-              : 'viewer';
-
-          const value = schema.binding
-            ? resolveSchemaValue({
-                schema,
-                input: designDataInput,
-                schemas: schemasList,
-                totalPages: schemasList.length,
-                currentPage: index + 1,
-              })
-            : (() => {
-                const content = schema.content || '';
-                if (mode === 'designer' || !schema.readOnly) return content;
-                const variables = {
-                  ...schemasList.flat().reduce(
-                    (acc, currSchema) => {
-                      acc[currSchema.name] = currSchema.content || '';
-                      return acc;
-                    },
-                    {} as Record<string, string>,
-                  ),
-                  totalPages: schemasList.length,
-                  currentPage: index + 1,
-                };
-                return replacePlaceholders({ content, variables, schemas: schemasList });
-              })();
-
+          const outlineColor = `1px ${hoveringSchemaId === schema.id ? 'solid' : 'dashed'} ${
+            schema.readOnly && hoveringSchemaId !== schema.id
+              ? 'transparent'
+              : token.colorPrimary
+          }`;
           return (
-            <Renderer
-              key={schema.id}
+            <CanvasSchema
               schema={schema}
+              index={index}
               basePdf={basePdf}
-              value={value}
-              onChangeHoveringSchemaId={onChangeHoveringSchemaId}
-              mode={mode}
-              onChange={
-                (schemasList[pageCursor] || []).some((s) => s.id === schema.id)
-                  ? (arg) => {
-                      // Use type assertion to safely handle the argument
-                      type ChangeArg = { key: string; value: unknown };
-                      const args = Array.isArray(arg) ? (arg as ChangeArg[]) : [arg as ChangeArg];
-                      changeSchemas(
-                        args.map(({ key, value }) => ({ key, value, schemaId: schema.id })),
-                      );
-                    }
-                  : undefined
-              }
-              stopEditing={() => setEditing(false)}
-              outline={`1px ${hoveringSchemaId === schema.id ? 'solid' : 'dashed'} ${
-                schema.readOnly && hoveringSchemaId !== schema.id
-                  ? 'transparent'
-                  : token.colorPrimary
-              }`}
+              pageCursor={pageCursor}
+              pageSizes={pageSizes}
+              schemasList={schemasList}
+              schemaPageIndex={schemaPageIndex}
+              bottomPaddingMm={bottomPaddingMm}
+              designDataInput={designDataInput}
+              activeElements={activeElements}
+              hoveringSchemaId={hoveringSchemaId}
+              editing={editing}
               scale={scale}
               renderedHeight={renderedSchemaHeights[schema.id]}
+              outlineColor={outlineColor}
+              changeSchemas={changeSchemas}
+              onChangeHoveringSchemaId={onChangeHoveringSchemaId}
               onRenderedHeightChange={onRenderedHeightChange}
-              pageBoundsForClip={
-                typeof schemaPageHeight === 'number'
-                  ? { contentBottomY: schemaPageHeight - bottomPaddingMm }
-                  : undefined
-              }
-              onContextMenu={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                setEditing(false);
-                const targets = selectContextTargets(schema, event.currentTarget);
-                onEdit(targets);
-                setContextMenu({
-                  x: event.clientX,
-                  y: event.clientY,
-                  schemaIds: targets.map((target) => target.id),
-                });
-              }}
-              onMouseDownCapture={(event) => {
-                if (!event.shiftKey) return;
-                event.preventDefault();
-                event.stopPropagation();
-                event.nativeEvent.stopImmediatePropagation();
-                toggleShiftClickSelection(schema, event.currentTarget);
-              }}
+              onEdit={onEdit}
+              setEditing={setEditing}
+              setContextMenu={setContextMenu}
+              selectContextTargets={selectContextTargets}
+              toggleShiftClickSelection={toggleShiftClickSelection}
             />
           );
         }}
