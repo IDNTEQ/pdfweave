@@ -9,6 +9,11 @@ import type {
   SchemaPageArray,
 } from './types.js';
 import { replacePlaceholders } from './expression.js';
+import {
+  buildPreviewRows,
+  getTableColumns as resolveTableColumns,
+  inferColumns as inferTableColumns,
+} from './tableBinding.js';
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -141,20 +146,8 @@ const inferItemFields = (items: unknown[]): Record<string, DesignDataField> | un
 const createColumns = (
   itemFields: Record<string, DesignDataField> | undefined,
   sample: unknown,
-): SchemaBindingColumn[] => {
-  const fields = itemFields ?? (Array.isArray(sample) ? inferItemFields(sample) : undefined);
-  if (!fields) return [{ path: '', label: 'Value', widthPercentage: 100 }];
-
-  const entries = Object.entries(fields);
-  const width = entries.length > 0 ? Number((100 / entries.length).toFixed(4)) : 100;
-  return entries.map(([path, field], index) => ({
-    path,
-    label: field.label || titleFromPath(path),
-    format: field.format,
-    widthPercentage:
-      index === entries.length - 1 ? Number((100 - width * (entries.length - 1)).toFixed(4)) : width,
-  }));
-};
+): SchemaBindingColumn[] =>
+  inferTableColumns(sample, itemFields ?? (Array.isArray(sample) ? inferItemFields(sample) : undefined));
 
 const visitFields = (
   fields: Record<string, DesignDataField>,
@@ -263,44 +256,6 @@ export const getDesignDataVariables = (designData?: DesignDataPackage): DesignDa
   return variables;
 };
 
-const getTableColumns = (schema: Schema, value: unknown): SchemaBindingColumn[] => {
-  const binding = schema.binding as SchemaBinding | undefined;
-  if (binding?.columns?.length) return binding.columns;
-  return createColumns(undefined, Array.isArray(value) ? value : []);
-};
-
-export const getTableBindingPreview = (
-  value: unknown,
-  columns: SchemaBindingColumn[],
-): string[][] => {
-  const tableValue =
-    typeof value === 'string'
-      ? (() => {
-          try {
-            return JSON.parse(value) as unknown;
-          } catch {
-            return value;
-          }
-        })()
-      : value;
-
-  if (!Array.isArray(tableValue)) return [];
-
-  return tableValue.map((row) => {
-    if (Array.isArray(row)) {
-      return row.map((cell, index) => formatDesignDataValue(cell, columns[index]?.format));
-    }
-
-    if (!isRecord(row)) {
-      return [formatDesignDataValue(row)];
-    }
-
-    return columns.map((column) =>
-      formatDesignDataValue(column.path ? getValueByPath(row, column.path) : row, column.format),
-    );
-  });
-};
-
 const getInputRecord = (input?: unknown): Record<string, unknown> =>
   isRecord(input) ? input : {};
 
@@ -319,7 +274,9 @@ export const resolveSchemaValue = (arg: {
     const value = getValueByPath(inputRecord, binding.path);
     const resolvedValue =
       schema.type === 'table'
-        ? JSON.stringify(getTableBindingPreview(value, getTableColumns(schema, value)))
+        ? JSON.stringify(
+            buildPreviewRows({ columns: resolveTableColumns(schema, value), sample: value }),
+          )
         : formatDesignDataValue(value, binding.format);
 
     if (schema.readOnly && schema.content && /\{[^}]+\}/.test(schema.content)) {
@@ -350,7 +307,9 @@ export const resolveSchemaValue = (arg: {
 
   const value = getValueByPath(inputRecord, schema.name);
   if (schema.type === 'table' && Array.isArray(value)) {
-    return JSON.stringify(getTableBindingPreview(value, getTableColumns(schema, value)));
+    return JSON.stringify(
+      buildPreviewRows({ columns: resolveTableColumns(schema, value), sample: value }),
+    );
   }
 
   return typeof value === 'undefined' ? schema.content || '' : formatDesignDataValue(value);

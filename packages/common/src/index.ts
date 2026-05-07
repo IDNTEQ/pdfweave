@@ -99,10 +99,23 @@ import {
   formatDesignDataValue,
   getDesignDataInput,
   getDesignDataVariables,
-  getTableBindingPreview,
   getValueByPath,
   resolveSchemaValue,
 } from './dataBinding.js';
+import {
+  buildPreviewRows,
+  getTableBindingPreview,
+  getTableColumns,
+  inferColumns,
+  inferColumnWidths,
+  rebalanceColumnWidths,
+  resolveTableRows,
+  widthPercentages,
+  normalizeColumnWidths,
+  fallbackColumns,
+  coerceWidthPercentage,
+} from './tableBinding.js';
+import type { ColumnOperation } from './tableBinding.js';
 
 export {
   PDFME_VERSION,
@@ -136,9 +149,19 @@ export {
   getDesignDataInput,
   getDesignDataVariables,
   getTableBindingPreview,
+  getTableColumns,
   getValueByPath,
   resolveSchemaValue,
   replacePlaceholders,
+  buildPreviewRows,
+  inferColumns,
+  inferColumnWidths,
+  rebalanceColumnWidths,
+  resolveTableRows,
+  widthPercentages,
+  normalizeColumnWidths,
+  fallbackColumns,
+  coerceWidthPercentage,
   checkFont,
   checkInputs,
   checkUIOptions,
@@ -204,6 +227,7 @@ export type {
   ReplacePlaceholdersOptions,
   AnchorAxis,
   ResolvedAnchorTarget,
+  ColumnOperation,
 };
 
 // Anchor geometry — re-exported via `export from` to keep the public surface
