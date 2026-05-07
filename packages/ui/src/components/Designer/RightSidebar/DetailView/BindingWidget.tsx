@@ -8,11 +8,17 @@ import type {
   SchemaForUI,
 } from '@pdfweave/common';
 import {
+  buildPreviewRows,
+  coerceWidthPercentage,
+  fallbackColumns,
   formatDesignDataValue,
   getDesignDataInput,
   getDesignDataVariables,
-  getTableBindingPreview,
   getValueByPath,
+  inferColumns,
+  normalizeColumnWidths,
+  rebalanceColumnWidths,
+  widthPercentages,
 } from '@pdfweave/common';
 
 const containerStyle: React.CSSProperties = {
@@ -143,10 +149,6 @@ const iconButtonStyle: React.CSSProperties = {
   cursor: 'pointer',
 };
 
-const fallbackColumns = (): SchemaBindingColumn[] => [
-  { path: '', label: 'Value', widthPercentage: 100 },
-];
-
 const formatOptions = [
   { label: 'Default', value: '' },
   { label: 'Text', value: 'text' },
@@ -163,9 +165,6 @@ const alignmentOptions = [
   { label: 'Right', value: 'right' },
 ];
 
-const MIN_REENABLED_COLUMN_WIDTH = 12;
-const MAX_REENABLED_COLUMN_WIDTH = 45;
-
 const titleFromPath = (path: string): string =>
   path
     .split('.')
@@ -173,111 +172,6 @@ const titleFromPath = (path: string): string =>
     ?.replace(/[_-]+/g, ' ')
     .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
     .replace(/^./, (char) => char.toUpperCase()) || path;
-
-const coerceWidthPercentage = (value: unknown): number | undefined => {
-  if (typeof value !== 'number' || !Number.isFinite(value)) return undefined;
-  return Number(Math.min(100, Math.max(1, value)).toFixed(4));
-};
-
-const widthPercentages = (columns: SchemaBindingColumn[]) => {
-  if (columns.length === 0) return [100];
-  const explicitWidths = columns.map((column) => coerceWidthPercentage(column.widthPercentage));
-  const explicitTotal = explicitWidths.reduce<number>(
-    (sum, width) => sum + (typeof width === 'number' ? width : 0),
-    0,
-  );
-  const missingCount = explicitWidths.filter((width) => typeof width !== 'number').length;
-  const fallbackWidth =
-    missingCount > 0
-      ? explicitTotal < 100
-        ? (100 - explicitTotal) / missingCount
-        : 100 / columns.length
-      : 0;
-  const widths = explicitWidths.map((width) =>
-    typeof width === 'number' ? width : fallbackWidth,
-  );
-  const total = widths.reduce((sum, width) => sum + width, 0);
-  const adjustedWidths =
-    total > 100
-      ? widths.map((width) => (width / total) * 100)
-      : missingCount === 0 && total < 100
-        ? widths.map((width, index) => (index === widths.length - 1 ? width + (100 - total) : width))
-        : widths;
-  let assigned = 0;
-
-  return adjustedWidths.map((width, index) => {
-    const isLast = index === adjustedWidths.length - 1;
-    if (isLast) return Number((100 - assigned).toFixed(4));
-    assigned += width;
-    return Number(width.toFixed(4));
-  });
-};
-
-const normalizeColumnWidths = (columns: SchemaBindingColumn[]): SchemaBindingColumn[] => {
-  const widths = widthPercentages(columns);
-  return columns.map((column, index) => ({
-    ...column,
-    widthPercentage: widths[index],
-  })) as SchemaBindingColumn[];
-};
-
-const rebalanceEditedColumnWidth = (
-  columns: SchemaBindingColumn[],
-  editedIndex: number,
-  requestedWidth: number | undefined,
-): SchemaBindingColumn[] => {
-  if (columns.length === 0) return [];
-  if (columns.length === 1) return [{ ...columns[0], widthPercentage: 100 }];
-
-  const normalizedColumns = normalizeColumnWidths(columns);
-  const currentWidths = widthPercentages(normalizedColumns);
-  const otherIndexes = normalizedColumns
-    .map((_, index) => index)
-    .filter((index) => index !== editedIndex);
-  const maxEditedWidth = Math.max(1, 100 - otherIndexes.length);
-  const editedWidth = Math.min(maxEditedWidth, requestedWidth ?? 100 / normalizedColumns.length);
-  const remainingWidth = 100 - editedWidth;
-  const otherTotal = otherIndexes.reduce((sum, index) => sum + currentWidths[index], 0) || 1;
-  let assignedOtherWidth = 0;
-
-  return normalizedColumns.map((column, index) => {
-    if (index === editedIndex) return { ...column, widthPercentage: editedWidth };
-
-    const isLastOther = index === otherIndexes[otherIndexes.length - 1];
-    const width = isLastOther
-      ? Number((remainingWidth - assignedOtherWidth).toFixed(4))
-      : Number(((currentWidths[index] / otherTotal) * remainingWidth).toFixed(4));
-    assignedOtherWidth += width;
-    return { ...column, widthPercentage: width };
-  });
-};
-
-const appendColumnWithBalancedWidth = (
-  columns: SchemaBindingColumn[],
-  columnToAdd: SchemaBindingColumn,
-): SchemaBindingColumn[] => {
-  if (columns.length === 0) return normalizeColumnWidths([{ ...columnToAdd }]);
-
-  const nextColumnCount = columns.length + 1;
-  const defaultWidth = Math.max(MIN_REENABLED_COLUMN_WIDTH, 100 / nextColumnCount);
-  const requestedWidth = coerceWidthPercentage(columnToAdd.widthPercentage);
-  const targetAddedWidth =
-    typeof requestedWidth === 'number' && requestedWidth < 100
-      ? Math.min(MAX_REENABLED_COLUMN_WIDTH, Math.max(MIN_REENABLED_COLUMN_WIDTH, requestedWidth))
-      : defaultWidth;
-  const currentWidths = widthPercentages(columns);
-  const currentTotal = currentWidths.reduce((sum, width) => sum + width, 0) || 100;
-  const remainingWidth = Math.max(0, 100 - targetAddedWidth);
-  const nextColumns = columns.map((column, index) => ({
-    ...column,
-    widthPercentage: Number(((currentWidths[index] / currentTotal) * remainingWidth).toFixed(4)),
-  }));
-
-  return normalizeColumnWidths([
-    ...nextColumns,
-    { ...columnToAdd, widthPercentage: targetAddedWidth },
-  ]);
-};
 
 const getBinding = (schema: SchemaForUI): SchemaBinding | undefined =>
   (schema as SchemaForUI & { binding?: SchemaBinding }).binding;
@@ -301,39 +195,6 @@ const defaultAlignmentForColumn = (column: SchemaBindingColumn): string =>
 
 const columnKey = (column: SchemaBindingColumn): string => column.path || '__value__';
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  Boolean(value) && typeof value === 'object' && !Array.isArray(value);
-
-const inferColumnsFromSample = (sample: unknown): SchemaBindingColumn[] => {
-  if (!Array.isArray(sample)) return [];
-
-  const firstRecord = sample.find(isRecord);
-  if (firstRecord) {
-    const width = Object.keys(firstRecord).length > 0 ? 100 / Object.keys(firstRecord).length : 100;
-    return Object.keys(firstRecord).map((path, index, paths) => ({
-      path,
-      label: titleFromPath(path),
-      widthPercentage:
-        index === paths.length - 1 ? Number((100 - width * (paths.length - 1)).toFixed(4)) : width,
-    }));
-  }
-
-  const firstArray = sample.find(Array.isArray) as unknown[] | undefined;
-  if (firstArray) {
-    const width = firstArray.length > 0 ? 100 / firstArray.length : 100;
-    return firstArray.map((_, index) => ({
-      path: String(index),
-      label: `Column ${index + 1}`,
-      widthPercentage:
-        index === firstArray.length - 1
-          ? Number((100 - width * (firstArray.length - 1)).toFixed(4))
-          : width,
-    }));
-  }
-
-  return fallbackColumns();
-};
-
 const mergeAvailableColumns = (
   variable: DesignDataVariable | undefined,
   sample: unknown,
@@ -348,7 +209,10 @@ const mergeAvailableColumns = (
   };
 
   add(variable?.columns);
-  add(inferColumnsFromSample(sample));
+  // inferColumns falls back to the single Value column for non-arrays — drop
+  // that when there's nothing to add (matches the pre-extraction behaviour
+  // where inferColumnsFromSample returned [] for non-array samples).
+  add(Array.isArray(sample) ? inferColumns(sample) : undefined);
   add(bindingColumns);
 
   return Array.from(columnsByPath.values());
@@ -447,7 +311,7 @@ const BindingWidget = (props: PropPanelWidgetProps) => {
       },
       {
         key: 'content',
-        value: JSON.stringify(getTableBindingPreview(sample, nextColumns)),
+        value: JSON.stringify(buildPreviewRows({ columns: nextColumns, sample })),
         schemaId: activeSchema.id,
       },
       {
@@ -477,30 +341,28 @@ const BindingWidget = (props: PropPanelWidgetProps) => {
   };
 
   const updateColumnWidth = (index: number, width: number | undefined) => {
-    applyTableColumns(rebalanceEditedColumnWidth(tableColumns, index, width));
+    applyTableColumns(
+      rebalanceColumnWidths(tableColumns, { kind: 'edit', atIndex: index, widthPercentage: width }),
+    );
   };
 
   const toggleColumn = (column: SchemaBindingColumn, shouldInclude: boolean) => {
     const key = columnKey(column);
     const currentIndex = tableColumns.findIndex((item) => columnKey(item) === key);
     if (shouldInclude && currentIndex === -1) {
-      applyTableColumns(appendColumnWithBalancedWidth(tableColumns, column));
+      applyTableColumns(rebalanceColumnWidths(tableColumns, { kind: 'add', column }));
       return;
     }
 
     if (!shouldInclude && currentIndex !== -1 && tableColumns.length > 1) {
-      applyTableColumns(tableColumns.filter((item) => columnKey(item) !== key) as SchemaBindingColumn[]);
+      applyTableColumns(rebalanceColumnWidths(tableColumns, { kind: 'remove', atIndex: currentIndex }));
     }
   };
 
   const moveColumn = (index: number, direction: -1 | 1) => {
     const nextIndex = index + direction;
     if (nextIndex < 0 || nextIndex >= tableColumns.length) return;
-
-    const nextColumns = [...tableColumns];
-    const [column] = nextColumns.splice(index, 1);
-    nextColumns.splice(nextIndex, 0, column);
-    applyTableColumns(nextColumns);
+    applyTableColumns(rebalanceColumnWidths(tableColumns, { kind: 'reorder', from: index, to: nextIndex }));
   };
 
   const updateColumnAlignment = (column: SchemaBindingColumn, alignment: string) => {
@@ -549,7 +411,7 @@ const BindingWidget = (props: PropPanelWidgetProps) => {
         },
         {
           key: 'content',
-          value: JSON.stringify(getTableBindingPreview(nextSample, columns)),
+          value: JSON.stringify(buildPreviewRows({ columns, sample: nextSample })),
           schemaId: activeSchema.id,
         },
         {
