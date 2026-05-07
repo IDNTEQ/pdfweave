@@ -11,8 +11,17 @@ import {
   Size,
   isBlankPdf,
   PluginRegistry,
+  isAnchoredLayout as commonIsAnchoredLayout,
+  buildSchemaIndex,
+  resolveAnchorX,
+  resolveAnchorY,
+  reverseAnchorOffsetX,
+  reverseAnchorOffsetY,
+  findAnchorReferentX,
+  findAnchorReferentY,
 } from '@pdfweave/common';
 import type {
+  AnchoredLayoutRule,
   HorizontalAnchorRule,
   SchemaLayoutRule,
   VerticalAnchorRule,
@@ -591,12 +600,12 @@ const handlePositionSizeChange = (
   }
 };
 
-type AnchoredLayoutRule = Extract<SchemaLayoutRule, { mode: 'anchored' }>;
-
-export const isAnchoredLayout = (layout: unknown): layout is AnchoredLayoutRule =>
-  typeof layout === 'object' &&
-  layout !== null &&
-  (layout as { mode?: unknown }).mode === 'anchored';
+/**
+ * Re-export the shared anchor-layout type-guard from `@pdfweave/common` so
+ * existing UI consumers that import `isAnchoredLayout` from this module
+ * keep working. The logic itself lives in `anchorGeometry`.
+ */
+export const isAnchoredLayout = commonIsAnchoredLayout;
 
 const getSchemaLayout = (schema: SchemaForUI): SchemaLayoutRule | undefined =>
   (schema as SchemaForUI & { layout?: SchemaLayoutRule }).layout;
@@ -605,81 +614,39 @@ const setSchemaLayout = (schema: SchemaForUI, layout: SchemaLayoutRule) => {
   (schema as SchemaForUI & { layout?: SchemaLayoutRule }).layout = layout;
 };
 
-const getSchemaAnchorIds = (schema: SchemaForUI): string[] => {
-  const ids = [schema.name, schema.id].filter((id): id is string => Boolean(id));
-  return Array.from(new Set(ids));
-};
-
-const buildAnchorLookup = (schemas: SchemaForUI[]): Map<string, SchemaForUI> => {
-  const lookup = new Map<string, SchemaForUI>();
-  schemas.forEach((schema) => {
-    getSchemaAnchorIds(schema).forEach((id) => lookup.set(id, schema));
-  });
-  return lookup;
-};
-
-const finiteOrZero = (value: number | undefined): number =>
-  typeof value === 'number' && Number.isFinite(value) ? value : 0;
-
 const roundOffset = (value: number): number => round(value, 2);
 
-const resolveAnchoredXValue = (
-  schema: SchemaForUI,
-  rule: HorizontalAnchorRule,
-  lookup: Map<string, SchemaForUI>,
-): number | null => {
-  if (rule.mode === 'pageLeft') {
-    return rule.offsetMm;
-  }
-
-  const target = lookup.get(rule.ref.schemaId);
-  if (!target) return null;
-
-  const targetRight = target.position.x + target.width;
-  if (rule.mode === 'afterRightEdge') {
-    return targetRight + rule.offsetMm;
-  }
-
-  return targetRight - schema.width + finiteOrZero(rule.offsetMm);
-};
-
-const resolveAnchoredYValue = (
-  rule: VerticalAnchorRule,
-  lookup: Map<string, SchemaForUI>,
-): number | null => {
-  if (rule.mode === 'pageTop') {
-    return rule.offsetMm;
-  }
-
-  const target = lookup.get(rule.ref.schemaId);
-  if (!target) return null;
-
-  return target.position.y + target.height + rule.offsetMm;
-};
-
+/**
+ * Forward-resolve anchored schemas after a sibling's position/size change.
+ * Anchor geometry is delegated to `@pdfweave/common` (anchorGeometry); the
+ * UI-specific concerns kept here are:
+ *   - clamping resolved positions through `handlePositionSizeChange` so an
+ *     anchored child can't be pushed outside the printable area, and
+ *   - mm-rounding to 2dp so the prop-panel display doesn't oscillate.
+ */
 const resolveAnchoredSchemas = (
   schemas: SchemaForUI[],
   basePdf: BasePdf,
   pageSize: Size,
 ): void => {
-  const lookup = buildAnchorLookup(schemas);
+  const lookup = buildSchemaIndex(schemas);
 
   for (let pass = 0; pass < schemas.length; pass += 1) {
     let changed = false;
 
-    schemas.forEach((schema) => {
+    for (const schema of schemas) {
       const layout = getSchemaLayout(schema);
-      if (!isAnchoredLayout(layout)) return;
+      if (!isAnchoredLayout(layout)) continue;
 
-      const nextX = resolveAnchoredXValue(schema, layout.x, lookup);
-      const nextY = resolveAnchoredYValue(layout.y, lookup);
+      const nextX = resolveAnchorX(schema, lookup);
+      const nextY = resolveAnchorY(schema, lookup);
       const previousX = schema.position.x;
       const previousY = schema.position.y;
 
-      if (typeof nextX === 'number') {
+      if (nextX !== null) {
         handlePositionSizeChange(schema, 'position.x', round(nextX, 2), basePdf, pageSize);
       }
-      if (typeof nextY === 'number') {
+      if (nextY !== null) {
         handlePositionSizeChange(schema, 'position.y', round(nextY, 2), basePdf, pageSize);
       }
 
@@ -689,57 +656,27 @@ const resolveAnchoredSchemas = (
       ) {
         changed = true;
       }
-    });
+    }
 
     if (!changed) return;
   }
 };
 
-const reverseHorizontalAnchorOffset = (
-  schema: SchemaForUI,
-  layout: AnchoredLayoutRule,
-  lookup: Map<string, SchemaForUI>,
-): HorizontalAnchorRule => {
-  const { x } = layout;
-  if (x.mode === 'pageLeft') {
-    return { ...x, offsetMm: roundOffset(schema.position.x) };
-  }
-
-  const target = lookup.get(x.ref.schemaId);
-  if (!target) return x;
-
-  const targetRight = target.position.x + target.width;
-  if (x.mode === 'afterRightEdge') {
-    return { ...x, offsetMm: roundOffset(schema.position.x - targetRight) };
-  }
-
-  return { ...x, offsetMm: roundOffset(schema.position.x + schema.width - targetRight) };
-};
-
-const reverseVerticalAnchorOffset = (
-  schema: SchemaForUI,
-  layout: AnchoredLayoutRule,
-  lookup: Map<string, SchemaForUI>,
-): VerticalAnchorRule => {
-  const { y } = layout;
-  if (y.mode === 'pageTop') {
-    return { ...y, offsetMm: roundOffset(schema.position.y) };
-  }
-
-  const target = lookup.get(y.ref.schemaId);
-  if (!target) return y;
-
-  const targetBottom = target.position.y + target.height;
-  return { ...y, offsetMm: roundOffset(schema.position.y - targetBottom) };
-};
-
+/**
+ * Reverse-resolve anchor offsets after the user drags an anchored schema
+ * by hand. For each axis listed in `axesBySchemaId`, recompute `offsetMm`
+ * so that a subsequent forward resolve produces the schema's current
+ * absolute position. Anchor geometry is delegated to `@pdfweave/common`
+ * (anchorGeometry); the UI-specific concern kept here is mm-rounding the
+ * resulting offset to 2dp so prop-panel display doesn't oscillate.
+ */
 const reverseAnchoredOffsets = (
   schemas: SchemaForUI[],
   axesBySchemaId: Map<string, Set<'x' | 'y'>>,
 ): void => {
   if (axesBySchemaId.size === 0) return;
 
-  const lookup = buildAnchorLookup(schemas);
+  const lookup = buildSchemaIndex(schemas);
   axesBySchemaId.forEach((axes, schemaId) => {
     const schema = schemas.find((s) => s.id === schemaId);
     if (!schema) return;
@@ -749,16 +686,20 @@ const reverseAnchoredOffsets = (
 
     let nextLayout: AnchoredLayoutRule = layout;
     if (axes.has('x')) {
-      nextLayout = {
-        ...nextLayout,
-        x: reverseHorizontalAnchorOffset(schema, nextLayout, lookup),
-      };
+      const referent = findAnchorReferentX(schema, lookup);
+      const nextOffset = roundOffset(
+        reverseAnchorOffsetX(schema.position.x, nextLayout.x, schema.width, referent),
+      );
+      const nextX: HorizontalAnchorRule = { ...nextLayout.x, offsetMm: nextOffset };
+      nextLayout = { ...nextLayout, x: nextX };
     }
     if (axes.has('y')) {
-      nextLayout = {
-        ...nextLayout,
-        y: reverseVerticalAnchorOffset(schema, nextLayout, lookup),
-      };
+      const referent = findAnchorReferentY(schema, lookup);
+      const nextOffset = roundOffset(
+        reverseAnchorOffsetY(schema.position.y, nextLayout.y, referent),
+      );
+      const nextY: VerticalAnchorRule = { ...nextLayout.y, offsetMm: nextOffset };
+      nextLayout = { ...nextLayout, y: nextY };
     }
 
     setSchemaLayout(schema, nextLayout);
