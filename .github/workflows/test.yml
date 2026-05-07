@@ -58,6 +58,12 @@ jobs:
         uses: davelosert/vitest-coverage-report-action@v2
         with:
           json-summary-path: ./coverage/aggregate-summary.json
+      - name: CRAP PR comment
+        if: github.event_name == 'pull_request' && always()
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: crap
+          path: coverage/crap-report.md
 
   playground-test:
     runs-on: ubuntu-latest
