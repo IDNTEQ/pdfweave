@@ -67,6 +67,9 @@ bar; this document tracks the actual work.
   self-reference guard
 - Anchor relationship overlay (triangles + lock badges)
 - Dynamic text height with `overflow: visible | hidden | expand`
+- P3 branding sweep — residual `@pdfme` / `pdfme` strings audited and
+  classified; brand-bound strings renamed, compat-preserving strings
+  annotated. See [docs/branding-audit-2026-05-07.md](docs/branding-audit-2026-05-07.md).
 
 ## Process
 
