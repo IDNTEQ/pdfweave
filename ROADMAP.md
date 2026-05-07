@@ -70,6 +70,13 @@ bar; this document tracks the actual work.
 - P3 branding sweep — residual `@pdfme` / `pdfme` strings audited and
   classified; brand-bound strings renamed, compat-preserving strings
   annotated. See [docs/branding-audit-2026-05-07.md](docs/branding-audit-2026-05-07.md).
+- Canvas / DetailView split (issue #28) — Designer Canvas decomposed
+  into eight focused hooks (`useRenderedHeights`, `useShiftKeyTracker`,
+  `usePageOverflow`, `useSelectionHelpers`, `useContextMenu`,
+  `useDragResize`, `useMarqueeSelection`, `useMoveableSync`) plus
+  `CanvasSchema` / `CanvasPage` / `DeleteButton` components.
+  `Canvas/index.tsx` now sits under 250 lines and is pure composition.
+  DetailView's `JSON.stringify` memo equality replaced with `dequal`.
 
 ## Process
 
