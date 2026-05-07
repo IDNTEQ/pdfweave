@@ -159,15 +159,22 @@ const generate = async (
               })
             : staticSchema.content || '';
 
-          staticSchema.position = {
-            x: staticSchema.position.x + boundingBoxLeft,
-            y: staticSchema.position.y - boundingBoxBottom,
+          // Render against a per-iteration clone so the basePdf staticSchema
+          // (shared across every input in the batch) doesn't accumulate page
+          // offsets from previous iterations. Without the clone, input #100
+          // would see ~99×offset added to every static schema.
+          const staticSchemaForRender: Schema = {
+            ...staticSchema,
+            position: {
+              x: staticSchema.position.x + boundingBoxLeft,
+              y: staticSchema.position.y - boundingBoxBottom,
+            },
           };
 
           // Create properly typed render props for static schema
           const staticRenderProps: PDFRenderProps<Schema> = {
             value,
-            schema: staticSchema,
+            schema: staticSchemaForRender,
             basePdf,
             pdfLib,
             pdfDoc,
