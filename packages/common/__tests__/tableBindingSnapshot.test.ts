@@ -31,7 +31,7 @@ import type { Schema } from '../src/types.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const baselinePath = path.join(__dirname, '__snapshots__', 'table-binding-baseline.json');
 
-const round = (value: number): number => Math.round(value * 10000) / 10000;
+const round = (value: number): number => Math.round(value * 10_000) / 10_000;
 
 const roundColumns = <T extends { widthPercentage?: number }>(columns: T[]): T[] =>
   columns.map((column) => ({
@@ -90,9 +90,9 @@ describe('table binding snapshot baseline', () => {
 
     // Width primitives over a representative range of column counts.
     const widthsByCount: Record<string, number[]> = {};
-    [1, 2, 3, 4, 5, 7, 10].forEach((count) => {
+    for (const count of [1, 2, 3, 4, 5, 7, 10]) {
       widthsByCount[String(count)] = inferColumnWidths(count);
-    });
+    }
 
     // Rebalance round-trip: add → remove → reorder → edit.
     const after_add = rebalanceColumnWidths(initialInferred, {

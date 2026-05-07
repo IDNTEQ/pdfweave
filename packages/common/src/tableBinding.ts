@@ -48,7 +48,6 @@
  */
 
 import type {
-  DataFormatHint,
   DesignDataField,
   Schema,
   SchemaBinding,
@@ -62,10 +61,10 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 const titleFromPath = (path: string): string => {
   const last = path.split('.').pop() || path;
   return last
-    .replace(/\[(\d+)\]/g, ' $1')
-    .replace(/[_-]+/g, ' ')
-    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
-    .replace(/\s+/g, ' ')
+    .replaceAll(/\[(\d+)\]/g, ' $1')
+    .replaceAll(/[_-]+/g, ' ')
+    .replaceAll(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replaceAll(/\s+/g, ' ')
     .trim()
     .replace(/^./, (char) => char.toUpperCase());
 };
@@ -121,9 +120,9 @@ export const widthPercentages = (columns: SchemaBindingColumn[]): number[] => {
   const missingCount = explicitWidths.filter((width) => typeof width !== 'number').length;
   const fallbackWidth =
     missingCount > 0
-      ? explicitTotal < 100
+      ? (explicitTotal < 100
         ? (100 - explicitTotal) / missingCount
-        : 100 / columns.length
+        : 100 / columns.length)
       : 0;
   const widths = explicitWidths.map((width) =>
     typeof width === 'number' ? width : fallbackWidth,
@@ -132,9 +131,9 @@ export const widthPercentages = (columns: SchemaBindingColumn[]): number[] => {
   const adjustedWidths =
     total > 100
       ? widths.map((width) => (width / total) * 100)
-      : missingCount === 0 && total < 100
+      : (missingCount === 0 && total < 100
         ? widths.map((width, index) => (index === widths.length - 1 ? width + (100 - total) : width))
-        : widths;
+        : widths);
   let assigned = 0;
 
   return adjustedWidths.map((width, index) => {
@@ -192,14 +191,18 @@ export const rebalanceColumnWidths = (
   operation: ColumnOperation,
 ): SchemaBindingColumn[] => {
   switch (operation.kind) {
-    case 'add':
+    case 'add': {
       return appendColumnWithBalancedWidth(columns, operation.column, operation.atIndex);
-    case 'remove':
+    }
+    case 'remove': {
       return removeColumnWithRebalance(columns, operation.atIndex);
-    case 'reorder':
+    }
+    case 'reorder': {
       return reorderColumns(columns, operation.from, operation.to);
-    case 'edit':
+    }
+    case 'edit': {
       return rebalanceEditedColumnWidth(columns, operation.atIndex, operation.widthPercentage);
+    }
   }
 };
 
@@ -281,7 +284,7 @@ const rebalanceEditedColumnWidth = (
   return normalizedColumns.map((column, index) => {
     if (index === editedIndex) return { ...column, widthPercentage: editedWidth };
 
-    const isLastOther = index === otherIndexes[otherIndexes.length - 1];
+    const isLastOther = index === otherIndexes.at(-1);
     const width = isLastOther
       ? round4(remainingWidth - assignedOtherWidth)
       : round4((currentWidths[index] / otherTotal) * remainingWidth);
@@ -429,4 +432,4 @@ export const getTableBindingPreview = (
 export { titleFromPath };
 
 // Re-export DataFormatHint convenience for column format coercion.
-export type { DataFormatHint, SchemaBindingColumn };
+export type { DataFormatHint, SchemaBindingColumn } from './types.js';

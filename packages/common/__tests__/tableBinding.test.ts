@@ -61,7 +61,7 @@ describe('inferColumns', () => {
 
   it('falls back to a single Value column for empty / non-array samples', () => {
     expect(inferColumns([])).toEqual(fallbackColumns());
-    expect(inferColumns(undefined)).toEqual(fallbackColumns());
+    expect(inferColumns()).toEqual(fallbackColumns());
     expect(inferColumns('not an array')).toEqual(fallbackColumns());
   });
 
@@ -143,11 +143,11 @@ describe('coerceWidthPercentage', () => {
   it('clamps to [1, 100] and rounds', () => {
     expect(coerceWidthPercentage(0.5)).toBe(1);
     expect(coerceWidthPercentage(150)).toBe(100);
-    expect(coerceWidthPercentage(33.333333)).toBe(33.3333);
+    expect(coerceWidthPercentage(33.333_333)).toBe(33.3333);
   });
 
   it('returns undefined for non-numbers', () => {
-    expect(coerceWidthPercentage(undefined)).toBeUndefined();
+    expect(coerceWidthPercentage()).toBeUndefined();
     expect(coerceWidthPercentage(Number.NaN)).toBeUndefined();
     expect(coerceWidthPercentage('50')).toBeUndefined();
   });
