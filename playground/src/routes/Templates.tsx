@@ -53,7 +53,7 @@ const CopyButton = ({ ui, name }: { ui: UIType; name: string }) => {
   return (
     <button
       className="rounded-md border border-transparent bg-gray-100 p-2 text-sm font-medium text-gray-900 hover:bg-gray-200"
-      onClick={handleCopy}
+      onClick={() => void handleCopy()}
       aria-label="Copy shareable link"
     >
       <ClipboardCopy size={20} />
@@ -128,7 +128,7 @@ function TemplatesApp({ isEmbedded }: { isEmbedded: boolean }) {
 
   // Fetch templates and author avatars
   useEffect(() => {
-    fetch('/template-assets/index.json')
+    void fetch('/template-assets/index.json')
       .then((response) => response.json())
       .then((data: TemplateData[]) => {
         setTemplates(data);
@@ -136,7 +136,7 @@ function TemplatesApp({ isEmbedded }: { isEmbedded: boolean }) {
         const authors = new Set(data.map(({ author }) => author));
         const avatarUrlMap: { [key: string]: string } = {};
 
-        Promise.all(
+        return Promise.all(
           Array.from(authors).map((author) => {
             if (author === DEVIN_AI_AUTHOR) {
               avatarUrlMap[author] = '/imgs/devin.svg';

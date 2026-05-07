@@ -84,7 +84,7 @@ function FormAndViewerApp() {
     const value = e.target.value as Mode;
     setMode(value);
     localStorage.setItem('mode', value);
-    buildUi(value);
+    void buildUi(value);
   };
 
   const onGetInputs = () => {
@@ -124,7 +124,7 @@ function FormAndViewerApp() {
   };
 
   useEffect(() => {
-    buildUi(mode);
+    void buildUi(mode);
     return () => {
       if (ui.current) {
         ui.current.destroy();
@@ -219,16 +219,17 @@ function FormAndViewerApp() {
         <button
           id="generate-pdf"
           className="px-2 py-1 border rounded hover:bg-gray-100 border-gray-300"
-          onClick={async (e) => {
+          onClick={(e) => {
             const output = e.altKey ? 'form' : 'pdf';
             const startTimer = performance.now();
-            await generatePDF(ui.current, output);
-            const endTimer = performance.now();
-            toast.info(
-              `Generated ${output === 'form' ? 'Form' : 'PDF'} in ${Math.round(
-                endTimer - startTimer,
-              )}ms ⚡️`,
-            );
+            void generatePDF(ui.current, output).then(() => {
+              const endTimer = performance.now();
+              toast.info(
+                `Generated ${output === 'form' ? 'Form' : 'PDF'} in ${Math.round(
+                  endTimer - startTimer,
+                )}ms ⚡️`,
+              );
+            });
           }}
         >
           Generate PDF

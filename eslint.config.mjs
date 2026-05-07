@@ -7,6 +7,11 @@ import jsdoc from 'eslint-plugin-jsdoc';
 import react from 'eslint-plugin-react';
 import reactHooks from 'eslint-plugin-react-hooks';
 import globals from 'globals';
+import { readFileSync } from 'node:fs';
+
+const playgroundPackageJson = JSON.parse(
+  readFileSync(new URL('./playground/package.json', import.meta.url), 'utf8')
+);
 
 const typeAwareProject = [
   './tsconfig.base.json',
@@ -36,6 +41,11 @@ const sourceFiles = [
 ];
 
 const packageIndexFiles = packageNames.map((name) => `packages/${name}/src/index.ts`);
+
+const playgroundCoreModules = Object.keys({
+  ...playgroundPackageJson.dependencies,
+  ...playgroundPackageJson.devDependencies,
+});
 
 const errorRuleNames = new Set([
   '@typescript-eslint/no-floating-promises',
@@ -121,6 +131,7 @@ export default [
       parserOptions: {
         project: typeAwareProject,
         tsconfigRootDir: import.meta.dirname,
+        noWarnOnMultipleProjects: true,
       },
       ecmaVersion: 'latest',
       sourceType: 'module',
@@ -136,6 +147,7 @@ export default [
         typescript: {
           project: typeAwareProject,
           alwaysTryTypes: true,
+          noWarnOnMultipleProjects: true,
         },
         node: true,
       },
@@ -159,6 +171,13 @@ export default [
         },
       ],
       'import/no-unresolved': ['error', { commonjs: true, caseSensitive: true }],
+    },
+  },
+  {
+    name: 'pdfweave/playground-import-resolution',
+    files: ['playground/**/*.{ts,tsx}'],
+    settings: {
+      'import/core-modules': playgroundCoreModules,
     },
   },
   {

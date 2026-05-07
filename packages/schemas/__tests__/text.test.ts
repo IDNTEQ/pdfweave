@@ -791,7 +791,7 @@ describe('calculateDynamicFontSize with Custom font', () => {
     const textSchema = getTextSchema();
     textSchema.dynamicFontSize = { min: 20, max: 30, fit: 'vertical' };
     const value = 'あいうあいうあいうあいうあいうあいうあいうあいうあいう';
-    const result = await calculateDynamicFontSize({ textSchema, fontKitFont, value });
+    const result = calculateDynamicFontSize({ textSchema, fontKitFont, value });
 
     expect(result).toBe(20);
   });
@@ -800,7 +800,7 @@ describe('calculateDynamicFontSize with Custom font', () => {
     const textSchema = getTextSchema();
     textSchema.dynamicFontSize = { min: 10, max: 30, fit: 'vertical' };
     const value = 'あ';
-    const result = await calculateDynamicFontSize({ textSchema, fontKitFont, value });
+    const result = calculateDynamicFontSize({ textSchema, fontKitFont, value });
 
     expect(result).toBe(30);
   });
@@ -809,7 +809,7 @@ describe('calculateDynamicFontSize with Custom font', () => {
     const textSchema = getTextSchema();
     textSchema.dynamicFontSize = { min: 5, max: 20, fit: 'vertical' };
     const value = 'あ\nいう\nあ\nいう\nあ\nいう\nあ\nいう\nあ\nいう\nあ\nいう';
-    const result = await calculateDynamicFontSize({ textSchema, fontKitFont, value });
+    const result = calculateDynamicFontSize({ textSchema, fontKitFont, value });
 
     expect(result).toBe(5);
   });

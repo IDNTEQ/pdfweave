@@ -76,7 +76,7 @@ const signature: Plugin<SignatureSchema> = {
 
       try {
         if (value) {
-          signaturePad.fromDataURL(value, { ratio: resetScale });
+          await signaturePad.fromDataURL(value, { ratio: resetScale });
         } else {
           signaturePad.clear();
         }

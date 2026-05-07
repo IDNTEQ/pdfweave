@@ -80,7 +80,7 @@ function DesignerApp() {
 
   const onChangeBasePDF = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files?.[0]) {
-      readFile(e.target.files[0], 'dataURL').then(async (basePdf) => {
+      void readFile(e.target.files[0], 'dataURL').then((basePdf) => {
         if (designer.current) {
           const newTemplate = cloneDeep(designer.current.getTemplate());
           newTemplate.basePdf = basePdf;
@@ -188,7 +188,7 @@ function DesignerApp() {
 
   useEffect(() => {
     if (designerRef.current) {
-      buildDesigner();
+      void buildDesigner();
     }
     return () => {
       designer.current?.destroy();
@@ -317,16 +317,17 @@ function DesignerApp() {
             className={`px-2 py-1 border rounded hover:bg-gray-100 border-gray-300 w-full ${
               editingStaticSchemas ? 'opacity-50 cursor-not-allowed' : ''
             }`}
-            onClick={async (e) => {
+            onClick={(e) => {
               const output = e.altKey ? 'form' : 'pdf';
               const startTimer = performance.now();
-              await generatePDF(designer.current, output);
-              const endTimer = performance.now();
-              toast.info(
-                `Generated ${output === 'form' ? 'Form' : 'PDF'} in ${Math.round(
-                  endTimer - startTimer,
-                )}ms ⚡️`,
-              );
+              void generatePDF(designer.current, output).then(() => {
+                const endTimer = performance.now();
+                toast.info(
+                  `Generated ${output === 'form' ? 'Form' : 'PDF'} in ${Math.round(
+                    endTimer - startTimer,
+                  )}ms ⚡️`,
+                );
+              });
             }}
           >
             Generate PDF
