@@ -9,6 +9,10 @@ concurrency:
 jobs:
   pdfweave-test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      checks: write
     steps:
       - uses: actions/checkout@v4
       - name: Use Node.js 24
@@ -28,6 +32,14 @@ jobs:
       - run: npm run test
         env:
           CI: true
+      - name: Publish test report
+        if: always()
+        uses: dorny/test-reporter@v1
+        with:
+          name: 'PDFweave tests'
+          path: 'packages/*/test-results.xml'
+          reporter: 'java-junit'
+          fail-on-error: 'true'
       - name: Coverage + CRAP
         run: npm run coverage:check
         env:

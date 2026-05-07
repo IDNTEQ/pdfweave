@@ -154,6 +154,9 @@ const pdfmeAliases = usePublishedPdfmeExports
         replacement: path.resolve(repoRoot, 'packages/schemas/src/index.ts'),
       },
     ];
+const reporters = process.env.CI
+  ? (['default', ['junit', { outputFile: './test-results.xml' }]] as const)
+  : (['default'] as const);
 const testConfig = {
   name: selectedWorkspace?.name ?? 'root',
   root: workspaceRoot,
@@ -165,6 +168,7 @@ const testConfig = {
   testTimeout: selectedWorkspace?.testTimeout,
   hookTimeout: selectedWorkspace?.hookTimeout,
   fileParallelism: selectedWorkspace?.fileParallelism,
+  reporters,
   coverage: coverageConfig,
   ...(selectedWorkspace?.environment ? { environment: selectedWorkspace.environment } : {}),
 };
