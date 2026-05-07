@@ -1,0 +1,314 @@
+{
+  "inferColumns": {
+    "objectRows": [
+      {
+        "path": "sku",
+        "label": "Sku",
+        "widthPercentage": 33.3333
+      },
+      {
+        "path": "price",
+        "label": "Price",
+        "widthPercentage": 33.3333
+      },
+      {
+        "path": "qty",
+        "label": "Qty",
+        "widthPercentage": 33.3334
+      }
+    ],
+    "arrayRows": [
+      {
+        "path": "0",
+        "label": "Column 1",
+        "widthPercentage": 33.3333
+      },
+      {
+        "path": "1",
+        "label": "Column 2",
+        "widthPercentage": 33.3333
+      },
+      {
+        "path": "2",
+        "label": "Column 3",
+        "widthPercentage": 33.3334
+      }
+    ],
+    "fromMetadata": [
+      {
+        "path": "sku",
+        "label": "SKU",
+        "widthPercentage": 33.3333
+      },
+      {
+        "path": "price",
+        "label": "Price",
+        "format": {
+          "kind": "currency",
+          "currency": "USD"
+        },
+        "widthPercentage": 33.3333
+      },
+      {
+        "path": "qty",
+        "label": "Qty",
+        "widthPercentage": 33.3334
+      }
+    ]
+  },
+  "inferColumnWidths": {
+    "1": [
+      100
+    ],
+    "2": [
+      50,
+      50
+    ],
+    "3": [
+      33.3333,
+      33.3333,
+      33.3334
+    ],
+    "4": [
+      25,
+      25,
+      25,
+      25
+    ],
+    "5": [
+      20,
+      20,
+      20,
+      20,
+      20
+    ],
+    "7": [
+      14.2857,
+      14.2857,
+      14.2857,
+      14.2857,
+      14.2857,
+      14.2857,
+      14.2858
+    ],
+    "10": [
+      10,
+      10,
+      10,
+      10,
+      10,
+      10,
+      10,
+      10,
+      10,
+      10
+    ]
+  },
+  "rebalance": {
+    "after_add": [
+      {
+        "path": "sku",
+        "label": "Sku",
+        "widthPercentage": 25
+      },
+      {
+        "path": "price",
+        "label": "Price",
+        "widthPercentage": 25
+      },
+      {
+        "path": "qty",
+        "label": "Qty",
+        "widthPercentage": 25
+      },
+      {
+        "path": "discount",
+        "label": "Discount",
+        "widthPercentage": 25
+      }
+    ],
+    "after_reorder": [
+      {
+        "path": "price",
+        "label": "Price",
+        "widthPercentage": 25
+      },
+      {
+        "path": "qty",
+        "label": "Qty",
+        "widthPercentage": 25
+      },
+      {
+        "path": "sku",
+        "label": "Sku",
+        "widthPercentage": 25
+      },
+      {
+        "path": "discount",
+        "label": "Discount",
+        "widthPercentage": 25
+      }
+    ],
+    "after_edit": [
+      {
+        "path": "price",
+        "label": "Price",
+        "widthPercentage": 60
+      },
+      {
+        "path": "qty",
+        "label": "Qty",
+        "widthPercentage": 13.3333
+      },
+      {
+        "path": "sku",
+        "label": "Sku",
+        "widthPercentage": 13.3333
+      },
+      {
+        "path": "discount",
+        "label": "Discount",
+        "widthPercentage": 13.3334
+      }
+    ],
+    "after_remove": [
+      {
+        "path": "price",
+        "label": "Price",
+        "widthPercentage": 60
+      },
+      {
+        "path": "qty",
+        "label": "Qty",
+        "widthPercentage": 13.3333
+      },
+      {
+        "path": "sku",
+        "label": "Sku",
+        "widthPercentage": 26.6667
+      }
+    ]
+  },
+  "buildPreviewRows": {
+    "record": [
+      [
+        "ENV-10",
+        "$0.82",
+        "100"
+      ],
+      [
+        "ENV-12",
+        "$1.05",
+        "250"
+      ]
+    ],
+    "array": [
+      [
+        "ENV-10",
+        "$0.82",
+        "100"
+      ],
+      [
+        "ENV-12",
+        "$1.05",
+        "250"
+      ]
+    ],
+    "jsonString": [
+      [
+        "ENV-10",
+        "$0.82",
+        "100"
+      ],
+      [
+        "ENV-12",
+        "$1.05",
+        "250"
+      ]
+    ],
+    "empty": []
+  },
+  "resolveTableRows": {
+    "simple": [
+      [
+        "ENV-10",
+        "$0.82",
+        "100"
+      ],
+      [
+        "ENV-12",
+        "$1.05",
+        "250"
+      ]
+    ],
+    "missing": [],
+    "nested": [
+      [
+        "ENV-10",
+        "$0.82",
+        "100"
+      ],
+      [
+        "ENV-12",
+        "$1.05",
+        "250"
+      ]
+    ]
+  },
+  "getTableColumns": {
+    "explicit": [
+      {
+        "path": "sku",
+        "label": "SKU",
+        "widthPercentage": 30
+      },
+      {
+        "path": "price",
+        "label": "Price",
+        "widthPercentage": 40,
+        "format": {
+          "kind": "currency",
+          "currency": "USD"
+        }
+      },
+      {
+        "path": "qty",
+        "label": "Qty",
+        "widthPercentage": 30
+      }
+    ],
+    "inferred": [
+      {
+        "path": "sku",
+        "label": "Sku",
+        "widthPercentage": 33.3333
+      },
+      {
+        "path": "price",
+        "label": "Price",
+        "widthPercentage": 33.3333
+      },
+      {
+        "path": "qty",
+        "label": "Qty",
+        "widthPercentage": 33.3334
+      }
+    ]
+  },
+  "widthPercentages": {
+    "balanced": [
+      25,
+      25,
+      50
+    ],
+    "over": [
+      50,
+      50
+    ],
+    "missing": [
+      40,
+      30,
+      30
+    ]
+  }
+}
