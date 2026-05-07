@@ -366,9 +366,9 @@
     "until": "2026-08-01"
   },
   {
-    "file": "packages/ui/src/components/Designer/Canvas/index.tsx",
+    "file": "packages/ui/src/components/Designer/Canvas/hooks/useDragResize.ts",
     "function": "onResize",
-    "reason": "Phase 4 cleanup",
+    "reason": "Phase 4 cleanup (issue #28: extracted from Canvas/index.tsx; same untested moveable callback)",
     "until": "2026-08-01"
   },
   {
@@ -684,9 +684,9 @@
     "until": "2026-08-01"
   },
   {
-    "file": "packages/ui/src/components/Designer/Canvas/index.tsx",
+    "file": "packages/ui/src/components/Designer/Canvas/hooks/useDragResize.ts",
     "function": "onDrag",
-    "reason": "Phase 4 cleanup",
+    "reason": "Phase 4 cleanup (issue #28: extracted from Canvas/index.tsx; same untested moveable callback)",
     "until": "2026-08-01"
   },
   {
