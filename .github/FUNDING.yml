@@ -1,0 +1,17 @@
+# PDFweave funding sources
+#
+# These power the "Sponsor" button on the repo page. Adding a real handle
+# below activates the button. Leaving the file in place with all options
+# commented keeps the button hidden but the configuration ready.
+
+github: [IDNTEQ]
+# patreon: # username
+# open_collective: # username
+# ko_fi: # username
+# tidelift: # platform-name/package-name
+# community_bridge: # project-name
+# liberapay: # username
+# issuehunt: # username
+# otechie: # username
+# lfx_crowdfunding: # project-name
+# custom: ['https://pdfweave.dev/sponsor']
