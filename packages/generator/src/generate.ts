@@ -70,8 +70,6 @@ const generate = async (
     );
   }
 
-  validateRequiredFields(template, inputs);
-
   const { pdfDoc, renderObj, measureObj } = await preparePdfDoc({ template, userPlugins });
 
   const _cache = new Map<string, unknown>();
@@ -86,6 +84,12 @@ const generate = async (
   for (let i = 0; i < inputs.length; i += 1) {
     const rawInput = inputs[i];
     const input = preHook ? await preHook(rawInput) : rawInput;
+
+    // Validate required fields against the *processed* input so a preHook
+    // that maps or derives required fields is honoured. Running this before
+    // preHook (the previous behaviour) rejected valid inputs whose required
+    // values were only present after preprocessing.
+    validateRequiredFields(template, [input]);
 
     // Get the dynamic template with proper typing
     const dynamicTemplate: Template = await getDynamicTemplate({
