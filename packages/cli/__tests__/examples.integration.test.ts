@@ -258,6 +258,11 @@ describe('examples integration smoke', () => {
     expect(result.stderr).toContain(`Output: ${jobPath}`);
   });
 
+  // 24 playground templates × 2 cold-start CLI invocations each ≈ 100-180s
+  // on a fast workstation, often more on the GitHub Actions runner. The
+  // previous 180s ceiling was tight enough that this test flaked on every
+  // CI run. 600s gives headroom; passing runs aren't slowed by a longer
+  // ceiling, only the hang case.
   it(
     'generates every playground example through examples -w and generate',
     () => {
@@ -302,6 +307,6 @@ describe('examples integration smoke', () => {
         expect(existsSync(pdfPath)).toBe(true);
       }
     },
-    180000,
+    600000,
   );
 });
