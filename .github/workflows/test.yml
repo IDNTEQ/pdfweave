@@ -25,7 +25,7 @@ jobs:
             playground/package-lock.json
       - run: npm ci
       - run: npm run typecheck
-      - run: ./node_modules/.bin/vp run --filter '@pdfme/*' lint
+      - run: ./node_modules/.bin/vp run --filter '@pdfweave/*' lint
       - name: ESLint strict (deep gate)
         run: npm run lint:strict
       - run: npm run build
@@ -38,16 +38,30 @@ jobs:
           CI: true
       - name: Publish test report
         if: always()
+        continue-on-error: true
         uses: dorny/test-reporter@v1
         with:
           name: 'PDFweave tests'
           path: 'packages/*/test-results.xml'
           reporter: 'java-junit'
-          fail-on-error: 'true'
+          # The junit reporter emits per-workspace files when CI=true is
+          # set on the test step. Vitest sometimes writes 0-byte files
+          # for workspaces with no test files matched (pdf-lib in our
+          # case). Don't gate the whole workflow on dorny's strictness;
+          # the test step itself is the source of truth for pass/fail.
+          fail-on-error: 'false'
+          fail-on-empty: 'false'
       - name: Coverage + CRAP
         run: npm run coverage:check
         env:
           CI: true
+          # Coverage instrumentation adds 2-4× to per-test runtime.
+          # The integration-{playground,other,segmenter} tests assert
+          # PERFORMANCE_THRESHOLD seconds as a regression detector;
+          # under coverage they all blow past their per-file defaults
+          # (1.5 / 2.5 / 5 sec). Override to 30s on the coverage run
+          # only — the regular test step keeps the strict thresholds.
+          PERFORMANCE_THRESHOLD: '30'
       - name: Upload coverage HTML
         if: always()
         uses: actions/upload-artifact@v4
@@ -62,8 +76,17 @@ jobs:
         uses: davelosert/vitest-coverage-report-action@v2
         with:
           json-summary-path: ./coverage/aggregate-summary.json
-      - name: CRAP PR comment
+      - name: CRAP report exists?
         if: github.event_name == 'pull_request' && always()
+        id: crap_exists
+        run: |
+          if [ -f coverage/crap-report.md ]; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: CRAP PR comment
+        if: github.event_name == 'pull_request' && always() && steps.crap_exists.outputs.found == 'true'
         uses: marocchino/sticky-pull-request-comment@v2
         with:
           header: crap

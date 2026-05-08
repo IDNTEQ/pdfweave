@@ -170,7 +170,7 @@ function TemplatesApp({ isEmbedded }: { isEmbedded: boolean }) {
       window.parent.postMessage({ type: 'navigate', payload: { name, ui } }, '*');
     } else {
       const path = ui === 'designer' ? '/' : '/form-viewer';
-      navigate(`${path}?template=${name}`);
+      void navigate(`${path}?template=${name}`);
     }
   };
 

@@ -502,8 +502,35 @@ function removeTrailingEmptyPages(pages: Schema[][]): void {
 
 /**
  * Process a single template page that has dynamic content.
- * Uses the same layout algorithm as the original implementation,
- * but scoped to a single page's schemas.
+ *
+ * Two schemas are treated as part of the same horizontal group when their
+ * *original* Y ranges (`baseY` to `baseY + height`) overlap. Strict
+ * baseY equality would falsely separate side-by-side schemas placed at
+ * e.g. y=20 and y=21 due to manual layout drift. Items in a group share
+ * the same offset; schemas below the group are pushed down by how far
+ * the group as a whole expanded, not by each member's individual
+ * expansion.
+ *
+ * The offset for a group is computed as
+ * `cumMaxActualEnd - cumMaxOriginalEnd` over all already-committed
+ * groups. This formulation has two important properties:
+ *  1. When a single schema spans multiple pages (e.g. a long table that
+ *     breaks across 5 pages), downstream schemas correctly land below
+ *     the last page, because actualEnd reflects the page-break drift.
+ *  2. When an unrelated schema is merely *pushed* onto a later page
+ *     without expanding itself, both its actualEnd and originalEnd
+ *     increase by similar amounts (the page-break drift cancels), so
+ *     the offset for the *next* group does not accumulate the drift
+ *     twice.
+ *
+ * `items` is pre-sorted by `normalizePageSchemas` (baseY ascending;
+ * original order preserved for ties), so each new item only needs to
+ * check whether it starts before the running `groupYEnd`.
+ *
+ * Adapted from upstream pdfme/pdfme#1489 with PDFweave-specific
+ * pageBreak interleaving (pdfme#637): a page-break commits the current
+ * group before snapping to the next page boundary, then resets the
+ * group tracker so the items after the break form a fresh group.
  */
 function processDynamicPage(
   items: LayoutItem[],
@@ -512,31 +539,61 @@ function processDynamicPage(
   paddingTop: number,
 ): Schema[][] {
   const pages: Schema[][] = [];
-  let totalYOffset = 0;
+
+  let cumMaxActualEnd = 0;
+  let cumMaxOriginalEnd = 0;
+  let groupYEnd = Number.NEGATIVE_INFINITY;
+  let groupMaxActualEnd = Number.NEGATIVE_INFINITY;
+  let groupMaxOriginalEnd = Number.NEGATIVE_INFINITY;
+
+  const commitGroup = () => {
+    if (groupMaxActualEnd === Number.NEGATIVE_INFINITY) return;
+    if (groupMaxActualEnd > cumMaxActualEnd) cumMaxActualEnd = groupMaxActualEnd;
+    if (groupMaxOriginalEnd > cumMaxOriginalEnd) cumMaxOriginalEnd = groupMaxOriginalEnd;
+    groupMaxActualEnd = Number.NEGATIVE_INFINITY;
+    groupMaxOriginalEnd = Number.NEGATIVE_INFINITY;
+  };
 
   for (const item of items) {
-    // pageBreak primitive (pdfme#637): force everything that follows onto
-    // the next page regardless of remaining vertical space. We don't emit
-    // the marker in the output (zero render footprint); we just advance
-    // totalYOffset so the next item's currentGlobalStartY rounds up to a
-    // page boundary.
+    // pageBreak primitive (pdfme#637): force everything that follows
+    // onto the next page regardless of remaining vertical space. We
+    // don't emit the marker in the output (zero render footprint); we
+    // just bump cumMaxActualEnd so the next item's groupOffset rounds
+    // up to a page boundary, AND commit / reset the group tracker so
+    // post-break items don't share a group with pre-break items.
     if (isPageBreakSchema(item.schema)) {
-      const currentGlobalStartY = item.baseY + totalYOffset;
+      commitGroup();
+      const currentGroupOffset = Math.max(0, cumMaxActualEnd - cumMaxOriginalEnd);
+      const currentGlobalStartY = item.baseY + currentGroupOffset;
       const currentPageIndex = Math.floor(currentGlobalStartY / contentHeight);
       const currentYInPage = currentGlobalStartY - currentPageIndex * contentHeight;
       // Snap to the start of the next page only if we're not already
       // exactly at one — back-to-back page breaks shouldn't double-skip.
       if (currentYInPage > EPSILON) {
         const nextPageStart = (currentPageIndex + 1) * contentHeight;
-        totalYOffset += nextPageStart - currentGlobalStartY;
+        cumMaxActualEnd += nextPageStart - currentGlobalStartY;
       }
+      // Reset group tracker; items after a page break form a new group.
+      groupYEnd = Number.NEGATIVE_INFINITY;
       // Ensure the (now-next) page exists so subsequent layout has a slot.
-      const targetPageIndex = Math.floor((item.baseY + totalYOffset) / contentHeight);
+      const postBreakOffset = Math.max(0, cumMaxActualEnd - cumMaxOriginalEnd);
+      const targetPageIndex = Math.floor((item.baseY + postBreakOffset) / contentHeight);
       while (pages.length <= targetPageIndex) pages.push([]);
       continue;
     }
 
-    const currentGlobalStartY = item.baseY + totalYOffset;
+    const itemBaseEnd = item.baseY + item.height;
+    const overlapsCurrentGroup = item.baseY < groupYEnd - EPSILON;
+
+    if (!overlapsCurrentGroup) {
+      commitGroup();
+      groupYEnd = itemBaseEnd;
+    } else if (itemBaseEnd > groupYEnd) {
+      groupYEnd = itemBaseEnd;
+    }
+
+    const groupOffset = Math.max(0, cumMaxActualEnd - cumMaxOriginalEnd);
+    const currentGlobalStartY = item.baseY + groupOffset;
 
     const actualGlobalEndY = placeRowsOnPages(
       item.schema,
@@ -547,10 +604,10 @@ function processDynamicPage(
       pages,
     );
 
-    // Update offset: difference between actual and original end position
-    const originalGlobalEndY = item.baseY + item.height;
-    totalYOffset = actualGlobalEndY - originalGlobalEndY;
+    if (actualGlobalEndY > groupMaxActualEnd) groupMaxActualEnd = actualGlobalEndY;
+    if (itemBaseEnd > groupMaxOriginalEnd) groupMaxOriginalEnd = itemBaseEnd;
   }
+  commitGroup();
 
   sortPagesByOrder(pages, orderMap);
   removeTrailingEmptyPages(pages);
