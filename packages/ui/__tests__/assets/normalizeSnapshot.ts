@@ -12,7 +12,7 @@ export const normalizeElementIdsForSnapshot = (container: HTMLElement) => {
       .join(' ');
 
   container.querySelectorAll<HTMLElement>('*').forEach((element) => {
-    element.removeAttribute('data-pdfme-render-ready');
+    element.removeAttribute('data-pdfweave-render-ready');
     const className = element.getAttribute('class');
     if (className) {
       const normalizedClassName = normalizeClassName(className);

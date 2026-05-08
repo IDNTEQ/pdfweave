@@ -40,7 +40,7 @@ test('Renderer dispatches beforeRemove before rerender and unmount cleanup', asy
   );
 
   await waitFor(() => {
-    expect(container.querySelector('[data-pdfme-render-ready="true"]')).toBeInTheDocument();
+    expect(container.querySelector('[data-pdfweave-render-ready="true"]')).toBeInTheDocument();
   });
 
   rerender(

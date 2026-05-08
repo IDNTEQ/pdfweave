@@ -121,10 +121,10 @@ describe('Renderer plugin error isolation', () => {
     );
 
     await waitFor(() => {
-      expect(container.querySelector('[data-pdfme-plugin-error="true"]')).toBeInTheDocument();
+      expect(container.querySelector('[data-pdfweave-plugin-error="true"]')).toBeInTheDocument();
     });
 
-    expect(container.querySelector('[data-pdfme-render-ready="true"]')).toBeInTheDocument();
+    expect(container.querySelector('[data-pdfweave-render-ready="true"]')).toBeInTheDocument();
 
     const logged = consoleErr.mock.calls.flat().join(' ');
     expect(logged).toContain('err-schema');
@@ -171,13 +171,13 @@ describe('Renderer plugin error isolation', () => {
       );
 
       await waitFor(() => {
-        expect(container.querySelector('[data-pdfme-render-ready="true"]')).toBeInTheDocument();
+        expect(container.querySelector('[data-pdfweave-render-ready="true"]')).toBeInTheDocument();
       });
 
       // ui() output should still be present — measure error must NOT replace it.
       expect(container.textContent).toContain('ui-ok:hello');
       // No error placeholder for measure() failures (ui() succeeded).
-      expect(container.querySelector('[data-pdfme-plugin-error="true"]')).not.toBeInTheDocument();
+      expect(container.querySelector('[data-pdfweave-plugin-error="true"]')).not.toBeInTheDocument();
 
       const logged = consoleErr.mock.calls.flat().join(' ');
       expect(logged).toContain('measure()');

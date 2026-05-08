@@ -277,7 +277,7 @@ const Renderer = (props: RendererProps) => {
 
     let cancelled = false;
     element.innerHTML = '';
-    element.dataset.pdfmeRenderReady = 'false';
+    element.dataset.pdfweaveRenderReady = 'false';
     const render = renderArgs.plugin.ui;
 
     const renderErrorPlaceholder = (host: HTMLElement, pluginName: string, err: unknown) => {
@@ -285,7 +285,7 @@ const Renderer = (props: RendererProps) => {
       // the hardening scope: blanking the field is worse than showing an explicit error.
       host.innerHTML = '';
       const placeholder = document.createElement('div');
-      placeholder.dataset.pdfmePluginError = 'true';
+      placeholder.dataset.pdfweavePluginError = 'true';
       placeholder.style.cssText =
         'box-sizing:border-box;width:100%;height:100%;border:1px dashed red;color:red;font-size:11px;padding:4px;overflow:hidden;background:rgba(255,0,0,0.04);';
       placeholder.textContent = `Plugin error: ${pluginName}`;
@@ -367,7 +367,7 @@ const Renderer = (props: RendererProps) => {
 
     void renderSchema().finally(() => {
       if (!cancelled) {
-        element.dataset.pdfmeRenderReady = 'true';
+        element.dataset.pdfweaveRenderReady = 'true';
       }
     });
 
@@ -376,7 +376,7 @@ const Renderer = (props: RendererProps) => {
       if (element) {
         element.dispatchEvent(new Event('beforeRemove'));
         element.innerHTML = '';
-        delete element.dataset.pdfmeRenderReady;
+        delete element.dataset.pdfweaveRenderReady;
       }
     };
   }, [renderKey, schema.type]);

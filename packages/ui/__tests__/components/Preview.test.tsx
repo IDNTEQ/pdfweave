@@ -34,7 +34,7 @@ test('Preview(as Viewer) snapshot', async () => {
 
   await waitFor(() => {
     const selectableElements = container.getElementsByClassName(SELECTABLE_CLASSNAME);
-    const renderedElements = container.querySelectorAll('[data-pdfme-render-ready="true"]');
+    const renderedElements = container.querySelectorAll('[data-pdfweave-render-ready="true"]');
     expect(selectableElements.length).toBeGreaterThan(0);
     expect(renderedElements.length).toBe(selectableElements.length);
   });
@@ -64,7 +64,7 @@ test('Preview(as Form) snapshot', async () => {
 
   await waitFor(() => {
     const selectableElements = container.getElementsByClassName(SELECTABLE_CLASSNAME);
-    const renderedElements = container.querySelectorAll('[data-pdfme-render-ready="true"]');
+    const renderedElements = container.querySelectorAll('[data-pdfweave-render-ready="true"]');
     expect(selectableElements.length).toBeGreaterThan(0);
     expect(renderedElements.length).toBe(selectableElements.length);
   });
@@ -90,7 +90,7 @@ test('Preview keeps toolbar zoom interactive when options.zoomLevel is only an i
   );
 
   await waitFor(() => {
-    expect(container.querySelectorAll('[data-pdfme-render-ready="true"]').length).toBeGreaterThan(0);
+    expect(container.querySelectorAll('[data-pdfweave-render-ready="true"]').length).toBeGreaterThan(0);
   });
 
   expect(container).toHaveTextContent('100%');
