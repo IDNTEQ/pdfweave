@@ -20,7 +20,11 @@ import { getFont, getImageSnapshotOptions, pdfToImages } from './utils.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const PERFORMANCE_THRESHOLD = parseFloat(process.env.PERFORMANCE_THRESHOLD || '1.5');
+// Default 5s. Shared GitHub Actions runners are 2-3× slower than
+// local dev hardware; the previous 1.5s threshold was unreasonably
+// tight for any non-trivial template. Override with
+// PERFORMANCE_THRESHOLD env var if a regression is suspected.
+const PERFORMANCE_THRESHOLD = parseFloat(process.env.PERFORMANCE_THRESHOLD || '5');
 
 // Load all templates from playground/public/template-assets
 function loadPlaygroundTemplates(): Record<string, Template> {

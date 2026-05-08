@@ -14,6 +14,7 @@ import {
   resolveAnchorY,
   reverseAnchorOffsetX,
   reverseAnchorOffsetY,
+  topoSortByAnchorDeps,
 } from '../src/anchorGeometry.js';
 import type { Schema } from '../src/types.js';
 
@@ -639,6 +640,111 @@ describe('anchorGeometry', () => {
       expect(result[0]).toBe(schemas[0]);
       // Anchored schema cloned (different reference, same identity).
       expect(result[1]).not.toBe(schemas[1]);
+    });
+  });
+
+  describe('topoSortByAnchorDeps', () => {
+    const anchorTo = (
+      name: string,
+      yRef: string | undefined,
+      xRef?: string,
+    ): Schema => ({
+      ...makeSchema({ name }),
+      layout: {
+        mode: 'anchored',
+        x:
+          xRef === undefined
+            ? { mode: 'pageLeft', offsetMm: 0 }
+            : { mode: 'afterRightEdge', ref: { schemaId: xRef }, offsetMm: 0 },
+        y:
+          yRef === undefined
+            ? { mode: 'pageTop', offsetMm: 0 }
+            : { mode: 'belowBottomEdge', ref: { schemaId: yRef }, offsetMm: 0 },
+      },
+    } as Schema);
+
+    it('returns an empty array for an empty input', () => {
+      expect(topoSortByAnchorDeps([])).toEqual([]);
+    });
+
+    it('returns a single non-anchored schema unchanged', () => {
+      const a = makeSchema({ name: 'a' });
+      expect(topoSortByAnchorDeps([a])).toEqual([a]);
+    });
+
+    it('returns independent schemas in input order (stable)', () => {
+      const a = makeSchema({ name: 'a' });
+      const b = makeSchema({ name: 'b' });
+      const c = makeSchema({ name: 'c' });
+      expect(topoSortByAnchorDeps([a, b, c])).toEqual([a, b, c]);
+    });
+
+    it('places a referent before its dependent', () => {
+      // a is anchored below b ⇒ b must come before a
+      const b = makeSchema({ name: 'b' });
+      const a = anchorTo('a', 'b');
+      const result = topoSortByAnchorDeps([a, b]);
+      expect(result.indexOf(b)).toBeLessThan(result.indexOf(a));
+    });
+
+    it('handles a chain (a → b → c)', () => {
+      // a depends on b depends on c ⇒ c, b, a
+      const c = makeSchema({ name: 'c' });
+      const b = anchorTo('b', 'c');
+      const a = anchorTo('a', 'b');
+      const result = topoSortByAnchorDeps([a, b, c]);
+      expect(result.indexOf(c)).toBeLessThan(result.indexOf(b));
+      expect(result.indexOf(b)).toBeLessThan(result.indexOf(a));
+    });
+
+    it('handles independent X-axis and Y-axis dependencies on different targets', () => {
+      // d (no deps), e (no deps), c depends on d (Y) and e (X)
+      const d = makeSchema({ name: 'd' });
+      const e = makeSchema({ name: 'e' });
+      const c = anchorTo('c', 'd', 'e');
+      const result = topoSortByAnchorDeps([c, d, e]);
+      expect(result.indexOf(d)).toBeLessThan(result.indexOf(c));
+      expect(result.indexOf(e)).toBeLessThan(result.indexOf(c));
+    });
+
+    it('returns every input exactly once with no duplicates', () => {
+      const c = makeSchema({ name: 'c' });
+      const b = anchorTo('b', 'c');
+      const a = anchorTo('a', 'b');
+      const result = topoSortByAnchorDeps([a, b, c]);
+      expect(result).toHaveLength(3);
+      expect(new Set(result).size).toBe(3);
+    });
+
+    it('throws on a simple cycle a → b → a, with the cycle path in the message', () => {
+      const a = anchorTo('a', 'b');
+      const b = anchorTo('b', 'a');
+      expect(() => topoSortByAnchorDeps([a, b])).toThrow(/Circular anchor: a → b → a/);
+    });
+
+    it('throws on a longer cycle a → b → c → a', () => {
+      const a = anchorTo('a', 'b');
+      const b = anchorTo('b', 'c');
+      const c = anchorTo('c', 'a');
+      expect(() => topoSortByAnchorDeps([a, b, c])).toThrow(/Circular anchor: a → b → c → a/);
+    });
+
+    it('treats an unresolvable ref as no edge (silently)', () => {
+      // 'a' is anchored to a non-existent referent — no edge contributed.
+      const a = anchorTo('a', 'does-not-exist');
+      expect(() => topoSortByAnchorDeps([a])).not.toThrow();
+      expect(topoSortByAnchorDeps([a])).toEqual([a]);
+    });
+
+    it('does not treat a self-reference as a cycle (silently dropped)', () => {
+      // A schema referencing itself contributes no edge. The existing
+      // detectAnchorCycle returns [self] for self-refs; topoSort treats
+      // them as a no-op edge so the schema is sorted as if independent.
+      // (Self-refs are guard-railed elsewhere — this function shouldn't
+      // throw on them.)
+      const a = anchorTo('a', 'a');
+      expect(() => topoSortByAnchorDeps([a])).not.toThrow();
+      expect(topoSortByAnchorDeps([a])).toEqual([a]);
     });
   });
 });

@@ -249,6 +249,7 @@ export {
   resolveAnchorY,
   reverseAnchorOffsetX,
   reverseAnchorOffsetY,
+  topoSortByAnchorDeps,
 } from './anchorGeometry.js';
 export type {
   AnchoredLayoutRule,
