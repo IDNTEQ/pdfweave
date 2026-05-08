@@ -196,14 +196,13 @@ The full Phase 2 sequence:
    schema, edges from the schemas it references on either axis.
 2. Topo-sort + cycle check (single DFS, O(N + E)). Errors carry the
    cycle path: `Circular anchor: A → B → C → A`.
-3. **Walk topo order, interleaving resolve / measure / place per
-   schema.** For each schema in topo order:
+3. **Walk topo order. Per-schema work depends on the layout mode.**
+
+   **For ANCHORED schemas** (interleaved resolve / measure / place):
    1. **Resolve position.** Targets are earlier in topo order and
-      already fully placed (steps a-d completed). Read
-      `target.actualHeight` (post-measure) regardless of target's
-      layout mode. Apply `resolveAnchorX` / `resolveAnchorY`. For
-      absolute schemas, position is the template-declared value
-      (their `mode: 'absolute'` skips this step).
+      already fully placed. Read `target.actualHeight` (post-measure)
+      regardless of target's layout mode. Apply `resolveAnchorX` /
+      `resolveAnchorY`.
    2. **Measure.** Call the plugin's `measure()` with the
       now-correct position. Returns `LayoutMeasureResult` with
       width / height / fragments. Stash the measured total on the
@@ -213,16 +212,32 @@ The full Phase 2 sequence:
       fragments and the placement record (which page the last
       fragment lands on, its Y, its height). Record on the schema
       (`schema.placement = { lastPageIndex, lastFragmentY,
-      lastFragmentHeight, ... }`) for downstream anchors to look up.
-4. Re-sort `items` by the resolved `baseY` only if any downstream
-   step (e.g. trailing-empty-page collapse) needs sorted order. The
-   topo walk has already produced placement; the engine's grouped-
-   offset mechanism only runs for non-anchored items.
+      lastFragmentHeight, … }`) for downstream anchors to look up.
+   4. Mark `items[i].placement = 'anchored'` so the post-walk engine
+      pass skips it.
+
+   **For ABSOLUTE schemas** (measure only — placement deferred):
+   1. Skip resolve (position is template-declared, already correct).
+   2. **Measure.** Same as anchored case — call `measure()` and
+      stash `schema.actualHeight`. This is essential: a downstream
+      anchored schema may target this absolute and read its actual
+      height to compute its own position.
+   3. Skip place. Mark `items[i].placement = 'absolute'`.
+
+4. **Engine pass for absolute items only.** After the topo walk,
+   run `processDynamicPage` over the items where
+   `placement === 'absolute'`. The engine applies its grouped-offset
+   propagation (Phase 1 fix) to place these items across pages with
+   per-group same-Y handling. Anchored items are skipped in this
+   pass — they were already placed in step 3.
+
 5. **Two placement modes co-exist on the same page.** Anchored items
-   come from step 3c. Absolute items go through `processDynamicPage`'s
-   grouped-offset path (Phase 1 fix). They share the same page slots;
-   conflicts are the user's contract (absolute means absolute, even
-   if it overlaps an anchored neighbour that grew).
+   from step 3 and absolute items from step 4 share page slots.
+   Anchored items have positions from the graph; absolute items
+   from the engine. Conflicts (e.g. an anchored item overlapping an
+   absolute item that didn't move) are the user's contract:
+   absolute means absolute, even if a dynamic anchored neighbour
+   grew into its space.
 6. **Page-spanning detection** for the Phase 2 caveat below: derive
    from actual placement (does the last fragment land on a page
    different from the first?), not from `fragments.length`. Tables
