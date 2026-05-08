@@ -433,9 +433,9 @@ describe('Playground E2E Tests', () => {
     page.on('request', (req) => {
       const ignoreDomains = ['https://media.ethicalads.io/'];
       if (ignoreDomains.some((d) => req.url().startsWith(d))) {
-        req.abort();
+        void req.abort();
       } else {
-        req.continue();
+        void req.continue();
       }
     });
   });
