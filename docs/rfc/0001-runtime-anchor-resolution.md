@@ -160,28 +160,40 @@ all existing test cases.
 **Goal:** make the anchor graph the runtime source of truth for
 anchored schemas that fit on a single page.
 
-**Implementation:**
+**Implementation — single-pass topological resolution.** The current
+`resolveAnchoredSchemas` is fixed-point iteration: re-walk all schemas
+until no positions change (worst case O(N²) for deep chains; cycle
+detection is "we tried N passes, give up"). We replace it with a
+topological-order single pass: O(N + E) total, with E ≤ 2N because
+each anchored schema has at most one X-target and one Y-target.
 
-After dynamic-height measurement (~line 662) but BEFORE
-`processDynamicPage` runs, the cloned `items[]` array already holds
-measured fragments. The crucial detail is that `processDynamicPage`
-reads `items[i].schema`, `.height`, and `.baseY` — **not the original
-`pageSchemas`**. Mutating `pageSchemas` and re-running
-`resolveAnchoredSchemas(pageSchemas)` alone has no effect on placement.
-So Phase 2 must:
+The existing `detectAnchorCycle` in `anchorGeometry.ts:276` already
+uses DFS, which is the same algorithm topo-sort uses (with one tweak:
+emit nodes in reverse-finish order). Extend it to return the topo
+order as a byproduct; cycle detection comes for free with a useful
+error message (`A → B → C → A`).
 
-1. Compute each item's actual total height from `items[i].fragments`
-   (sum of fragment heights, with the same accumulation rule the engine
-   uses today).
-2. Write the actual height back onto `items[i].schema.height` and onto
-   `pageSchemas` (so a fresh `buildSchemaIndex` sees actual heights).
-3. Re-run `resolveAnchoredSchemas(pageSchemas)` — the existing
-   pass-loop converges on chains.
-4. Sync the re-resolved positions: for each `items[i]`, set
-   `items[i].schema.position` and recompute `items[i].baseY =
-   items[i].schema.position.y - paddingTop`.
-5. Re-sort `items` by the new `baseY` (the engine assumes baseY-sorted
-   input; positions can change).
+The full Phase 2 sequence:
+
+1. Build the anchor dep graph from `pageSchemas`: for each anchored
+   schema, edges from the schemas it references on either axis.
+2. Topo-sort + cycle check (single DFS, O(N + E)).
+3. Measure all schemas in parallel batches (current code, unchanged).
+   Measurement is independent of position — `measure(schema, basePdf,
+   options, _cache)` doesn't read position, so it can run before
+   anchor resolution.
+4. **Single resolution pass** in topo order. For each schema:
+   - Look up the actual total height from its measured fragments.
+   - Write actual height onto `items[i].schema.height` and the
+     `pageSchemas` index entry (so subsequent lookups see the real
+     value).
+   - Resolve `resolveAnchorX` / `resolveAnchorY` — the targets are
+     guaranteed already resolved because they're earlier in topo
+     order. Single function call, no iteration.
+   - Write the resolved position onto `items[i].schema.position` and
+     recompute `items[i].baseY = position.y - paddingTop`.
+5. Re-sort `items` by the new `baseY` (placement assumes baseY-sorted
+   input; positions can shift across the resolution).
 6. **Mark anchored items as already-placed.** Add a flag (e.g.
    `items[i].placement = 'anchored'`). `processDynamicPage` consumes
    the flag: anchored items skip the `totalYOffset` machinery and use
@@ -194,7 +206,12 @@ So Phase 2 must:
    Tables and multi-line text legitimately produce many fragments
    that all fit on one page. The right signal is whether
    `cumulativeFragmentHeight` starting at the schema's `baseY` ever
-   crosses a page boundary, computed as part of step 1's accumulation.
+   crosses a page boundary, computed as part of step 4's accumulation.
+
+**Performance.** For typical templates (N ≈ 50 schemas): ~50 anchor
+resolutions per page (vs. ~2,500 worst-case under fixed-point iteration
+when chains exist). Sub-millisecond either way; the topo-sort
+implementation is provably better and removes the convergence loop.
 
 **Caveat for Phase 2 (lifted in Phase 3):** if an anchored schema's
 target page-spans (per the placement-derived signal in step 7), the
@@ -202,6 +219,47 @@ re-resolved position only knows the target's height, not which page
 the target's bottom edge lands on. For these targets only, fall
 through to the existing engine `totalYOffset` path. Phase 3 makes
 the resolver page-aware so this caveat goes away.
+
+#### Page-splitting under the new model
+
+Topological resolution and page-splitting compose cleanly. Walking
+through every case I could think of:
+
+| Case | Outcome | Why |
+|---|---|---|
+| **B `belowBottomEdge` of A; A fits on one page; B fits on the same page** | B placed at `A.bottom + offset` on A's page | Standard. Same as today. |
+| **B `belowBottomEdge` of A; A fits on one page; B overflows** | B starts at `A.bottom + offset`, splits across pages via `placeRowsOnPages` | Page-splitting is per-schema fragmentation; whether a schema starts via anchor or absolute Y doesn't change how it splits. |
+| **B `belowBottomEdge` of A; A spans 3 pages** | A is fully placed first (topo order) → `A.lastFragment.bottom` is on page 3. B starts there. *(Phase 3 only — Phase 2 falls back to engine for this.)* | Topo order guarantees A is placed by the time we resolve B. The "last fragment's bottom edge" is what `belowBottomEdge` refers to. |
+| **Two side-by-side anchored siblings, both dynamic, different expansions** | Each placed independently at its own `pageTop` offset; expansions don't interfere | No anchor edge between them → no dependency → topo sort puts them in any order, neither sees the other's expansion. This is the case the same-Y bug breaks today; under the new model the bug is structurally impossible. |
+| **B has X-anchor to A and Y-anchor to D (different targets)** | Both A and D placed before B; B reads `A.position.x` and `D.position.y` independently | Topo deps: B depends on both A and D. Both axes resolve from already-placed schemas. |
+| **B's resolved Y leaves no room on the current page (e.g. y=98 on a 100mm-content page; B is 50mm tall)** | `placeRowsOnPages` orphan-protects: B page-breaks, starts at y=0 of the next page | Existing engine logic, unchanged. |
+| **A absolute at (10, 50), B anchored `belowBottomEdge` of A. A grows? Cannot — absolute means absolute, no dynamic expansion.** | B placed at `A.position.y + A.declaredHeight + offset` = 50+30+5 = 85 (using A's declared height since A doesn't expand) | Absolute schemas have no measurement step that could change their height. Their `declaredHeight === actualHeight`. |
+| **C absolute at (10, 60); B (anchored, dynamic) lands on top of C** | B and C overlap visually | User explicitly chose `mode: 'absolute'` for C; absolute means absolute. Same-Y group fix from Phase 1 is for absolute schemas pushed by other absolutes — anchored schemas overlapping with absolutes is the user's contract. |
+| **Anchor target is on page 1; B's resolved Y sends it to page 3** | B placed on page 3; intervening pages may be empty if no other schemas land there | Output has empty pages where nothing places. `removeTrailingEmptyPages` (line 498) handles trailing emptiness; mid-document empty pages are by design (the user explicitly anchored to a target whose bottom is many pages away). |
+| **Anchored schema overflows, splitting itself across pages, then a downstream dep** | Schema splits via `placeRowsOnPages` → `lastFragment.bottom` recorded → next dep resolves against last fragment | Each schema records its placement (final page + final-fragment bottom edge) at the end of its `placeRowsOnPages` call. Anchor resolver consumes that record. |
+
+**The key invariant**: in topo order, every schema is fully placed
+(including page-splitting) before any of its dependents resolve.
+Page-splitting becomes a per-schema concern that doesn't affect anchor
+resolution correctness. The placement record (last fragment's page
+index, X, Y, width, height) is what dependent anchors look up.
+
+**What can still go wrong** (surfaced explicitly so we don't claim
+"works without issues" prematurely):
+
+- **A schema with a horizontal anchor whose target is on a different
+  page than where the schema lands.** X is independent of page; this
+  is fine — the X coordinate is just an X coordinate.
+- **A schema anchored to a target that ends up off the rendered area
+  entirely** (target overflowed past the last allowed page). Today
+  the engine throws on overflow; we should document this and let it
+  throw with a clear message (`Anchor target X never placed; check
+  page count or schema heights`).
+- **Performance of repeated lookups across many pages**: for a deep
+  chain of anchored schemas where each spans pages, we do O(N)
+  placements + O(N) anchor resolutions. No quadratic explosion.
+- **Test coverage**: every row in the table above gets a unit or
+  snapshot test in Phase 3.
 
 **API:**
 
