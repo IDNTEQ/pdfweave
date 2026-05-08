@@ -1,4 +1,14 @@
-# Branding audit — 2026-05-07
+# Branding audit — conservative sweep — 2026-05-07
+
+> **Superseded by
+> [docs/branding-audit-independence-2026-05-08.md](./branding-audit-independence-2026-05-08.md).**
+> This document records the conservative branding sweep delivered for
+> issue #29: 3 strings renamed, 200+ kept as compat. The decisions
+> below have been overridden by the independence sweep, which moves
+> the public CSS class prefixes, DOM data attributes, the stored-
+> template version field, and the `PDFME_VERSION` export onto the
+> `pdfweave` namespace. The independence sweep is the source of truth
+> for the current state.
 
 GitHub issue: [#29 — P3: Branding sweep — residual @pdfme strings to @pdfweave](https://github.com/IDNTEQ/pdfweave/issues/29)
 
