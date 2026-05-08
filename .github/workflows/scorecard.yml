@@ -1,0 +1,52 @@
+# OpenSSF Scorecard — automated security best-practices scoring.
+# Docs: https://github.com/ossf/scorecard-action
+# Score is published to the Security tab and (optionally) to the public
+# OpenSSF API at https://api.securityscorecards.dev/projects/github.com/IDNTEQ/pdfweave
+name: OpenSSF Scorecard
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '37 7 * * 1'                # Weekly Monday 07:37 UTC.
+  workflow_dispatch:
+
+permissions: read-all
+
+jobs:
+  analysis:
+    name: Scorecard analysis
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write             # Upload SARIF to the Security tab.
+      id-token: write                    # Sign the published score (Sigstore).
+      contents: read
+      actions: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Run analysis
+        uses: ossf/scorecard-action@v2.4.0
+        with:
+          results_file: results.sarif
+          results_format: sarif
+          # publish_results: true publishes the score to the public OpenSSF
+          # API (allows the README badge to render). It only publishes
+          # PUBLIC repository info — no secrets, no source.
+          publish_results: true
+
+      - name: Upload SARIF (artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: scorecard-sarif
+          path: results.sarif
+          retention-days: 14
+
+      - name: Upload SARIF (Security tab)
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: results.sarif

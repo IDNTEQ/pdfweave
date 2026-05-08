@@ -1,0 +1,62 @@
+# Greptile — AI code review configuration for PDFweave
+# Docs: https://docs.greptile.com
+
+auto_review:
+  enabled: true
+  # Skip noise: Dependabot/Renovate cosmetic bumps, agent automation labels.
+  ignore_pr_titles:
+    - "^chore\\(deps\\):"
+    - "^build\\(deps\\):"
+    - "^WIP"
+    - "^DRAFT"
+
+# Greptile indexes the whole repo by default; trim out vendored / generated.
+excluded_paths:
+  - "packages/pdf-lib/**"        # Vendored upstream pdf-lib; not our code.
+  - "**/dist/**"
+  - "**/coverage/**"
+  - "**/node_modules/**"
+  - "**/__snapshots__/**"
+  - "website/**"                  # Docusaurus docs site; reviewed separately.
+  - "playground/**"               # Demo, low review value.
+  - "**/*.lock"
+  - "**/package-lock.json"
+  - ".crap-allowlist.json"
+
+# What we want Greptile to focus on, in order of weight.
+review_instructions: |
+  PDFweave is a TypeScript monorepo (npm workspaces) with the following
+  packages: common, schemas, generator, ui, cli, converter, manipulator
+  (plus vendored pdf-lib which is excluded).
+
+  When reviewing a PR, prioritise:
+
+  1. **Correctness over style.** Style is enforced by oxlint + ESLint
+     strict-type-checked + sonarjs cognitive-complexity. If you're going
+     to comment on style, only do so if it's not already caught by
+     `npm run lint:strict`.
+
+  2. **Anchor / table-binding consistency.** Any code touching anchor
+     resolution, anchor reverse-resolution, anchor cycle detection, or
+     table column-width inference / rebalancing must call into
+     `@pdfweave/common/anchorGeometry` or
+     `@pdfweave/common/tableBinding`. Inline duplication of that logic
+     in `packages/ui/**` or elsewhere is a regression — flag it.
+
+  3. **Stored template format compatibility.** Changes to schemas in
+     `packages/common/src/schema.ts` or `packages/common/src/types.ts`
+     must keep the existing field set readable. New required fields are
+     a breaking change — flag them. New optional fields are fine.
+
+  4. **No new pdfme branding regressions.** PDFweave is a hard fork; new
+     `@pdfme/*` strings or new `pdfme-*` CSS class names should be
+     replaced with `@pdfweave/*` / `pdfweave-*` unless the PR is
+     explicitly preserving compat (annotated with a "Compat:" comment).
+
+  5. **CRAP / coverage delta.** If a PR adds a function with cognitive
+     complexity > 15 or untested branches in a hot path, flag it. The
+     `coverage:check` CI gate catches the worst offenders, but earlier
+     PR feedback is more useful than CI-blocking later.
+
+  Skip: cosmetic comments, copy edits, missing JSDoc on internal-only
+  helpers, anything already enforced by the lint config.

@@ -1,0 +1,92 @@
+# CodeRabbit — AI code review configuration for PDFweave
+# Docs: https://docs.coderabbit.ai/configure-coderabbit
+# Schema: https://coderabbit.ai/integrations/schema.v2.json
+
+language: en-US
+early_access: false
+tone_instructions: |
+  Direct, technical, no filler. Lead with the issue, then the fix.
+  No "Great question!", no praise-sandwiches. Treat the PR author as a
+  peer engineer.
+
+reviews:
+  profile: assertive
+  request_changes_workflow: false
+  high_level_summary: true
+  high_level_summary_placeholder: "@coderabbitai summary"
+  poem: false                           # No poetry. We're shipping a library.
+  review_status: true
+  collapse_walkthrough: true            # Walkthrough hidden by default; expand on demand.
+
+  auto_review:
+    enabled: true
+    drafts: false
+    base_branches: ["main"]
+    ignore_title_keywords:
+      - "WIP"
+      - "DRAFT"
+      - "wip"
+      - "draft"
+
+  path_filters:
+    # Don't review what we don't own / don't ship as code.
+    - "!packages/pdf-lib/**"
+    - "!**/dist/**"
+    - "!**/coverage/**"
+    - "!**/node_modules/**"
+    - "!**/__snapshots__/**"
+    - "!**/*.lock"
+    - "!**/package-lock.json"
+    - "!website/**"
+    - "!playground/dist/**"
+    - "!.crap-allowlist.json"
+
+  path_instructions:
+    - path: "packages/common/src/anchorGeometry.ts"
+      instructions: |
+        This is the SINGLE source of truth for anchor math. Any change
+        here must consider its three callers:
+        `packages/common/src/dynamicTemplate.ts`,
+        `packages/common/src/anchorLayout.ts`, and the
+        `repairAnchorsAfterRemove` callsite in
+        `packages/ui/src/components/Designer/index.tsx`. Behavioural
+        changes need snapshot updates.
+
+    - path: "packages/common/src/tableBinding.ts"
+      instructions: |
+        Single source for column-width inference, rebalancing, and
+        row resolution. Both the editor (BindingWidget) and the runtime
+        (dataBinding) call into this module. Don't reintroduce inline
+        column logic in either caller.
+
+    - path: "packages/generator/src/**"
+      instructions: |
+        Server-side PDF emission. Do NOT introduce React or other
+        browser-only deps here — the generator is meant to be
+        importable in Node, Cloudflare Workers, Deno, Bun. If you see
+        a `react` / `react-dom` / `antd` import added, flag it.
+
+    - path: "packages/ui/src/**"
+      instructions: |
+        React Designer. Do NOT add CSS class names with the
+        `pdfme-*` prefix; the public surface is `pdfweave-*`. Same for
+        `data-pdfme-*` DOM data attributes — use `data-pdfweave-*`.
+
+    - path: "**/*.test.{ts,tsx}"
+      instructions: |
+        Test files don't need JSDoc on internal helpers. They DO need
+        clear test names — `it('does X when Y')`, not `it('test 1')`.
+
+  tools:
+    # Defer all of these to our own CI gates which are stricter.
+    eslint:
+      enabled: false                    # We run @typescript-eslint strict + sonarjs in CI.
+    biome:
+      enabled: false
+    gitleaks:
+      enabled: true                     # Catches accidentally-committed secrets pre-merge.
+    languagetool:
+      enabled: true                     # Comment / docs grammar.
+
+chat:
+  auto_reply: true
