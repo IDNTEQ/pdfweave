@@ -38,12 +38,19 @@ jobs:
           CI: true
       - name: Publish test report
         if: always()
+        continue-on-error: true
         uses: dorny/test-reporter@v1
         with:
           name: 'PDFweave tests'
           path: 'packages/*/test-results.xml'
           reporter: 'java-junit'
-          fail-on-error: 'true'
+          # The junit reporter emits per-workspace files when CI=true is
+          # set on the test step. Vitest sometimes writes 0-byte files
+          # for workspaces with no test files matched (pdf-lib in our
+          # case). Don't gate the whole workflow on dorny's strictness;
+          # the test step itself is the source of truth for pass/fail.
+          fail-on-error: 'false'
+          fail-on-empty: 'false'
       - name: Coverage + CRAP
         run: npm run coverage:check
         env:
