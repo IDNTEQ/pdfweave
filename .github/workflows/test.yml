@@ -62,8 +62,17 @@ jobs:
         uses: davelosert/vitest-coverage-report-action@v2
         with:
           json-summary-path: ./coverage/aggregate-summary.json
-      - name: CRAP PR comment
+      - name: CRAP report exists?
         if: github.event_name == 'pull_request' && always()
+        id: crap_exists
+        run: |
+          if [ -f coverage/crap-report.md ]; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: CRAP PR comment
+        if: github.event_name == 'pull_request' && always() && steps.crap_exists.outputs.found == 'true'
         uses: marocchino/sticky-pull-request-comment@v2
         with:
           header: crap
