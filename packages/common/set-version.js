@@ -6,38 +6,29 @@ import { fileURLToPath } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_VERSION = 'x.x.x';
 
-// Compat (kept as `PDFME_VERSION`): the generated `src/version.ts`
-// re-exports this name as a public API constant. Consumers import
-// `PDFME_VERSION` from `@pdfweave/common` to stamp the engine version
-// into stored templates (see `Template.pdfmeVersion`). Renaming would
-// be a breaking API change. The generated file is gitignored, so this
-// rationale lives here.
-// See docs/branding-audit-2026-05-07.md.
-const VERSION_HEADER = [
-  '// Public API: `PDFME_VERSION` is exported from `@pdfweave/common`.',
-  '// The name is preserved for backward compatibility with consumers',
-  '// that imported it before the pdfme→pdfweave fork rename.',
-  '// See docs/branding-audit-2026-05-07.md.',
-].join('\n');
+// The generated `src/version.ts` exports `PDFWEAVE_VERSION` as the
+// canonical name and re-exports it as `PDFME_VERSION` for one
+// major-version backward-compatibility window. Both names resolve to
+// the same string. The generated file is gitignored, so the rationale
+// lives here.
+const VERSION_TEMPLATE = (version) => `// Public API: \`PDFWEAVE_VERSION\` is the canonical exported version
+// constant from \`@pdfweave/common\`. The previous name \`PDFME_VERSION\`
+// is kept as a deprecated alias for one major-version compatibility
+// window (see set-version.js).
+export const PDFWEAVE_VERSION = '${version}';
+
+/**
+ * @deprecated Use \`PDFWEAVE_VERSION\`. This alias is preserved for
+ * one major-version compatibility window with consumers that imported
+ * \`PDFME_VERSION\` before the independence sweep.
+ */
+export const PDFME_VERSION = PDFWEAVE_VERSION;
+`;
 
 const updateVersion = (version) => {
   const filePath = path.join(__dirname, 'src/version.ts');
-  let content = '';
-
-  if (!fs.existsSync(filePath)) {
-    content = `${VERSION_HEADER}\nexport const PDFME_VERSION = '${version}';\n`;
-  } else {
-    content = fs.readFileSync(filePath, 'utf8');
-    const versionRegex = /export const PDFME_VERSION = '.*';/;
-    if (versionRegex.test(content)) {
-      content = content.replace(versionRegex, `export const PDFME_VERSION = '${version}';`);
-    } else {
-      content += `\nexport const PDFME_VERSION = '${version}';\n`;
-    }
-  }
-
-  fs.writeFileSync(filePath, content, 'utf8');
-  console.log(`Replaced PDFME_VERSION with '${version}' in ${filePath}`);
+  fs.writeFileSync(filePath, VERSION_TEMPLATE(version), 'utf8');
+  console.log(`Replaced PDFWEAVE_VERSION with '${version}' in ${filePath}`);
 };
 
 const getLatestGitTag = () => {

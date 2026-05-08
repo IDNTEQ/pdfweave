@@ -5,7 +5,7 @@ import {
   DesignerProps,
   checkDesignerProps,
   checkTemplate,
-  PDFME_VERSION,
+  PDFWEAVE_VERSION,
 } from '@pdfweave/common';
 import { BaseUIClass } from './class.js';
 import { DESTROYED_ERR_MSG } from './constants.js';
@@ -114,14 +114,14 @@ class Designer extends BaseUIClass {
           template={this.template}
           onSaveTemplate={(template) => {
             this.template = template;
-            this.template.pdfweaveVersion = PDFME_VERSION;
+            this.template.pdfweaveVersion = PDFWEAVE_VERSION;
             if (this.onSaveTemplateCallback) {
               this.onSaveTemplateCallback(template);
             }
           }}
           onChangeTemplate={(template) => {
             this.template = template;
-            this.template.pdfweaveVersion = PDFME_VERSION;
+            this.template.pdfweaveVersion = PDFWEAVE_VERSION;
             if (this.onChangeTemplateCallback) {
               this.onChangeTemplateCallback(template);
             }

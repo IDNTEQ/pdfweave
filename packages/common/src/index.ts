@@ -1,4 +1,4 @@
-import { PDFME_VERSION } from './version.js';
+import { PDFME_VERSION, PDFWEAVE_VERSION } from './version.js';
 import {
   MM_TO_PT_RATIO,
   PT_TO_MM_RATIO,
@@ -118,6 +118,7 @@ import {
 import type { ColumnOperation } from './tableBinding.js';
 
 export {
+  PDFWEAVE_VERSION,
   PDFME_VERSION,
   MM_TO_PT_RATIO,
   PT_TO_MM_RATIO,
