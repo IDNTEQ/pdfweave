@@ -144,10 +144,13 @@ adapted for our `pageBreak` primitive.
 - Backport the 5 upstream tests, plus a 6th covering
   `pageBreak + same-Y siblings`.
 
-**Outcome:** the engine produces correct results for absolute-positioned
-same-Y siblings. Anchored schemas are not affected (their behaviour is
-unchanged because anchored siblings never had this bug — they're either
-chained or independent).
+**Outcome:** the engine produces correct results for any schemas at
+the same baseY — anchored or absolute. Both go through
+`normalizePageSchemas` + `processDynamicPage` today, so two anchored
+siblings (e.g. both `{ y: { mode: 'pageTop', offsetMm: 10 } }`) are
+ordered by `orderMap` and the later one is pushed down by the
+earlier sibling's expansion. The grouped-offset fix corrects this
+for them too. Phase 1 tests cover both flavours of same-Y siblings.
 
 **Risk:** low. Pure runtime fix, no API change, behaviour-preserving for
 all existing test cases.
@@ -159,18 +162,46 @@ anchored schemas that fit on a single page.
 
 **Implementation:**
 
-- After dynamic-height measurement (line 662 in current code), apply
-  measured heights back onto the schemas. Each anchored schema's
-  `target.height` (in the anchor index) is replaced with the measured
-  total.
-- Run `resolveAnchoredSchemas(pageSchemas)` a second time. The pass
-  loop already handles chains.
-- For schemas whose anchor target spans pages (signalled by
-  `fragments.length > 1`), continue using the engine's `totalYOffset`
-  for now (covered fully in Phase 3).
-- Update `processDynamicPage` to skip anchored schemas (they're
-  already positioned; the engine only places them on the right page
-  and handles their own page-splitting if any).
+After dynamic-height measurement (~line 662) but BEFORE
+`processDynamicPage` runs, the cloned `items[]` array already holds
+measured fragments. The crucial detail is that `processDynamicPage`
+reads `items[i].schema`, `.height`, and `.baseY` — **not the original
+`pageSchemas`**. Mutating `pageSchemas` and re-running
+`resolveAnchoredSchemas(pageSchemas)` alone has no effect on placement.
+So Phase 2 must:
+
+1. Compute each item's actual total height from `items[i].fragments`
+   (sum of fragment heights, with the same accumulation rule the engine
+   uses today).
+2. Write the actual height back onto `items[i].schema.height` and onto
+   `pageSchemas` (so a fresh `buildSchemaIndex` sees actual heights).
+3. Re-run `resolveAnchoredSchemas(pageSchemas)` — the existing
+   pass-loop converges on chains.
+4. Sync the re-resolved positions: for each `items[i]`, set
+   `items[i].schema.position` and recompute `items[i].baseY =
+   items[i].schema.position.y - paddingTop`.
+5. Re-sort `items` by the new `baseY` (the engine assumes baseY-sorted
+   input; positions can change).
+6. **Mark anchored items as already-placed.** Add a flag (e.g.
+   `items[i].placement = 'anchored'`). `processDynamicPage` consumes
+   the flag: anchored items skip the `totalYOffset` machinery and use
+   `items[i].baseY` directly as their global Y; they still go through
+   `placeRowsOnPages` so their fragments split across pages
+   correctly. Non-anchored items (`placement = 'absolute'`) continue
+   to use the grouped-offset mechanism from Phase 1.
+7. **Page-spanning detection** for the "fall back to engine" caveat
+   below: detect from actual placement, not from `fragments.length`.
+   Tables and multi-line text legitimately produce many fragments
+   that all fit on one page. The right signal is whether
+   `cumulativeFragmentHeight` starting at the schema's `baseY` ever
+   crosses a page boundary, computed as part of step 1's accumulation.
+
+**Caveat for Phase 2 (lifted in Phase 3):** if an anchored schema's
+target page-spans (per the placement-derived signal in step 7), the
+re-resolved position only knows the target's height, not which page
+the target's bottom edge lands on. For these targets only, fall
+through to the existing engine `totalYOffset` path. Phase 3 makes
+the resolver page-aware so this caveat goes away.
 
 **API:**
 
@@ -296,7 +327,13 @@ release before becoming default.
 ## Test plan
 
 ### Phase 1
-- 5 upstream tests + 1 new `pageBreak + same-Y` test.
+- 5 upstream tests for absolute-positioned same-Y siblings.
+- 1 new `pageBreak + same-Y` test (covers our adaptation).
+- 1 new test: two anchored siblings (`{ y: { mode: 'pageTop',
+  offsetMm: 10 } }` each), one dynamic; both stay at `y=10` after
+  expansion. (Without Phase 1, the second sibling is pushed down by
+  the first's expansion via `processDynamicPage` even though they
+  share a baseline.)
 - Render-snapshot regression test on the existing template suite.
 
 ### Phase 2
