@@ -1,13 +1,14 @@
 # PDFweave
 
 > A PDF template engine with first-class data binding, anchor layouts,
-> smart tables, and stationery PDFs. **Forked from
-> [pdfme](https://github.com/pdfme/pdfme) by [hand-dot](https://github.com/hand-dot)
-> and the pdfme contributors — released under the MIT license.**
+> smart tables, and stationery PDFs. Built for production document
+> workflows that need real data binding and reflow that survives the
+> way your data actually changes.
 
-PDFweave keeps everything that makes pdfme productive — the JSON template
-format, the React Designer, the plugin architecture — and adds the layer
-that production document workflows actually need:
+PDFweave is a JSON-template-driven PDF engine: a Node generator, a
+React Designer, and a plugin architecture for custom schemas. On top
+of that core, PDFweave adds the layer that production document
+workflows actually need:
 
 - **Data binding** — Schemas reference paths into your input JSON instead of
   carrying their own copy of the data. Format hints (currency / number /
@@ -21,10 +22,8 @@ that production document workflows actually need:
   stamps it onto every reflowed page (header, footer, page numbers all in
   one re-usable artwork file).
 
-If you want a JSON template + Node generator + React designer that
-"just works", **upstream pdfme is probably what you want.** PDFweave is
-for teams whose templates need to bind to real data, reflow correctly
-across pages, and ship branded stationery.
+PDFweave is built for teams whose templates need to bind to real data,
+reflow correctly across pages, and ship branded stationery.
 
 See [GOALS.md](GOALS.md) for the mission and quality bar, and
 [ROADMAP.md](ROADMAP.md) for the live punch list.
@@ -68,46 +67,32 @@ the new features, switching is one find-and-replace and a `pnpm install`.
 
 ---
 
-## What's the same as pdfme
+## Feature surface
 
-| | pdfme | PDFweave |
-| --- | :-: | :-: |
-| JSON template format | ✅ | ✅ (superset) |
-| Node generator | ✅ | ✅ |
-| React Designer | ✅ | ✅ |
-| Plugin architecture | ✅ | ✅ |
-| Built-in schemas (text/image/table/barcodes/svg/lines/shapes) | ✅ | ✅ |
-| Form / Viewer modes | ✅ | ✅ |
-| MIT license | ✅ | ✅ |
-
-## What PDFweave adds
-
-| | pdfme | PDFweave |
-| --- | :-: | :-: |
-| Schema → data path bindings (`binding.path`, `binding.format`, `binding.columns`) | — | ✅ |
-| Anchor-relative positioning (`SchemaLayoutRule`) | — | ✅ |
-| Smart table reflow with header repeat | partial | ✅ |
-| Designer binding panel (drag-from-data, JSON-path picker) | — | ✅ |
-| `StationeryPdf` basePdf shape (single-page PDF stamped on every page) | — | ✅ |
-| Plugin `measure` hook for layout-aware schemas | — | ✅ |
-
-## What pdfme has that PDFweave is intentionally not chasing
-
-- **pdfme Cloud** — pdfme has a hosted service. PDFweave is library-only.
-- **Smaller bundle / fewer dependencies** — pdfme is leaner. PDFweave's
-  binding + anchor system adds weight to `@pdfweave/common`.
-
-If those things matter more to you than the PDFweave additions, **use
-pdfme**. Both are good choices.
+| | PDFweave |
+| --- | :-: |
+| JSON template format | ✅ |
+| Node generator | ✅ |
+| React Designer | ✅ |
+| Plugin architecture | ✅ |
+| Built-in schemas (text/image/table/barcodes/svg/lines/shapes) | ✅ |
+| Form / Viewer modes | ✅ |
+| Schema → data path bindings (`binding.path`, `binding.format`, `binding.columns`) | ✅ |
+| Anchor-relative positioning (`SchemaLayoutRule`) | ✅ |
+| Smart table reflow with header repeat | ✅ |
+| Designer binding panel (drag-from-data, JSON-path picker) | ✅ |
+| `StationeryPdf` basePdf shape (single-page PDF stamped on every page) | ✅ |
+| Plugin `measure` hook for layout-aware schemas | ✅ |
+| MIT license | ✅ |
 
 ---
 
 ## Status
 
 Pre-1.0. APIs may change between minor versions. Breaking changes are
-documented in [CHANGELOG.md](./CHANGELOG.md). The four PDFweave additions
-above are what we consider stable contracts; everything else inherits
-upstream pdfme's stability profile.
+documented in [CHANGELOG.md](./CHANGELOG.md). Data binding, anchor
+layouts, smart tables, and stationery PDFs are the headline stable
+contracts.
 
 ---
 
@@ -128,12 +113,21 @@ PDFweave is maintained by [IDNTEQ](https://github.com/IDNTEQ) and
 contributors. Issues, PRs, and discussions welcome — see
 [CONTRIBUTING.md](./CONTRIBUTING.md).
 
-We're committed to keeping PDFweave aligned with upstream pdfme where
-possible, sending bug fixes upstream, and crediting pdfme for everything
-that came from it.
+---
+
+## Acknowledgement
+
+PDFweave was forked from [pdfme](https://github.com/pdfme/pdfme),
+released under the MIT licence. The core template format, the
+Designer architecture, and the plugin model came from pdfme; the
+PDFweave maintainers extended them to support data binding, anchor
+layouts, smart tables, and stationery PDFs, and own the quality bar
+of the fork. We are grateful for the foundation pdfme provided.
 
 ---
 
 ## License
 
-MIT — same as upstream pdfme. See [LICENSE.md](./LICENSE.md).
+MIT licence. See [LICENSE.md](./LICENSE.md). PDFweave is a fork of
+pdfme (also MIT-licensed); pdfme's copyright notices are preserved in
+LICENSE.md.

@@ -199,6 +199,3 @@ That feedback shapes what we work on next.
 
 - Open an issue: [github.com/IDNTEQ/pdfweave/issues](https://github.com/IDNTEQ/pdfweave/issues)
 - Discussion / questions: [github.com/IDNTEQ/pdfweave/discussions](https://github.com/IDNTEQ/pdfweave/discussions)
-- pdfme-specific questions are still best asked at
-  [github.com/pdfme/pdfme](https://github.com/pdfme/pdfme) — most of the
-  generator/Designer surface is theirs.

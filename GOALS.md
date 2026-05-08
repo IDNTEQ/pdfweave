@@ -60,9 +60,10 @@ See [ROADMAP.md](ROADMAP.md) for the live punch list. Headline items:
 - Drop-in compatibility with the pdfme template format beyond the shared
   core. Where the binding / anchor / table feature set requires a richer
   schema, PDFweave diverges.
-- Tracking every upstream pdfme feature. PDFweave is a hard fork, not a
-  mirror — we cherry-pick where useful and ignore where not.
-- Supporting the same browser matrix as pdfme. We prioritise current
+- Mirroring upstream pdfme. PDFweave is a hard fork; we make our own
+  decisions about feature scope and quality bar, and we do not defer
+  to upstream on either.
+- Supporting an arbitrarily wide browser matrix. We prioritise current
   evergreen browsers and Node ≥ 22.
 
 ## How decisions get made
@@ -75,10 +76,12 @@ See [ROADMAP.md](ROADMAP.md) for the live punch list. Headline items:
   rule severity) is loosened only with a written rationale committed
   alongside the change.
 
-## Attribution
+## Acknowledgement
 
-PDFweave is forked from
-[pdfme](https://github.com/pdfme/pdfme) by hand-dot and the pdfme
-contributors. The core template format, Designer architecture, and
-plugin model are pdfme's; we extend them and own the quality bar of the
-fork.
+PDFweave was forked from
+[pdfme](https://github.com/pdfme/pdfme), released under the MIT
+licence. The core template format, the Designer architecture, and the
+plugin model came from pdfme; the PDFweave maintainers extended them
+to support data binding, anchor layouts, smart tables, and stationery
+PDFs, and own the quality bar of the fork. We are grateful for the
+foundation pdfme provided.
