@@ -145,7 +145,10 @@ describe('generate integrate test', () => {
       for (let i = 0; i < images.length; i++) {
         await expect(images[i]).toMatchImage(getImageSnapshotOptions(`fontSubset-${i + 1}`));
       }
-    }, 30000);
+      // 90s (was 30s) — full font load + subset disabled + JP image
+      // diff is fast locally but exceeds 30s under coverage
+      // instrumentation on shared CI runners.
+    }, 90000);
   });
 });
 
