@@ -253,9 +253,18 @@ level can resolve / measure / place concurrently. Implementation
 should preserve the existing parallel-batch optimisation for
 independent waves; chains pay sequential cost.
 
-For typical templates (N ≈ 50, mostly chains of 2-3 deep): ~50
-sequential resolutions × ~5ms measure ≈ 250 ms per page. Acceptable.
-For large templates (N = 500+, deep chains): may need profiling.
+Two costs to keep distinct: anchor *resolution* (graph walk) and
+*measure()* (per-plugin, often expensive — text-shaping, font lookups,
+bwip-js for barcodes, etc.).
+
+- **Anchor resolution alone** is sub-millisecond per page even for
+  N = 500+; the topo walk + per-schema math is O(N + E) and cheap.
+- **Measure()** is the dominant cost. For typical templates
+  (N ≈ 50, mostly chains of 2-3 deep): ~50 measure calls × ~5 ms
+  each ≈ 250 ms per page when serialised by chain depth. Wave-parallel
+  execution within topo levels recovers most of that for templates
+  with mostly-independent schemas. For large templates (N = 500+,
+  deep chains): profile before optimising.
 
 **Caveat for Phase 2 (lifted in Phase 3):** if an anchored schema's
 target page-spans, the re-resolved position only knows the target's
@@ -423,7 +432,7 @@ This split:
 | Phase | Risk | Reversible? | User-visible change |
 |---|---|---|---|
 | 1 | Low | Yes (revert) | None — bug fix only |
-| 2 | Medium | Yes (skip second pass) | None — same final positions, different mechanism |
+| 2 | Medium | Yes (disable topo-walk; fall back to engine-only flow) | None — same final positions, different mechanism |
 | 3 | Medium-high | Hard (new fragment shape) | New capabilities (cross-page anchors) |
 | 4 | Low | Cleanup | Documentation, clearer model |
 
@@ -495,14 +504,17 @@ release before becoming default.
    render" view. Preview mode in the Designer should run measure() to
    show actual-height positions. *Out of scope for this RFC; tracked
    as a future Designer-side enhancement.*
-4. **Performance.** Single-pass topological resolution is O(N + E)
-   with E ≤ 2N — strictly better than the previous fixed-point
-   iteration (O(N²) worst case for chains). Per-schema measure() now
-   serialises within chains (was batch-parallel). For chains of
-   2-3 deep typical templates, sub-millisecond per page; for very
-   deep chains (50+ schemas in a single chain), profile and consider
-   wave-parallel execution within the topo levels. *Defer until
-   measured.*
+4. **Performance.** Single-pass topological *resolution* is
+   O(N + E) with E ≤ 2N — strictly better than the previous
+   fixed-point iteration (O(N²) worst case for chains). The
+   resolution math itself is sub-millisecond per page even for large
+   N. The actual wall-time cost is dominated by per-schema
+   `measure()` calls, which now serialise within chains where they
+   were previously batch-parallel; expect ~250 ms per page for
+   typical N ≈ 50 templates with chains of 2-3 (see §Performance
+   above for the breakdown). For very deep chains (50+ schemas in a
+   single chain), profile and consider wave-parallel execution
+   within topo levels. *Defer until measured.*
 
 ## Decision needed
 
