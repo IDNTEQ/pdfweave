@@ -300,7 +300,7 @@ const AnchorOverlay = ({ schemas, focusedSchemaIds, pageSize, basePdf, zoom }: P
   return (
     <svg
       aria-hidden="true"
-      className="pdfme-designer-anchor-overlay"
+      className="pdfweave-designer-anchor-overlay"
       data-testid="pdfweave-anchor-overlay"
       style={{
         position: 'absolute',

@@ -94,7 +94,7 @@ test('Preview keeps toolbar zoom interactive when options.zoomLevel is only an i
   });
 
   expect(container).toHaveTextContent('100%');
-  fireEvent.click(container.querySelector('.pdfme-ui-zoom-in')!);
+  fireEvent.click(container.querySelector('.pdfweave-ui-zoom-in')!);
 
   await waitFor(() => {
     expect(container).toHaveTextContent('125%');

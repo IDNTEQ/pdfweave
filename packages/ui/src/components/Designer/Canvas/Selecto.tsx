@@ -13,7 +13,7 @@ type Props = {
   onSelect: (e: SelectoOnSelect) => void;
 };
 
-const className = 'pdfme-selecto';
+const className = 'pdfweave-selecto';
 
 const Selecto = (props: Props) => {
   const { token } = theme.useToken();

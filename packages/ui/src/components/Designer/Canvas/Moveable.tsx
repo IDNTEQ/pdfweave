@@ -28,7 +28,7 @@ type Props = {
   onClick: (e: OnClick) => void;
 };
 
-const baseClassName = 'pdfme-moveable';
+const baseClassName = 'pdfweave-moveable';
 
 const Moveable = (props: Props, ref: Ref<MoveableComponent>) => {
   const { token } = theme.useToken();
