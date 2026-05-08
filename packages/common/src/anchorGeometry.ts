@@ -378,3 +378,84 @@ export const detectAnchorCycle = <S extends Schema>(schemas: S[]): S[] | null =>
   }
   return null;
 };
+
+/**
+ * Topologically sort schemas by anchor dependencies. The returned
+ * array contains every input schema exactly once, ordered such that
+ * for any anchored schema, all of its referents come before it in the
+ * result.
+ *
+ * Use this before runtime layout: walking the result in order
+ * guarantees that when you process a schema, every schema it depends
+ * on (via X- or Y-anchor) has already been processed. This replaces
+ * the previous fixed-point iteration ("re-walk all schemas until no
+ * positions change") with a single pass — O(N + E) total instead of
+ * O(N²) worst case for deep chains.
+ *
+ * Throws on cycle with the cycle path in the error message:
+ *   `[@pdfweave/common] Circular anchor: A → B → C → A`
+ *
+ * Edges:
+ *   - For each anchored schema, an edge from the schema to every
+ *     anchor target it references (one for each axis whose anchor
+ *     mode requires a referent — i.e. NOT `pageLeft` / `pageTop`).
+ *   - Refs that don't resolve to any schema in `schemas` are silently
+ *     ignored (they contribute no edge); those are handled at
+ *     resolution time as "leave existing position alone."
+ *
+ * Stable: schemas with no anchor edges retain their input ordering
+ * relative to each other.
+ *
+ * E ≤ 2N because each anchored schema has at most one X-target and
+ * one Y-target.
+ */
+export const topoSortByAnchorDeps = <S extends Schema>(schemas: S[]): S[] => {
+  const index = buildSchemaIndex(schemas);
+  const visited = new Set<S>();
+  const onStack = new Set<S>();
+  const stackOrder: S[] = [];
+  const result: S[] = [];
+
+  const neighbours = (schema: S): S[] => {
+    const layout = getAnchoredLayout(schema);
+    if (!layout) return [];
+    const out: S[] = [];
+    if (layout.x.mode !== 'pageLeft') {
+      const referent = index.get(layout.x.ref.schemaId);
+      if (referent && referent !== schema) out.push(referent);
+    }
+    if (layout.y.mode !== 'pageTop') {
+      const referent = index.get(layout.y.ref.schemaId);
+      if (referent && referent !== schema) out.push(referent);
+    }
+    return out;
+  };
+
+  const visit = (schema: S): void => {
+    if (onStack.has(schema)) {
+      const start = stackOrder.indexOf(schema);
+      const cycle = stackOrder.slice(start).concat(schema);
+      const path = cycle.map((s) => s.name || '<unnamed>').join(' → ');
+      throw new Error(`[@pdfweave/common] Circular anchor: ${path}`);
+    }
+    if (visited.has(schema)) return;
+
+    onStack.add(schema);
+    stackOrder.push(schema);
+
+    for (const next of neighbours(schema)) {
+      visit(next);
+    }
+
+    onStack.delete(schema);
+    stackOrder.pop();
+    visited.add(schema);
+    result.push(schema);
+  };
+
+  for (const schema of schemas) {
+    if (!visited.has(schema)) visit(schema);
+  }
+
+  return result;
+};
