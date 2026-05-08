@@ -264,15 +264,15 @@ async function waitForDesignerReady(page: Page, expectedText?: string) {
         typeof text === 'string' && text.length > 0
           ? (container?.textContent?.includes(text) ?? false)
           : true;
-      const canvas = document.querySelector('.pdfme-designer-canvas');
-      const spinner = document.querySelector('.pdfme-designer-root svg.lucide-loader-circle');
-      const paper = document.querySelector('.pdfme-designer-canvas [style*="background-image"]');
+      const canvas = document.querySelector('.pdfweave-designer-canvas');
+      const spinner = document.querySelector('.pdfweave-designer-root svg.lucide-loader-circle');
+      const paper = document.querySelector('.pdfweave-designer-canvas [style*="background-image"]');
       const titledSelectables = Array.from(
-        document.querySelectorAll('.pdfme-designer-canvas .selectable[title]'),
+        document.querySelectorAll('.pdfweave-designer-canvas .selectable[title]'),
       );
       const renderersReady = titledSelectables.every((element) => {
         const content = element.firstElementChild;
-        return !(content instanceof HTMLElement) || content.dataset.pdfmeRenderReady === 'true';
+        return !(content instanceof HTMLElement) || content.dataset.pdfweaveRenderReady === 'true';
       });
       const fontsLoaded = !document.fonts || document.fonts.status === 'loaded';
       return hasExpectedText && !!canvas && !spinner && !!paper && fontsLoaded && renderersReady;
@@ -310,7 +310,7 @@ async function waitForFormReady(page: Page, expectedText?: string) {
         titledSelectables.length > 0 &&
         titledSelectables.every((element) => {
           const content = element.firstElementChild;
-          return !(content instanceof HTMLElement) || content.dataset.pdfmeRenderReady === 'true';
+          return !(content instanceof HTMLElement) || content.dataset.pdfweaveRenderReady === 'true';
         });
       const fontsLoaded = !document.fonts || document.fonts.status === 'loaded';
       return hasExpectedText && renderersReady && fontsLoaded;
