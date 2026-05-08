@@ -242,6 +242,7 @@ export {
   getAnchoredLayout,
   getSchemaAnchorIds,
   isAnchoredLayout,
+  repairAnchorsAfterRemove,
   resolveAnchor,
   resolveAnchorX,
   resolveAnchorY,

@@ -273,6 +273,62 @@ export const reverseAnchorOffsetY = (
  * Schemas that aren't anchored, or whose ref points to a non-existent id,
  * are skipped — they cannot participate in a cycle.
  */
+/**
+ * Repair anchored schemas after one or more schemas have been removed
+ * from the layout. Any schema whose anchor references a removed target
+ * has the broken axis demoted to its absolute equivalent (`pageLeft`
+ * for X, `pageTop` for Y), with the schema's current absolute position
+ * as the offset — so the visible position is preserved.
+ *
+ * The unbroken axis is left alone; only the side that pointed to a
+ * removed target gets demoted. A schema anchored to two different
+ * removed targets has both axes demoted.
+ *
+ * @param schemas - the schemas remaining after the deletion
+ * @param removedIds - the union of `getSchemaAnchorIds(removed)` over
+ *   every removed schema (covers both `id` and `name` lookups, since
+ *   either may appear in a `ref.schemaId`)
+ * @param options.roundOffset - optional rounding applied to the
+ *   demoted offset (e.g. `(n) => round(n, 2)` to clamp to 2 decimal
+ *   places). Defaults to identity.
+ *
+ * Returns the same array reference when nothing changed; otherwise a
+ * new array with shallow-cloned changed schemas.
+ */
+export const repairAnchorsAfterRemove = <S extends Schema>(
+  schemas: S[],
+  removedIds: ReadonlySet<string>,
+  options: { roundOffset?: (value: number) => number } = {},
+): S[] => {
+  if (removedIds.size === 0) return schemas;
+  const round = options.roundOffset ?? ((n: number) => n);
+
+  let mutated = false;
+  const next = schemas.map((schema) => {
+    const layout = getAnchoredLayout(schema);
+    if (!layout) return schema;
+
+    let nextLayout: AnchoredLayoutRule = layout;
+    if (layout.x.mode !== 'pageLeft' && removedIds.has(layout.x.ref.schemaId)) {
+      nextLayout = {
+        ...nextLayout,
+        x: { mode: 'pageLeft', offsetMm: round(schema.position.x) },
+      };
+    }
+    if (layout.y.mode !== 'pageTop' && removedIds.has(layout.y.ref.schemaId)) {
+      nextLayout = {
+        ...nextLayout,
+        y: { mode: 'pageTop', offsetMm: round(schema.position.y) },
+      };
+    }
+
+    if (nextLayout === layout) return schema;
+    mutated = true;
+    return { ...schema, layout: nextLayout } as S;
+  });
+  return mutated ? next : schemas;
+};
+
 export const detectAnchorCycle = <S extends Schema>(schemas: S[]): S[] | null => {
   const index = buildSchemaIndex(schemas);
   const visited = new Set<S>();

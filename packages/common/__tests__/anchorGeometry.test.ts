@@ -8,6 +8,7 @@ import {
   getAnchoredLayout,
   getSchemaAnchorIds,
   isAnchoredLayout,
+  repairAnchorsAfterRemove,
   resolveAnchor,
   resolveAnchorX,
   resolveAnchorY,
@@ -517,6 +518,127 @@ describe('anchorGeometry', () => {
     it('is a small positive number', () => {
       expect(ANCHOR_EPSILON).toBeGreaterThan(0);
       expect(ANCHOR_EPSILON).toBeLessThan(1);
+    });
+  });
+
+  describe('repairAnchorsAfterRemove', () => {
+    const anchored = (
+      name: string,
+      x: { ref?: string; mode?: 'pageLeft' | 'afterRightEdge' | 'alignRightEdge'; offsetMm?: number },
+      y: { ref?: string; mode?: 'pageTop' | 'belowBottomEdge'; offsetMm?: number },
+      position: { x: number; y: number } = { x: 0, y: 0 },
+    ): Schema => {
+      const xRule =
+        x.mode === 'pageLeft' || x.ref === undefined
+          ? { mode: 'pageLeft' as const, offsetMm: x.offsetMm ?? 0 }
+          : x.mode === 'alignRightEdge'
+            ? { mode: 'alignRightEdge' as const, ref: { schemaId: x.ref }, offsetMm: x.offsetMm }
+            : { mode: 'afterRightEdge' as const, ref: { schemaId: x.ref }, offsetMm: x.offsetMm ?? 0 };
+      const yRule =
+        y.mode === 'pageTop' || y.ref === undefined
+          ? { mode: 'pageTop' as const, offsetMm: y.offsetMm ?? 0 }
+          : { mode: 'belowBottomEdge' as const, ref: { schemaId: y.ref }, offsetMm: y.offsetMm ?? 0 };
+      return {
+        ...makeSchema({ name, position }),
+        layout: { mode: 'anchored', x: xRule, y: yRule },
+      } as Schema;
+    };
+
+    it('returns the same array reference when no schemas were removed', () => {
+      const schemas = [makeSchema({ name: 'a' })];
+      const result = repairAnchorsAfterRemove(schemas, new Set());
+      expect(result).toBe(schemas);
+    });
+
+    it('leaves non-anchored schemas alone', () => {
+      const schemas = [makeSchema({ name: 'a' }), makeSchema({ name: 'b' })];
+      const result = repairAnchorsAfterRemove(schemas, new Set(['removed']));
+      expect(result).toBe(schemas);
+    });
+
+    it('leaves schemas anchored to surviving targets alone', () => {
+      const schemas = [anchored('child', { ref: 'parent' }, { ref: 'parent' })];
+      const result = repairAnchorsAfterRemove(schemas, new Set(['some-other-id']));
+      expect(result).toBe(schemas);
+    });
+
+    it('demotes only the broken axis when one ref is removed', () => {
+      const child = anchored(
+        'child',
+        { mode: 'afterRightEdge', ref: 'gone', offsetMm: 5 },
+        { ref: 'still-here', offsetMm: 3 },
+        { x: 42, y: 17 },
+      );
+      const [result] = repairAnchorsAfterRemove([child], new Set(['gone']));
+      const layout = getAnchoredLayout(result);
+      expect(layout?.x).toEqual({ mode: 'pageLeft', offsetMm: 42 });
+      expect(layout?.y).toEqual({ mode: 'belowBottomEdge', ref: { schemaId: 'still-here' }, offsetMm: 3 });
+    });
+
+    it('demotes both axes when both refs are removed', () => {
+      const child = anchored(
+        'child',
+        { ref: 'gone-x' },
+        { ref: 'gone-y' },
+        { x: 100, y: 200 },
+      );
+      const [result] = repairAnchorsAfterRemove([child], new Set(['gone-x', 'gone-y']));
+      const layout = getAnchoredLayout(result);
+      expect(layout?.x).toEqual({ mode: 'pageLeft', offsetMm: 100 });
+      expect(layout?.y).toEqual({ mode: 'pageTop', offsetMm: 200 });
+    });
+
+    it('matches the removed-id set against ref.schemaId, which may be either id or name', () => {
+      const child = anchored('c', { ref: 'parent-by-name' }, { ref: 'parent-by-name' });
+      const parent = makeSchema({ name: 'parent-by-name', id: 'parent-uuid' });
+      const removedIds = new Set(getSchemaAnchorIds(parent));
+      expect(removedIds.has('parent-by-name')).toBe(true);
+      const [result] = repairAnchorsAfterRemove([child], removedIds);
+      const layout = getAnchoredLayout(result);
+      expect(layout?.x.mode).toBe('pageLeft');
+      expect(layout?.y.mode).toBe('pageTop');
+    });
+
+    it('applies the optional roundOffset to the demoted offset', () => {
+      const child = anchored('c', { ref: 'gone' }, { mode: 'pageTop' }, { x: 12.345678, y: 0 });
+      const [result] = repairAnchorsAfterRemove([child], new Set(['gone']), {
+        roundOffset: (n) => Math.round(n * 100) / 100,
+      });
+      const layout = getAnchoredLayout(result);
+      expect(layout?.x).toEqual({ mode: 'pageLeft', offsetMm: 12.35 });
+    });
+
+    it('handles a deletion chain: A → B → C, delete A, B and C both demote on the affected axis', () => {
+      const a = makeSchema({ name: 'A', id: 'a' });
+      const b = anchored('B', { ref: 'A' }, { ref: 'A' }, { x: 50, y: 60 });
+      const c = anchored('C', { ref: 'B' }, { ref: 'B' }, { x: 70, y: 80 });
+      // Caller deletes A; the repair runs on the remaining schemas [B, C].
+      const removedIds = new Set(getSchemaAnchorIds(a));
+      const [bRepaired, cRepaired] = repairAnchorsAfterRemove([b, c], removedIds);
+      expect(getAnchoredLayout(bRepaired)?.x).toEqual({ mode: 'pageLeft', offsetMm: 50 });
+      expect(getAnchoredLayout(bRepaired)?.y).toEqual({ mode: 'pageTop', offsetMm: 60 });
+      // C still anchored to B (B survived); only B was repaired.
+      expect(getAnchoredLayout(cRepaired)?.x).toMatchObject({
+        mode: 'afterRightEdge',
+        ref: { schemaId: 'B' },
+      });
+      expect(getAnchoredLayout(cRepaired)?.y).toMatchObject({
+        mode: 'belowBottomEdge',
+        ref: { schemaId: 'B' },
+      });
+    });
+
+    it('returns a new array reference only when something actually changed', () => {
+      const schemas = [
+        makeSchema({ name: 'plain' }),
+        anchored('anchored', { ref: 'gone' }, { mode: 'pageTop' }),
+      ];
+      const result = repairAnchorsAfterRemove(schemas, new Set(['gone']));
+      expect(result).not.toBe(schemas);
+      // Plain schema reference preserved.
+      expect(result[0]).toBe(schemas[0]);
+      // Anchored schema cloned (different reference, same identity).
+      expect(result[1]).not.toBe(schemas[1]);
     });
   });
 });
