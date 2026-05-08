@@ -8,6 +8,10 @@ export const KNOWN_TEMPLATE_KEYS = new Set([
   'author',
   'basePdf',
   'columns',
+  // Canonical engine-version field. `pdfmeVersion` is also accepted on
+  // read for back-compat with templates produced before the
+  // independence sweep.
+  'pdfweaveVersion',
   'pdfmeVersion',
   'schemas',
 ]);

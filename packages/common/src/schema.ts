@@ -234,9 +234,12 @@ export const Template = z
   .object({
     schemas: SchemaPageArray,
     basePdf: BasePdf,
-    // Compat (kept as `pdfmeVersion`): this field is written into stored
-    // template JSON. Renaming would reject every existing template on
-    // load. See docs/branding-audit-2026-05-07.md.
+    // Canonical engine-version field. Newly written templates only set
+    // `pdfweaveVersion`; the legacy `pdfmeVersion` field is still
+    // accepted on read for back-compat with templates produced before
+    // the independence sweep, and migrated to `pdfweaveVersion` by
+    // `migrateTemplate` (see `packages/common/src/helper.ts`).
+    pdfweaveVersion: z.string().optional(),
     pdfmeVersion: z.string().optional(),
   })
   .passthrough();

@@ -100,15 +100,26 @@ export const isHexValid = (hex: string): boolean => {
 };
 
 /**
- * Migrate from legacy keyed object format to array format
+ * Migrate stored templates so they conform to the current canonical
+ * shape. Two migrations are applied, both no-ops on already-current
+ * templates:
+ *
+ * 1. Legacy keyed-object schemas are normalised to the array form
+ *    (`Record<string, Schema>` -> `Schema[]`).
+ * 2. Pre-independence-sweep templates that carry only `pdfmeVersion`
+ *    are upgraded by copying the value into `pdfweaveVersion`. The
+ *    `pdfmeVersion` field is kept on read for backward compatibility;
+ *    newly written templates set only `pdfweaveVersion`.
+ *
  * @param template Template
  */
 export const migrateTemplate = (template: Template) => {
-  if (!template.schemas) {
+  if (!template) {
     return;
   }
 
   if (
+    template.schemas &&
     Array.isArray(template.schemas) &&
     template.schemas.length > 0 &&
     !Array.isArray(template.schemas[0])
@@ -120,6 +131,18 @@ export const migrateTemplate = (template: Template) => {
           name: key,
         })),
     );
+  }
+
+  // Back-compat: hoist legacy `pdfmeVersion` onto the canonical
+  // `pdfweaveVersion` field if the new field is missing. We do not
+  // delete the old field — readers that still consult `pdfmeVersion`
+  // continue to work for one major-version compatibility window.
+  if (
+    template.pdfweaveVersion === undefined &&
+    typeof template.pdfmeVersion === 'string' &&
+    template.pdfmeVersion.length > 0
+  ) {
+    template.pdfweaveVersion = template.pdfmeVersion;
   }
 };
 

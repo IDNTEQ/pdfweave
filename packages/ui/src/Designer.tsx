@@ -114,14 +114,14 @@ class Designer extends BaseUIClass {
           template={this.template}
           onSaveTemplate={(template) => {
             this.template = template;
-            this.template.pdfmeVersion = PDFME_VERSION;
+            this.template.pdfweaveVersion = PDFME_VERSION;
             if (this.onSaveTemplateCallback) {
               this.onSaveTemplateCallback(template);
             }
           }}
           onChangeTemplate={(template) => {
             this.template = template;
-            this.template.pdfmeVersion = PDFME_VERSION;
+            this.template.pdfweaveVersion = PDFME_VERSION;
             if (this.onChangeTemplateCallback) {
               this.onChangeTemplateCallback(template);
             }
