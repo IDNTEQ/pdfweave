@@ -258,11 +258,15 @@ sequential resolutions × ~5ms measure ≈ 250 ms per page. Acceptable.
 For large templates (N = 500+, deep chains): may need profiling.
 
 **Caveat for Phase 2 (lifted in Phase 3):** if an anchored schema's
-target page-spans (per the placement-derived signal in step 7), the
-re-resolved position only knows the target's height, not which page
-the target's bottom edge lands on. For these targets only, fall
-through to the existing engine `totalYOffset` path. Phase 3 makes
-the resolver page-aware so this caveat goes away.
+target page-spans, the re-resolved position only knows the target's
+total height, not which page the target's bottom edge lands on.
+Page-spanning is detected from actual placement (the placement record
+written during step 3 for anchored items shows the target's last
+fragment ending on a page index > the first fragment's), not from
+fragment count — tables and multi-line text legitimately produce many
+fragments that all fit on one page. For targets that page-span, fall
+through to the existing engine `totalYOffset` path; Phase 3 makes the
+resolver page-aware so this caveat goes away.
 
 #### Page-splitting under the new model
 
@@ -316,8 +320,10 @@ heights. The engine's offset becomes redundant for them but still
 runs for absolute-positioned schemas. No behaviour change for users
 who already had working templates — the final pixel positions match.
 
-**Risk:** medium. Two-pass anchor resolution must converge; existing
-chain handling already does. Snapshot tests will catch any drift.
+**Risk:** medium. Single-pass topological resolution (per the §2-§3
+algorithm above) means correctness depends on the topological ordering
+being valid; cycle detection throws. Snapshot tests will catch any
+positional drift introduced by the algorithm change.
 
 ### Phase 3 — Page-aware anchor resolution *(~1–2 weeks)*
 
@@ -489,9 +495,13 @@ release before becoming default.
    render" view. Preview mode in the Designer should run measure() to
    show actual-height positions. *Out of scope for this RFC; tracked
    as a future Designer-side enhancement.*
-4. **Performance.** Two-pass anchor resolution doubles the resolution
-   cost. For most templates the resolver is microseconds; for very
-   large templates (200+ schemas) profile and reconsider. *Defer until
+4. **Performance.** Single-pass topological resolution is O(N + E)
+   with E ≤ 2N — strictly better than the previous fixed-point
+   iteration (O(N²) worst case for chains). Per-schema measure() now
+   serialises within chains (was batch-parallel). For chains of
+   2-3 deep typical templates, sub-millisecond per page; for very
+   deep chains (50+ schemas in a single chain), profile and consider
+   wave-parallel execution within the topo levels. *Defer until
    measured.*
 
 ## Decision needed
