@@ -55,6 +55,13 @@ jobs:
         run: npm run coverage:check
         env:
           CI: true
+          # Coverage instrumentation adds 2-4× to per-test runtime.
+          # The integration-{playground,other,segmenter} tests assert
+          # PERFORMANCE_THRESHOLD seconds as a regression detector;
+          # under coverage they all blow past their per-file defaults
+          # (1.5 / 2.5 / 5 sec). Override to 30s on the coverage run
+          # only — the regular test step keeps the strict thresholds.
+          PERFORMANCE_THRESHOLD: '30'
       - name: Upload coverage HTML
         if: always()
         uses: actions/upload-artifact@v4
