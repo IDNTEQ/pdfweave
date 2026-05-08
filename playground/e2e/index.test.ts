@@ -114,7 +114,13 @@ function stopPreviewProcess(previewProcess: ChildProcessWithoutNullStreams | und
 }
 
 let baseUrl = 'http://127.0.0.1:4173';
-const timeout = 60000;
+// CI runners on shared GitHub Actions infra are 2-3x slower than local
+// dev hardware. The "deterministic template" test renders a 7-schema
+// scene with a 40-row dynamic table, image, qrcode, and several form
+// controls, plus must wait for fonts and per-schema render-ready
+// markers. 60s flaked at 60.07s; 120s gives headroom without hiding
+// real regressions.
+const timeout = 120000;
 
 const isRunningLocal = process.env.LOCAL === 'true';
 
