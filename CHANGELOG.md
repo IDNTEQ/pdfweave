@@ -9,6 +9,35 @@ While PDFweave is pre-1.0, breaking changes may land on minor releases
 
 ---
 
+## [Unreleased] — Independence sweep
+
+### Changed (BREAKING)
+
+- CSS class prefixes renamed from `pdfme-*` to `pdfweave-*`. Any
+  downstream stylesheet targeting `.pdfme-designer-*`, `.pdfme-ui-*`,
+  `.pdfme-moveable*`, or `.pdfme-selecto*` must be updated.
+- DOM data attributes `data-pdfme-render-ready` and
+  `data-pdfme-plugin-error` renamed to `data-pdfweave-render-ready`
+  and `data-pdfweave-plugin-error`. E2E tests selecting on these
+  attributes must be updated.
+
+### Changed (non-breaking)
+
+- New stored-template field `pdfweaveVersion`. The old `pdfmeVersion`
+  field is still accepted on read for backward compatibility; new
+  templates write only `pdfweaveVersion`.
+- New public export `PDFWEAVE_VERSION`. The old `PDFME_VERSION` export
+  is preserved as a deprecated alias and will be removed in a future
+  major version.
+
+### Documentation
+
+- README and GOALS.md no longer defer to upstream pdfme; PDFweave is
+  positioned as a standalone library. A dignified attribution footer
+  remains for the MIT-licensed foundation pdfme provided.
+
+---
+
 ## [0.2.0] — 2026-05-05
 
 Substantive bug-fix + feature release covering 30+ upstream pdfme
