@@ -173,45 +173,74 @@ emit nodes in reverse-finish order). Extend it to return the topo
 order as a byproduct; cycle detection comes for free with a useful
 error message (`A → B → C → A`).
 
+**Important: measurement and resolution must be interleaved.** Earlier
+versions of this RFC proposed measuring all schemas up-front in
+parallel batches, then doing a single resolution pass. That plan was
+wrong: the built-in text plugin's `measure()` reads
+`schema.position.y` (via `getRemainingPageHeight`) to decide whether
+content fits or must split. If measurement runs with declared
+(stale) positions, then anchor resolution moves the schema lower,
+`placeRowsOnPages` later misjudges fit and may push an unsplittable
+block to the next page instead of splitting line-by-line. So
+measurement happens AFTER resolution, per schema.
+
+Similarly, anchor resolution must use the target's *actual* height,
+not its declared height — even for absolute-positioned targets.
+Today's engine measures every schema regardless of layout mode, so
+an absolute target can still expand dynamically; downstream anchors
+must use that actual height.
+
 The full Phase 2 sequence:
 
 1. Build the anchor dep graph from `pageSchemas`: for each anchored
    schema, edges from the schemas it references on either axis.
-2. Topo-sort + cycle check (single DFS, O(N + E)).
-3. Measure all schemas in parallel batches (current code, unchanged).
-   Measurement is independent of position — `measure(schema, basePdf,
-   options, _cache)` doesn't read position, so it can run before
-   anchor resolution.
-4. **Single resolution pass** in topo order. For each schema:
-   - Look up the actual total height from its measured fragments.
-   - Write actual height onto `items[i].schema.height` and the
-     `pageSchemas` index entry (so subsequent lookups see the real
-     value).
-   - Resolve `resolveAnchorX` / `resolveAnchorY` — the targets are
-     guaranteed already resolved because they're earlier in topo
-     order. Single function call, no iteration.
-   - Write the resolved position onto `items[i].schema.position` and
-     recompute `items[i].baseY = position.y - paddingTop`.
-5. Re-sort `items` by the new `baseY` (placement assumes baseY-sorted
-   input; positions can shift across the resolution).
-6. **Mark anchored items as already-placed.** Add a flag (e.g.
-   `items[i].placement = 'anchored'`). `processDynamicPage` consumes
-   the flag: anchored items skip the `totalYOffset` machinery and use
-   `items[i].baseY` directly as their global Y; they still go through
-   `placeRowsOnPages` so their fragments split across pages
-   correctly. Non-anchored items (`placement = 'absolute'`) continue
-   to use the grouped-offset mechanism from Phase 1.
-7. **Page-spanning detection** for the "fall back to engine" caveat
-   below: detect from actual placement, not from `fragments.length`.
-   Tables and multi-line text legitimately produce many fragments
-   that all fit on one page. The right signal is whether
-   `cumulativeFragmentHeight` starting at the schema's `baseY` ever
-   crosses a page boundary, computed as part of step 4's accumulation.
+2. Topo-sort + cycle check (single DFS, O(N + E)). Errors carry the
+   cycle path: `Circular anchor: A → B → C → A`.
+3. **Walk topo order, interleaving resolve / measure / place per
+   schema.** For each schema in topo order:
+   1. **Resolve position.** Targets are earlier in topo order and
+      already fully placed (steps a-d completed). Read
+      `target.actualHeight` (post-measure) regardless of target's
+      layout mode. Apply `resolveAnchorX` / `resolveAnchorY`. For
+      absolute schemas, position is the template-declared value
+      (their `mode: 'absolute'` skips this step).
+   2. **Measure.** Call the plugin's `measure()` with the
+      now-correct position. Returns `LayoutMeasureResult` with
+      width / height / fragments. Stash the measured total on the
+      schema (`schema.actualHeight`).
+   3. **Page-split + place.** Run `placeRowsOnPages` with the schema's
+      resolved position and measured fragments. This emits per-page
+      fragments and the placement record (which page the last
+      fragment lands on, its Y, its height). Record on the schema
+      (`schema.placement = { lastPageIndex, lastFragmentY,
+      lastFragmentHeight, ... }`) for downstream anchors to look up.
+4. Re-sort `items` by the resolved `baseY` only if any downstream
+   step (e.g. trailing-empty-page collapse) needs sorted order. The
+   topo walk has already produced placement; the engine's grouped-
+   offset mechanism only runs for non-anchored items.
+5. **Two placement modes co-exist on the same page.** Anchored items
+   come from step 3c. Absolute items go through `processDynamicPage`'s
+   grouped-offset path (Phase 1 fix). They share the same page slots;
+   conflicts are the user's contract (absolute means absolute, even
+   if it overlaps an anchored neighbour that grew).
+6. **Page-spanning detection** for the Phase 2 caveat below: derive
+   from actual placement (does the last fragment land on a page
+   different from the first?), not from `fragments.length`. Tables
+   and multi-line text legitimately produce many fragments that all
+   fit on one page.
 
-**Performance.** For typical templates (N ≈ 50 schemas): ~50 anchor
-resolutions per page (vs. ~2,500 worst-case under fixed-point iteration
-when chains exist). Sub-millisecond either way; the topo-sort
-implementation is provably better and removes the convergence loop.
+**Performance.** Sequential per-schema work is the cost of doing
+this correctly. For chains (worst case), measurement serialises
+because each schema's measurement depends on the previous schema's
+final placement. For independent schemas (no anchor edges between
+them), wave-parallel execution is allowed: schemas at the same topo
+level can resolve / measure / place concurrently. Implementation
+should preserve the existing parallel-batch optimisation for
+independent waves; chains pay sequential cost.
+
+For typical templates (N ≈ 50, mostly chains of 2-3 deep): ~50
+sequential resolutions × ~5ms measure ≈ 250 ms per page. Acceptable.
+For large templates (N = 500+, deep chains): may need profiling.
 
 **Caveat for Phase 2 (lifted in Phase 3):** if an anchored schema's
 target page-spans (per the placement-derived signal in step 7), the
@@ -233,7 +262,7 @@ through every case I could think of:
 | **Two side-by-side anchored siblings, both dynamic, different expansions** | Each placed independently at its own `pageTop` offset; expansions don't interfere | No anchor edge between them → no dependency → topo sort puts them in any order, neither sees the other's expansion. This is the case the same-Y bug breaks today; under the new model the bug is structurally impossible. |
 | **B has X-anchor to A and Y-anchor to D (different targets)** | Both A and D placed before B; B reads `A.position.x` and `D.position.y` independently | Topo deps: B depends on both A and D. Both axes resolve from already-placed schemas. |
 | **B's resolved Y leaves no room on the current page (e.g. y=98 on a 100mm-content page; B is 50mm tall)** | `placeRowsOnPages` orphan-protects: B page-breaks, starts at y=0 of the next page | Existing engine logic, unchanged. |
-| **A absolute at (10, 50), B anchored `belowBottomEdge` of A. A grows? Cannot — absolute means absolute, no dynamic expansion.** | B placed at `A.position.y + A.declaredHeight + offset` = 50+30+5 = 85 (using A's declared height since A doesn't expand) | Absolute schemas have no measurement step that could change their height. Their `declaredHeight === actualHeight`. |
+| **A absolute at (10, 50), B anchored `belowBottomEdge` of A; A is a dynamic-text schema** | B placed at `A.position.y + A.actualHeight + offset` (e.g. 50 + 30 + 5 = 85 if A measured to 30mm) | Anchor resolution always reads the target's actual measured height regardless of the target's layout mode. `mode: 'absolute'` fixes the schema's POSITION; its content can still grow dynamically and produce a larger rendered height. Every schema goes through `measure()` and gets a real `actualHeight`. |
 | **C absolute at (10, 60); B (anchored, dynamic) lands on top of C** | B and C overlap visually | User explicitly chose `mode: 'absolute'` for C; absolute means absolute. Same-Y group fix from Phase 1 is for absolute schemas pushed by other absolutes — anchored schemas overlapping with absolutes is the user's contract. |
 | **Anchor target is on page 1; B's resolved Y sends it to page 3** | B placed on page 3; intervening pages may be empty if no other schemas land there | Output has empty pages where nothing places. `removeTrailingEmptyPages` (line 498) handles trailing emptiness; mid-document empty pages are by design (the user explicitly anchored to a target whose bottom is many pages away). |
 | **Anchored schema overflows, splitting itself across pages, then a downstream dep** | Schema splits via `placeRowsOnPages` → `lastFragment.bottom` recorded → next dep resolves against last fragment | Each schema records its placement (final page + final-fragment bottom edge) at the end of its `placeRowsOnPages` call. Anchor resolver consumes that record. |
