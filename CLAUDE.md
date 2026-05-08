@@ -1,25 +1,35 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Claude Code (claude.ai/code) when working
+with code in this repository.
 
 ## Project Overview
 
-PDFme is an open-source TypeScript-based PDF generation and manipulation library for web and Node.js applications. It provides a complete solution for creating, designing, and manipulating PDFs with a focus on performance, minimal dependencies, and ease of use.
+PDFweave is an open-source TypeScript PDF template engine with
+first-class data binding, anchor layouts, smart tables, and stationery
+PDFs. It targets production document workflows that need to bind to
+real data, reflow correctly across pages, and ship branded stationery.
 
-## Claude Code Integration
+See [GOALS.md](GOALS.md) for the mission and quality bar, and
+[ROADMAP.md](ROADMAP.md) for the live punch list.
 
-### Triggering Claude Code
-- Use `@claude` in GitHub issues, PR comments, or reviews to trigger Claude Code assistance
-- Claude Code is configured via `.github/workflows/claude.yml` with appropriate permissions
-- Best practices:
-  - Be specific about the problem or task
-  - Include relevant error messages or logs
-  - Mention specific files or components when applicable
+PDFweave is a hard fork of [pdfme](https://github.com/pdfme/pdfme),
+released under the MIT licence. See the Acknowledgement section in
+GOALS.md for attribution detail.
 
-### GitHub Workflow Integration
-- Claude Code automatically runs on issue comments, PR reviews, and new issues containing `@claude`
-- Has read access to repository contents, pull requests, and issues
-- Can assist with code analysis, debugging, and implementation suggestions
+## Automated PR review
+
+Every PR against `IDNTEQ/pdfweave` is automatically reviewed by:
+
+- **Greptile** (`greptile-apps[bot]`) — config in `.greptile/settings.yaml`
+- **CodeRabbit** (`coderabbitai`) — config in `.coderabbit.yaml`
+
+Wait for both to comment before merging; address findings or push back
+in the PR thread with reasoning. There is no `@claude` GitHub Action
+in this repo and one is not planned — the agent that wrote most of the
+code (this Claude session) already operates on the repo directly via
+`gh` and puppeteer, so an additional summon-on-demand bot would be
+redundant.
 
 ## Environment Requirements
 
@@ -74,10 +84,10 @@ npm run fmt   # Format code with vp native fmt
 
 ### Building Individual Packages
 ```bash
-npm run build -w packages/common    # Build @pdfme/common
-npm run build -w packages/schemas   # Build @pdfme/schemas
-npm run build -w packages/generator # Build @pdfme/generator
-npm run build -w packages/ui        # Build @pdfme/ui
+npm run build -w packages/common    # Build @pdfweave/common
+npm run build -w packages/schemas   # Build @pdfweave/schemas
+npm run build -w packages/generator # Build @pdfweave/generator
+npm run build -w packages/ui        # Build @pdfweave/ui
 ```
 
 ## Architecture and Code Structure
@@ -246,7 +256,7 @@ npm install --legacy-peer-deps
 
 #### Missing Type Definitions
 - Check `packages/common/src/types.ts` for core type definitions
-- Ensure proper imports: `import type { Template } from '@pdfme/common'`
+- Ensure proper imports: `import type { Template } from '@pdfweave/common'`
 - Update type definitions when adding new features
 
 #### Import Resolution Problems
@@ -299,7 +309,7 @@ npm run dev
 - Verify font format compatibility (TTF, OTF)
 
 #### CJK Font Problems
-- Use the forked `@pdfme/pdf-lib` which includes CJK support
+- Use the forked `@pdfweave/pdf-lib` which includes CJK support
 - Ensure proper font subsetting for large character sets
 - Test with actual CJK content
 
@@ -310,7 +320,7 @@ npm run dev
 # Check for outdated packages
 npm outdated
 # Update specific packages
-npm update @pdfme/common @pdfme/generator
+npm update @pdfweave/common @pdfweave/generator
 ```
 
 #### Peer Dependency Issues
