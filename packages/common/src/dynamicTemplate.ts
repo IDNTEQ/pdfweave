@@ -733,6 +733,8 @@ export const getDynamicTemplate = async (
     const { items, orderMap } = normalizePageSchemas(pageSchemas, paddingTop);
     const itemBySchemaName = new Map<string, LayoutItem>();
     for (const item of items) itemBySchemaName.set(item.schema.name, item);
+    const originalBySchemaName = new Map<string, Schema>();
+    for (const schema of pageSchemas) originalBySchemaName.set(schema.name, schema);
 
     const measureItem = async (item: LayoutItem): Promise<LayoutUnitFragment[]> => {
       const value = getSchemaValue(item.schema, input, pageSchemas);
@@ -772,7 +774,7 @@ export const getDynamicTemplate = async (
       let actualHeight = 0;
       for (const fragment of fragments) actualHeight += fragment.height;
       item.schema.height = actualHeight;
-      const original = pageSchemas.find((s) => s.name === item.schema.name);
+      const original = originalBySchemaName.get(item.schema.name);
       if (original) original.height = actualHeight;
     };
 
