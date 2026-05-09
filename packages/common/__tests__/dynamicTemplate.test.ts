@@ -1591,11 +1591,11 @@ describe('Runtime anchor re-resolution (Phase 2 — RFC 0001)', () => {
     // LAST-fragment bottom (on page 2), not A's start-page-y +
     // measured-height (which would put B too high).
     //
-    // Setup: contentHeight = paddingTop+drawable = 10+90 = 100. A is
-    // anchored at pageTop offset 10, dynamic with 5×30 fragments
-    // (total 150 — fragment sequence overflows the 90mm drawable).
-    // First two fragments fit page 1 (y=10..70); last three fit page
-    // 2 (y=10..100).
+    // Setup: drawable height = 90mm (page 110, padding 10/10). A is
+    // anchored at pageTop, dynamic with 5×30mm fragments (total 150mm).
+    // 3 rows fit per page (90mm drawable / 30mm row): rows 1-3 on
+    // page 1 (y=10..100), rows 4-5 on page 2 (y=10..70). placeRowsOnPages
+    // emits one chunk per page, so a's last fragment lands on page 2.
     const splitBasePdf: BasePdf = { width: 100, height: 110, padding: [10, 10, 10, 10] };
     const template: Template = {
       basePdf: splitBasePdf,

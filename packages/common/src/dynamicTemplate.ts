@@ -667,14 +667,19 @@ function applyMeasurement(
  * Resolve an anchored schema's x / y against the current `pageSchemas`
  * geometry and mirror the result onto the layout item. Used for both
  * tentative resolution in Pass 1 and final resolution in Pass 3.
+ *
+ * `lookup` is a precomputed schema index (built once per page by the
+ * caller) — buildSchemaIndex returns a Map keyed by id pointing to the
+ * SAME schema objects that `pageSchemas` holds, so mutations to
+ * `schema.height` and `schema.position` made earlier in the topo walk
+ * are visible through the map without rebuilding.
  */
 function resolveAnchoredItem(
   schema: Schema,
   item: LayoutItem,
-  pageSchemas: Schema[],
+  lookup: Map<string, Schema>,
   paddingTop: number,
 ): void {
-  const lookup = buildSchemaIndex(pageSchemas);
   const newX = resolveAnchorX(schema, lookup);
   const newY = resolveAnchorY(schema, lookup);
   if (newX !== null) {
@@ -690,11 +695,23 @@ function resolveAnchoredItem(
 
 /**
  * Walk the placed pages and write each placed schema's last-fragment
- * geometry back onto its `pageSchemas` entry. Encoded as global Y
- * (`pageIndex * contentHeight + fragmentY`) so single-page and
- * page-spanning targets resolve uniformly through the same anchor
- * arithmetic. (Phase 3 introduces an explicit fragment-aware anchor
- * model; this is the Phase 2 stop-gap.)
+ * geometry back onto its `pageSchemas` entry. "Last fragment" = the
+ * fragment with the bottom-most edge across all pages: highest
+ * `pageIndex`, breaking ties by greatest `position.y + height` on that
+ * page. (placeRowsOnPages today emits at most one chunk per schema per
+ * page; the same-page tiebreak is defensive against future changes
+ * that pack multiple chunks per page.)
+ *
+ * The encoded `position.y` is a GLOBAL Y
+ * (`pageIndex * contentHeight + fragmentY`) so that:
+ *   - resolveAnchorY's `target.position.y + target.height` arithmetic
+ *     produces the bottom edge in global-Y space for cross-page
+ *     anchor refs, and
+ *   - placeRowsOnPages, which derives `pageIndex = floor(globalY /
+ *     contentHeight)` and `yInPage = globalY mod contentHeight`,
+ *     places dependents on the correct page without separate
+ *     fragment-index plumbing. Phase 3 will introduce an explicit
+ *     fragment-aware anchor model; this is the Phase 2 stop-gap.
  */
 function syncLastFragmentGeometry(
   name: string,
@@ -707,7 +724,12 @@ function syncLastFragmentGeometry(
     for (const placed of pages[p]) {
       if (placed.name !== name) continue;
       if (isPageBreakSchema(placed)) continue;
-      if (!last || p > last.pageIndex) {
+      const placedBottom = placed.position.y + placed.height;
+      if (
+        !last ||
+        p > last.pageIndex ||
+        (p === last.pageIndex && placedBottom > last.y + last.height)
+      ) {
         last = {
           pageIndex: p,
           y: placed.position.y,
@@ -776,12 +798,18 @@ async function processAnchoredPage(ctx: PageReflowContext): Promise<Schema[][]> 
   for (const schema of pageSchemas) originalBySchemaName.set(schema.name, schema);
 
   // Pass 1: tentative anchor resolve + measure for every item.
+  // Build the schema index ONCE per page and reuse it for every
+  // resolution call. The map is keyed by id and points to the same
+  // schema objects in pageSchemas, so per-item mutations to height /
+  // position made by applyMeasurement and resolveAnchoredItem are
+  // visible to subsequent lookups without rebuilding (avoids O(N²)).
   const topoOrder = topoSortByAnchorDeps(pageSchemas);
+  const lookup = buildSchemaIndex(pageSchemas);
   for (const schema of topoOrder) {
     const item = itemBySchemaName.get(schema.name);
     if (!item) continue;
     if (getAnchoredLayout(schema)) {
-      resolveAnchoredItem(schema, item, pageSchemas, paddingTop);
+      resolveAnchoredItem(schema, item, lookup, paddingTop);
     }
     const fragments = await measurePageItem(ctx, item);
     applyMeasurement(item, fragments, originalBySchemaName);
@@ -818,7 +846,7 @@ async function processAnchoredPage(ctx: PageReflowContext): Promise<Schema[][]> 
     if (!getAnchoredLayout(schema)) continue;
     const item = itemBySchemaName.get(schema.name);
     if (!item) continue;
-    resolveAnchoredItem(schema, item, pageSchemas, paddingTop);
+    resolveAnchoredItem(schema, item, lookup, paddingTop);
     placeRowsOnPages(
       item.schema,
       item.fragments,
