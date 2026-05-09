@@ -1407,6 +1407,66 @@ describe('Runtime anchor re-resolution (Phase 2 — RFC 0001)', () => {
     expect(b?.position.y).toBe(85);
   });
 
+  test('absolute item below an anchored item that grew is pushed past it', async () => {
+    // Regression for CodeRabbit feedback on PR #46:
+    // anchored items must contribute their actualEndY to the engine's
+    // grouped-offset accounting, otherwise downstream absolute items
+    // overlap with anchored neighbours that grew. Pre-Phase-2 this
+    // worked via the engine seeing every item's actual extent; Phase 2
+    // skips anchored items in the engine pass for placement, but their
+    // group-accounting contribution must remain.
+    const template: Template = {
+      basePdf: phase2BasePdf,
+      schemas: [
+        [
+          {
+            name: 'a',
+            content: 'a',
+            type: 'a',
+            position: { x: 10, y: 0 },
+            width: 80,
+            height: 10,
+            layout: {
+              mode: 'anchored',
+              x: { mode: 'pageLeft', offsetMm: 10 },
+              y: { mode: 'pageTop', offsetMm: 0 },
+            },
+          },
+          // b is absolute, originally just below a's declared bottom.
+          // After a grows from 10 -> 50, b should land below a's actual
+          // bottom (y = paddingTop + 50 + originalGap).
+          {
+            name: 'b',
+            content: 'b',
+            type: 'b',
+            position: { x: 10, y: 30 },
+            width: 80,
+            height: 10,
+          },
+        ],
+      ],
+    };
+
+    const dynamic = await getDynamicTemplate({
+      template,
+      input: { a: 'a', b: 'b' },
+      options: {},
+      _cache: new Map(),
+      getDynamicHeights: async (_value, args: { schema: Schema }) => {
+        if (args.schema.name === 'a') return [10, 10, 10, 10, 10]; // a 10 -> 50
+        return [args.schema.height];
+      },
+    });
+
+    const a = dynamic.schemas[0].find((s) => s.name === 'a');
+    const b = dynamic.schemas[0].find((s) => s.name === 'b');
+    expect(a?.position.y).toBe(10);
+    expect(a?.height).toBe(50);
+    // a actually ends at y=60. originalGap = 30 - (10 + 10 declared) = 10.
+    // → b should land at 60 + 10 = 70.
+    expect(b?.position.y).toBe(70);
+  });
+
   test('two-axis deps: B X-anchored to A, Y-anchored to C', async () => {
     const template: Template = {
       basePdf: phase2BasePdf,

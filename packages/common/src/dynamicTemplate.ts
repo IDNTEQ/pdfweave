@@ -87,6 +87,15 @@ interface LayoutItem {
    *   upstream expansion.
    */
   placement: ItemPlacement;
+  /**
+   * Final global Y (baseY-space, padding-relative) at which this item's
+   * placement ended. Set by `placeRowsOnPages`; read by
+   * `processDynamicPage` so anchored items contribute to the engine's
+   * grouped-offset accounting even though their placement is skipped.
+   * Without this, downstream absolute items would not be pushed past an
+   * anchored item that grew.
+   */
+  actualEndY?: number;
 }
 
 type LayoutUnitFragmentSource = 'dynamicHeights' | 'fragments' | 'height';
@@ -574,9 +583,25 @@ function processDynamicPage(
   for (const item of items) {
     // Phase 2: anchored items were placed in the topological resolve walk
     // via a direct placeRowsOnPages call (see getDynamicTemplate). Skip
-    // them here so their resolved position is not double-shifted by the
-    // engine's grouped offset.
-    if (item.placement === 'anchored') continue;
+    // their second placement here so their resolved position is not
+    // double-shifted by the engine's grouped offset — but still feed
+    // their actualEndY into the group accounting so downstream absolute
+    // items get pushed past them when they consumed more vertical space
+    // than their declared height.
+    if (item.placement === 'anchored') {
+      const itemBaseEnd = item.baseY + item.height;
+      const overlapsCurrentGroup = item.baseY < groupYEnd - EPSILON;
+      if (!overlapsCurrentGroup) {
+        commitGroup();
+        groupYEnd = itemBaseEnd;
+      } else if (itemBaseEnd > groupYEnd) {
+        groupYEnd = itemBaseEnd;
+      }
+      const actualEnd = item.actualEndY ?? itemBaseEnd;
+      if (actualEnd > groupMaxActualEnd) groupMaxActualEnd = actualEnd;
+      if (itemBaseEnd > groupMaxOriginalEnd) groupMaxOriginalEnd = itemBaseEnd;
+      continue;
+    }
 
     // pageBreak primitive (pdfme#637): force everything that follows
     // onto the next page regardless of remaining vertical space. We
@@ -820,9 +845,11 @@ export const getDynamicTemplate = async (
         applyMeasurement(item, fragments);
 
         if (getAnchoredLayout(schema)) {
-          // Place the anchored item directly. processDynamicPage will
-          // skip it on the engine pass below (placement === 'anchored').
-          placeRowsOnPages(
+          // Place the anchored item directly. processDynamicPage skips
+          // its second placement pass (placement === 'anchored') but
+          // still consumes actualEndY for grouped-offset accounting so
+          // downstream absolute items get pushed past it.
+          item.actualEndY = placeRowsOnPages(
             item.schema,
             item.fragments,
             item.baseY,
