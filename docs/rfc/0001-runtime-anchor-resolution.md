@@ -1,9 +1,16 @@
-# RFC 0001 — Runtime anchor resolution + dynamic-layout coexistence
+# RFC 0001 — Runtime anchor resolution + single-system layout
 
-- **Status:** Draft
+- **Status:** Accepted (amended 2026-05-09)
 - **Author:** PDFweave maintainers
-- **Date:** 2026-05-08
+- **Date:** 2026-05-08, amended 2026-05-09
 - **Implementation tracking:** TBD GitHub issue
+- **Amendment note (2026-05-09):** clarified that PDFweave moves to a
+  single-system layout model. Earlier draft framed Phase 4 as "two
+  systems coexist on disjoint subsets" and described
+  `mode: 'absolute'` as falling through to the engine's
+  `totalYOffset` flow. That contradicts the actual decision: there is
+  no flow mode; `absolute` is truly fixed; the engine's flow logic
+  is deleted in Phase 4 and replaced by a migration script.
 
 ## Summary
 
@@ -12,13 +19,42 @@ for relative positioning, but the runtime consumer of measured
 dimensions was never wired. As a result, the anchor graph today is
 resolved exactly once with **declared** heights, before dynamic-height
 measurement, and the upstream-inherited dynamic-layout engine's
-`totalYOffset` accumulator silently fills the gap. This RFC proposes
-a four-phase plan to (1) fix an active correctness bug in the engine,
-(2) finish wiring runtime anchor re-resolution as originally intended,
-(3) make anchor resolution page-aware, and (4) split responsibilities
-cleanly between the anchor system (for anchored schemas) and the
-engine (as a fallback for absolute-positioned schemas), so the two
-mechanisms coexist without overlap.
+`totalYOffset` accumulator silently fills the gap.
+
+**The decision (committed):** PDFweave moves to a *single-system*
+layout model. Two layout modes only:
+
+- `anchored` — position is computed from the anchor graph using
+  *actual* measured dimensions; updates as referents grow.
+- `absolute` — position is the literal coords in the template; the
+  schema does not move under any circumstance, even if a neighbour
+  grows into its space (overlap is the user's contract).
+
+There is **no flow mode**. The upstream engine's `totalYOffset`
+flow propagation is not preserved as a fallback — it is going away
+in Phase 4. Templates that used to rely on implicit flow get
+migrated by an automated chain-anchoring script (each non-anchored
+schema becomes `belowBottomEdge` of its predecessor in document
+order, replicating flow exactly while making the dependency
+explicit).
+
+This is a strategic call, not a code call. We can make it because
+the fork has no users yet (per the project status as of 2026-05-08).
+
+The four phases:
+
+1. **Stop-gap fix** for an active correctness bug in the engine,
+   so the engine remains usable during the migration.
+2. **Wire runtime anchor re-resolution** with topological
+   single-pass resolution and actual measured heights.
+3. **Make anchor resolution page-aware** (cross-page anchors,
+   fragment-internal anchor refs).
+4. **Delete the engine's flow logic.** What remains of the engine
+   becomes a thin per-schema page-fragmentation primitive
+   (`placeRowsOnPages`); `processDynamicPage` and `totalYOffset`
+   are removed. Migration script ships in this phase to convert
+   any remaining absolute-positioned templates that depend on
+   flow into chain-anchored form.
 
 ## Problem statement
 
@@ -102,26 +138,30 @@ same-Y siblings — bug fix tracked as upstream PR `pdfme/pdfme#1489`.
 
 ## Goals
 
-1. Fix the active same-Y correctness bug.
-2. Make the anchor system the runtime source of truth for anchored
-   schemas, using actual measured heights.
-3. Define a clear coexistence model with the engine: anchors handle
-   anchored schemas; engine handles non-anchored schemas; the two
-   never disagree.
-4. Preserve backward compatibility with existing templates throughout
-   the migration.
+1. Fix the active same-Y correctness bug as a stop-gap so the engine
+   is usable during the migration window (Phases 1-3).
+2. Make the anchor system the **sole** runtime source of truth for
+   any schema that needs to react to neighbour growth.
+3. Define `absolute` as truly fixed: position is the literal coords
+   in the template; no engine push-down, no implicit flow. Overlap
+   with growing neighbours is the user's contract.
+4. Replace the engine's flow propagation entirely. Old templates that
+   relied on implicit flow are migrated to chain-anchored form by an
+   automated script shipped in Phase 4.
 
 ## Non-goals
 
-- Removing the engine. The engine still serves non-anchored schemas
-  and is the backstop for users who prefer absolute-positioning
-  templates.
-- Breaking the public stored-template format.
+- Preserving the upstream `totalYOffset` flow as a long-term option.
+  It exists today only as the Phase 1 stop-gap; Phase 4 deletes it.
+- Breaking the public stored-template format. The migration script is
+  a one-time, opt-in conversion that emits standard `belowBottomEdge`
+  anchor rules — no new schema fields, no new field semantics.
 - Supporting dynamic anchor *offsets* (offsets that depend on input
   data). The offset in an anchor rule remains static.
-- Migration tooling that auto-anchors absolute-positioned schemas.
-  That heuristic is fragile; users opt in to anchoring per schema as
-  they always have.
+- Heuristic auto-anchoring of arbitrarily positioned schemas. The
+  Phase 4 migration script targets one specific pattern only —
+  document-order chains — because that is what `totalYOffset`
+  effectively implemented.
 
 ## Proposed plan
 
@@ -145,12 +185,19 @@ adapted for our `pageBreak` primitive.
   `pageBreak + same-Y siblings`.
 
 **Outcome:** the engine produces correct results for any schemas at
-the same baseY — anchored or absolute. Both go through
-`normalizePageSchemas` + `processDynamicPage` today, so two anchored
-siblings (e.g. both `{ y: { mode: 'pageTop', offsetMm: 10 } }`) are
-ordered by `orderMap` and the later one is pushed down by the
-earlier sibling's expansion. The grouped-offset fix corrects this
-for them too. Phase 1 tests cover both flavours of same-Y siblings.
+the same baseY during the Phase 1-3 migration window. Both anchored
+and absolute schemas go through `normalizePageSchemas` +
+`processDynamicPage` today, so two anchored siblings (e.g. both
+`{ y: { mode: 'pageTop', offsetMm: 10 } }`) are ordered by `orderMap`
+and the later one is pushed down by the earlier sibling's expansion.
+The grouped-offset fix corrects this for them too. Phase 1 tests
+cover both flavours of same-Y siblings.
+
+**Why bother fixing the engine if Phase 4 deletes it?** Until Phase 2
+ships, the engine is the only runtime mechanism that can react to
+measured heights at all. The same-Y bug is a real-user-visible
+regression today and Phases 2-4 take weeks to ship. Phase 1 is a
+~1-day fix that buys correctness for the migration window.
 
 **Risk:** low. Pure runtime fix, no API change, behaviour-preserving for
 all existing test cases.
@@ -213,31 +260,35 @@ The full Phase 2 sequence:
       fragment lands on, its Y, its height). Record on the schema
       (`schema.placement = { lastPageIndex, lastFragmentY,
       lastFragmentHeight, … }`) for downstream anchors to look up.
-   4. Mark `items[i].placement = 'anchored'` so the post-walk engine
-      pass skips it.
+   4. Mark `items[i].placement = 'anchored'` so any pre-Phase-2
+      back-stop code path knows the schema is already placed.
 
-   **For ABSOLUTE schemas** (measure only — placement deferred):
+   **For ABSOLUTE schemas** (measure + place at literal coords):
    1. Skip resolve (position is template-declared, already correct).
    2. **Measure.** Same as anchored case — call `measure()` and
       stash `schema.actualHeight`. This is essential: a downstream
       anchored schema may target this absolute and read its actual
       height to compute its own position.
-   3. Skip place. Mark `items[i].placement = 'absolute'`.
+   3. **Place at literal coords.** Run `placeRowsOnPages` with the
+      schema's template-declared position. The schema may overflow
+      its declared rectangle and split across pages via the standard
+      per-schema fragmentation primitive — but its starting Y is the
+      literal `position.y` from the template, never offset by any
+      neighbour's expansion. Mark `items[i].placement = 'absolute'`.
 
-4. **Engine pass for absolute items only.** After the topo walk,
-   run `processDynamicPage` over the items where
-   `placement === 'absolute'`. The engine applies its grouped-offset
-   propagation (Phase 1 fix) to place these items across pages with
-   per-group same-Y handling. Anchored items are skipped in this
-   pass — they were already placed in step 3.
+4. **No engine flow pass.** Both anchored and absolute items are
+   fully placed by the topo walk. The engine's `totalYOffset`
+   propagation is not invoked. (During Phases 1-3 the engine still
+   runs as the back-stop for pre-Phase-2 code paths and for the
+   Phase 2 page-spanning caveat below; it is deleted entirely in
+   Phase 4.)
 
-5. **Two placement modes co-exist on the same page.** Anchored items
-   from step 3 and absolute items from step 4 share page slots.
-   Anchored items have positions from the graph; absolute items
-   from the engine. Conflicts (e.g. an anchored item overlapping an
-   absolute item that didn't move) are the user's contract:
-   absolute means absolute, even if a dynamic anchored neighbour
-   grew into its space.
+5. **Anchored and absolute items share page slots.** Anchored
+   positions come from the graph; absolute positions are literal.
+   Conflicts (an anchored item overlapping an absolute, or two
+   absolutes overlapping because the user typed coords that
+   collide) are the user's contract: `absolute` means absolute,
+   even if a growing neighbour overlaps it.
 6. **Page-spanning detection** for the Phase 2 caveat below: derive
    from actual placement (does the last fragment land on a page
    different from the first?), not from `fragments.length`. Tables
@@ -291,7 +342,7 @@ through every case I could think of:
 | **B has X-anchor to A and Y-anchor to D (different targets)** | Both A and D placed before B; B reads `A.position.x` and `D.position.y` independently | Topo deps: B depends on both A and D. Both axes resolve from already-placed schemas. |
 | **B's resolved Y leaves no room on the current page (e.g. y=98 on a 100mm-content page; B is 50mm tall)** | `placeRowsOnPages` orphan-protects: B page-breaks, starts at y=0 of the next page | Existing engine logic, unchanged. |
 | **A absolute at (10, 50), B anchored `belowBottomEdge` of A; A is a dynamic-text schema** | B placed at `A.position.y + A.actualHeight + offset` (e.g. 50 + 30 + 5 = 85 if A measured to 30mm) | Anchor resolution always reads the target's actual measured height regardless of the target's layout mode. `mode: 'absolute'` fixes the schema's POSITION; its content can still grow dynamically and produce a larger rendered height. Every schema goes through `measure()` and gets a real `actualHeight`. |
-| **C absolute at (10, 60); B (anchored, dynamic) lands on top of C** | B and C overlap visually | User explicitly chose `mode: 'absolute'` for C; absolute means absolute. Same-Y group fix from Phase 1 is for absolute schemas pushed by other absolutes — anchored schemas overlapping with absolutes is the user's contract. |
+| **C absolute at (10, 60); B (anchored, dynamic) lands on top of C** | B and C overlap visually | User explicitly chose `mode: 'absolute'` for C; absolute means absolute. Overlap is the user's contract — that is what `absolute` means under the single-system model. |
 | **Anchor target is on page 1; B's resolved Y sends it to page 3** | B placed on page 3; intervening pages may be empty if no other schemas land there | Output has empty pages where nothing places. `removeTrailingEmptyPages` (line 498) handles trailing emptiness; mid-document empty pages are by design (the user explicitly anchored to a target whose bottom is many pages away). |
 | **Anchored schema overflows, splitting itself across pages, then a downstream dep** | Schema splits via `placeRowsOnPages` → `lastFragment.bottom` recorded → next dep resolves against last fragment | Each schema records its placement (final page + final-fragment bottom edge) at the end of its `placeRowsOnPages` call. Anchor resolver consumes that record. |
 
@@ -324,10 +375,14 @@ index, X, Y, width, height) is what dependent anchors look up.
 - `LayoutMeasureResult.height` is now consumed by the anchor pass (was
   consumed only via fragments by the engine).
 
-**Outcome:** anchored schemas have positions derived from actual
-heights. The engine's offset becomes redundant for them but still
-runs for absolute-positioned schemas. No behaviour change for users
-who already had working templates — the final pixel positions match.
+**Outcome:** the topo walk owns placement for both modes. Anchored
+positions are derived from actual measured heights of upstream
+nodes; absolute positions are literal. The engine's `totalYOffset`
+flow is no longer invoked by the new code path (it remains physically
+present in the codebase as a pre-Phase-2 fallback for templates that
+hit the page-spanning caveat). For all existing single-page-target
+templates, final pixel positions match pre-Phase-2 — verified by the
+snapshot suite.
 
 **Risk:** medium. Single-pass topological resolution (per the §2-§3
 algorithm above) means correctness depends on the topological ordering
@@ -378,54 +433,120 @@ anchor relationships need careful test coverage; existing tests must
 continue to pass byte-for-byte. RFC may need a follow-up RFC on the
 PlacedFragment shape before implementation.
 
-### Phase 4 — Final architecture *(~1 week of cleanup after Phase 3)*
+### Phase 4 — Delete the engine flow + ship migration tooling *(~1–2 weeks)*
 
-**Goal:** clear separation of concerns; both systems coexist without
-overlap.
+**Goal:** PDFweave runs on a single layout system. The
+upstream-inherited `processDynamicPage` flow propagation is removed.
+The remaining engine code is a thin per-schema page-fragmentation
+primitive (`placeRowsOnPages`) that any layout mode can call to
+split its content across pages.
 
-**Final shape:**
+**Code deletions:**
 
-- **Anchored schemas** → positions come exclusively from the anchor
-  graph (re-resolved with actual heights, page-aware). The engine
-  treats them as already-placed; it only handles their per-page
-  splitting if they overflow.
-- **Absolute-positioned schemas** → positions come from the engine's
-  baseY + same-Y-group-aware `totalYOffset` (Phase 1 fix). The anchor
-  graph does not touch them.
-- **Migration of existing templates** → none required. Anchored
-  schemas continue to work; absolute schemas continue to work; mixed
-  templates work because the two systems operate on disjoint subsets.
+- Delete `processDynamicPage` from
+  `packages/common/src/dynamicTemplate.ts`. The grouped `totalYOffset`
+  logic from Phase 1 — `cumMaxActualEnd`, `cumMaxOriginalEnd`,
+  `commitGroup`, `overlapsCurrentGroup` — goes with it.
+- Delete `normalizePageSchemas` and the `LayoutItem.baseY` snapshot
+  flow. Schema positions are read directly from `position.y` (literal
+  for `absolute`; computed by the topo walk for `anchored`).
+- `getDynamicTemplate` becomes: build dep graph → topo-walk →
+  per-schema resolve/measure/place. No second pass, no engine
+  back-stop. The Phase 2 caveat (page-spanning targets fall back to
+  the engine) is closed by Phase 3 before Phase 4 deletes the engine,
+  so no fallback path remains.
+- `placeRowsOnPages` stays. It is the per-schema fragmentation
+  primitive — independent of layout mode and called from the topo
+  walk.
+
+**Migration script:** ships in `packages/converter` (or a new
+`packages/migrate` if conversion warrants it) and runs offline against
+stored template JSON.
+
+- **Input:** a stored template (`Template` JSON).
+- **Detection rule:** a schema is "flow-dependent" if and only if it
+  has no `layout` field (or `layout.mode === undefined`) AND there
+  exists at least one schema earlier in document order whose
+  declared bottom edge (`y + height`) is at or above its `y` AND
+  there is at least one dynamic-height schema in the document. (The
+  user-visible behaviour `totalYOffset` produces is "dynamic schemas
+  earlier in the document push later schemas down". Schemas that
+  don't have an earlier-in-document-order schema, or that aren't
+  affected by any dynamic predecessor, can stay absolute without
+  changing their rendered position.)
+- **Conversion:** for each flow-dependent schema, set
+  `layout = { mode: 'anchored', y: { mode: 'belowBottomEdge',
+  ref: '<previous-schema-id>', offsetMm: <gap> } }` where `<gap>` is
+  `currentSchema.y − (previousSchema.y + previousSchema.height)`
+  computed from declared coords. This reproduces the exact pre-Phase-4
+  rendered output for any template the engine handles correctly today.
+- **Non-flow-dependent schemas** (no dynamic predecessor that affects
+  them) get `layout = { mode: 'absolute' }` written explicitly so the
+  template's intent survives future migrations.
+- **Cycle / multi-page-base templates:** the script refuses to
+  convert and prints the affected schema ids. The user manually
+  resolves before retrying.
+
+**CLI:**
+```
+$ npx @pdfweave/migrate --in template.json --out template.v2.json
+$ npx @pdfweave/migrate --in templates/ --out templates.v2/  # batch
+$ npx @pdfweave/migrate --in template.json --check  # dry-run, exit 1 if changes needed
+```
 
 **Documentation:**
 
-- New `docs/architecture/dynamic-layout.md` walks through the model
-  with worked examples.
-- README "Pillars" section already mentions anchor layouts; the model
-  doc is the deep reference.
+- New `docs/architecture/dynamic-layout.md` walks through the
+  single-system model with worked examples.
+- New `docs/migration/v2-layout.md` is the migration guide:
+  what changed, when to run the script, how to interpret its
+  warnings.
+- README "Pillars" section already mentions anchor layouts; the
+  architecture doc is the deep reference.
 - Plugin author guide explains `measure()` and how `anchors` /
   `fragments` flow into runtime anchor resolution.
 
-## Coexistence model — answer to "do we keep both?"
+**Risk:** medium. Engine deletion is large but well-contained — the
+topo walk in Phase 2 + page-aware resolution in Phase 3 must be
+proven correct first (snapshot equivalence on every existing
+template). Migration script risk is bounded: dry-run mode, no
+in-place mutation, and the script either converts safely or refuses
+to touch the file.
 
-**Yes, keep both.** They are not competing — once Phase 4 lands, they
-operate on disjoint sets of schemas:
+## Layout model — answer to "do we keep both?"
 
-| Schema type | Position from | Why |
-|---|---|---|
-| `layout: { mode: 'anchored', … }` | Anchor graph (re-resolved with actual heights, page-aware) | Explicit dependency expression; survives runtime expansion via re-resolution |
-| `layout: { mode: 'absolute' }` *or no `layout` field* | Engine's grouped `totalYOffset` (Phase 1) | "Just place it here; if siblings expand, shift below them; same-row siblings stay put" |
+**No.** PDFweave runs on a single layout system once Phase 4 ships.
+Two modes only, both handled by the same topological walk:
 
-This split:
+| Mode | Position from | Reacts to neighbour growth? | Use when |
+|---|---|---|---|
+| `anchored` | Anchor graph, re-resolved with actual measured heights, page-aware | Yes | The schema's intent is "place me relative to X" — including the simple chain case "place me below the previous schema" |
+| `absolute` | Literal `position.x`, `position.y` from the template | No — overlap with growing neighbours is the user's contract | The schema must stay put regardless of what surrounds it (page numbers, watermarks, headers/footers at fixed positions) |
 
-- Honours the original anchor-system design intent (runtime weight on
-  the graph).
-- Preserves the upstream "auto-flow" semantics for users who don't
-  want to think about anchors.
-- Makes the same-Y bug irrelevant for anchored schemas (their
-  positions are explicit) AND fixes it for absolute-positioned
-  schemas (Phase 1).
-- Removes the silent compensation that confused this RFC's authors —
-  each system is the source of truth in its own domain.
+There is no flow mode. The upstream `totalYOffset` propagation is not
+preserved as a fallback.
+
+**What this gives us:**
+
+- A single, predictable mental model. A schema either depends on
+  neighbours (anchored) or doesn't (absolute). No third "mostly
+  doesn't but might get pushed" mode.
+- The anchor system carries its weight at runtime — the gap this RFC
+  was written to close.
+- The same-Y bug becomes structurally impossible for anchored schemas
+  (explicit positions; no shared accumulator). For absolute schemas
+  the bug doesn't apply because absolute doesn't push.
+- One source of truth per schema; no silent compensation between
+  layers.
+
+**What this costs:**
+
+- A migration step for templates that depended on implicit flow.
+  Phase 4 ships an automated script that converts them to
+  chain-anchored form, reproducing the same rendered output.
+- We can make this call because the fork has no users yet (as of
+  2026-05-08). We would not make this call once external users had
+  templates in production.
 
 ## Migration path / risk profile
 
@@ -434,12 +555,14 @@ This split:
 | 1 | Low | Yes (revert) | None — bug fix only |
 | 2 | Medium | Yes (disable topo-walk; fall back to engine-only flow) | None — same final positions, different mechanism |
 | 3 | Medium-high | Hard (new fragment shape) | New capabilities (cross-page anchors) |
-| 4 | Low | Cleanup | Documentation, clearer model |
+| 4 | Medium | Hard once shipped (engine deletion) | Templates relying on implicit flow must run the migration script; the script reproduces the same rendered output |
 
 Ship phases independently. After Phase 1 lands, Phase 2 can be a
 separate PR. Phase 3 is the largest piece and should land behind a
 feature flag (env var or template field) for at least one minor
-release before becoming default.
+release before becoming default. Phase 4 ships only after Phase 3 is
+default and snapshot tests on the full template suite are byte-equal
+across the engine-on / engine-off code paths.
 
 ## Test plan
 
@@ -477,9 +600,23 @@ release before becoming default.
 - Cycle detection across page boundaries.
 
 ### Phase 4
-- No new behaviour; existing tests cover.
-- New documentation should include runnable examples that double as
-  smoke tests.
+- **Engine-deletion regression:** every existing template renders
+  byte-equal pre-Phase-4 (topo walk + engine fallback) vs.
+  post-Phase-4 (topo walk only). Snapshot suite gates the merge.
+- **Migration script:**
+  - Round-trip test: `original.json` → migrate → `migrated.json` →
+    render. Pixel-equal to `original.json` rendered with the
+    Phase-3 code (engine still in place).
+  - Unit tests for the detection rule: purely-static layouts
+    (no dynamic schemas anywhere) round-trip with all schemas
+    marked `absolute`. Mixed dynamic+static layouts get the
+    expected chain-anchor rules. Layouts with cycles refuse to
+    convert with a clear error message.
+  - `--check` dry-run mode exit codes (0 if no changes needed,
+    1 if changes required).
+- **New documentation runnable examples** double as smoke tests
+  (each worked example in `dynamic-layout.md` is a code-fenced
+  template that the doc-test runner generates and pixel-compares).
 
 ## Open questions
 
@@ -516,10 +653,25 @@ release before becoming default.
    single chain), profile and consider wave-parallel execution
    within topo levels. *Defer until measured.*
 
-## Decision needed
+## Decision (recorded)
 
-- Approve / revise / reject the four-phase plan.
-- Sign off on the coexistence model (anchored ⇒ graph,
-  absolute ⇒ engine).
-- Confirm the order: Phase 1 first (stop-gap), then Phase 2, then
-  Phase 3, then Phase 4. Each phase ships as its own PR.
+This RFC was accepted on 2026-05-08 and amended on 2026-05-09. The
+recorded decisions:
+
+- **Two layout modes only.** `anchored` (graph-driven, runtime
+  re-resolved) and `absolute` (literal coords, never moves). No
+  flow mode.
+- **The engine's `totalYOffset` flow is deleted in Phase 4.** It is
+  not preserved as a fallback or a back-stop. What remains of the
+  engine is the per-schema `placeRowsOnPages` fragmentation
+  primitive only.
+- **A migration script ships with Phase 4** to convert any
+  pre-Phase-4 template that depends on implicit flow into
+  chain-anchored form. The script reproduces the same rendered
+  output, so the migration is a code change, not a behavioural
+  change.
+- **Phase order:** 1 (same-Y stop-gap, ships immediately) → 2
+  (topo-walk, single page) → 3 (page-aware) → 4 (engine deletion +
+  migration). Each phase ships as its own PR. Phase 4 ships only
+  after the full template suite is byte-equal across the
+  engine-on / engine-off code paths.
