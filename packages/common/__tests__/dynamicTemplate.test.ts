@@ -1232,6 +1232,58 @@ describe('Same Y position scenarios (horizontal layout) — pdfme#1489', () => {
   });
 });
 
+describe('non-blank-PDF early return — anchor resolution only', () => {
+  // For templates whose basePdf is a CustomPdf (base64 / URL), the
+  // dynamic-reflow engine doesn't run at all — there's no measure pass
+  // and no per-page page-break logic. We still resolve the anchor
+  // graph so anchored schemas land at sensible coords. This branch
+  // exists so that anchored layouts work in templates that paint over
+  // an externally-supplied PDF page.
+  test('resolves anchored schemas in topo order against declared heights', async () => {
+    const template: Template = {
+      // Custom-base64 PDF (CustomPdf) bypasses the reflow engine.
+      basePdf:
+        'data:application/pdf;base64,JVBERi0xLjcKJeLjz9MKNSAwIG9iago8PAovRmlsdGVyIC9GbGF0ZURlY29kZQovTGVuZ3RoIDM4Cj4+CnN0cmVhbQp4nCvkMlAwUDC1NNUzMVGwMDHUszRSKErlCtfiyuMK5AIAXQ8GCgplbmRzdHJlYW0KZW5kb2JqCjQgMCBvYmoKPDwKL1R5cGUgL1BhZ2UKL01lZGlhQm94IFswIDAgNTk1LjQ0IDg0MS45Ml0KL1Jlc291cmNlcyA8PAo+PgovQ29udGVudHMgNSAwIFIKL1BhcmVudCAyIDAgUgo+PgplbmRvYmoKMiAwIG9iago8PAovVHlwZSAvUGFnZXMKL0tpZHMgWzQgMCBSXQovQ291bnQgMQo+PgplbmRvYmoKMSAwIG9iago8PAovVHlwZSAvQ2F0YWxvZwovUGFnZXMgMiAwIFIKPj4KZW5kb2JqCjMgMCBvYmoKPDwKL3RyYXBwZWQgKGZhbHNlKQovQ3JlYXRvciAoU2VyaWYgQWZmaW5pdHkgRGVzaWduZXIgMS4xMC40KQovVGl0bGUgKFVudGl0bGVkLnBkZikKL0NyZWF0aW9uRGF0ZSAoRDoyMDIyMDEwNjE0MDg1OCswOScwMCcpCi9Qcm9kdWNlciAoaUxvdmVQREYpCi9Nb2REYXRlIChEOjIwMjIwMTA2MDUwOTA5WikKPj4KZW5kb2JqCjYgMCBvYmoKPDwKL1NpemUgNwovUm9vdCAxIDAgUgovSW5mbyAzIDAgUgovSUQgWzwyODhCM0VENTAyOEU0MDcyNERBNzNCOUE0Nzk4OUEwQT4gPEY1RkJGNjg4NkVERDZBQUNBNDRCNEZDRjBBRDUxRDlDPl0KL1R5cGUgL1hSZWYKL1cgWzEgMiAyXQovRmlsdGVyIC9GbGF0ZURlY29kZQovSW5kZXggWzAgN10KL0xlbmd0aCAzNgo+PgpzdHJlYW0KeJxjYGD4/5+RUZmBgZHhFZBgDAGxakAEP5BgEmFgAABlRwQJCmVuZHN0cmVhbQplbmRvYmoKc3RhcnR4cmVmCjUzMgolJUVPRgo=',
+      schemas: [
+        [
+          {
+            name: 'header',
+            content: 'header',
+            type: 'text',
+            position: { x: 10, y: 20 },
+            width: 80,
+            height: 10,
+          },
+          {
+            name: 'body',
+            content: 'body',
+            type: 'text',
+            position: { x: 0, y: 0 },
+            width: 80,
+            height: 30,
+            layout: {
+              mode: 'anchored',
+              x: { mode: 'pageLeft', offsetMm: 10 },
+              y: { mode: 'belowBottomEdge', ref: { schemaId: 'header' }, offsetMm: 5 },
+            },
+          },
+        ],
+      ],
+    };
+
+    const dynamic = await getDynamicTemplate({
+      template,
+      input: { header: 'h', body: 'b' },
+      options: {},
+      _cache: new Map(),
+    });
+
+    const body = dynamic.schemas[0].find((s) => s.name === 'body');
+    // body.y = header.position.y (20) + header.height (10) + offset (5) = 35
+    expect(body?.position.y).toBe(35);
+  });
+});
+
 describe('Runtime anchor re-resolution (Phase 2 — RFC 0001)', () => {
   // Phase 2 wires the anchor graph as the runtime source of truth for
   // anchored schemas. Anchored items are placed by the topological

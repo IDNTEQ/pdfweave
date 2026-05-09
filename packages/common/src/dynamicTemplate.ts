@@ -14,7 +14,6 @@ import {
 import { cloneDeep, treatsLikeBlank } from './helper.js';
 import { resolveSchemaValue } from './dataBinding.js';
 import {
-  ANCHOR_EPSILON,
   buildSchemaIndex,
   getAnchoredLayout,
   resolveAnchorX,
@@ -93,41 +92,24 @@ const FRAGMENT_SCHEMA_RESERVED_KEYS = new Set([
 ]);
 
 /**
- * Iteratively forward-resolve anchored schemas on a page, mutating
- * `schema.position` in place. Anchor geometry is delegated to
- * `anchorGeometry`; this function is the reflow-engine's iteration driver
- * (multi-pass to handle chains of anchors) and divergence guard.
+ * Resolve anchored schemas on a page in topological order, mutating
+ * `schema.position` in place. Single-pass, O(N + E). Cycles surface as
+ * an error from `topoSortByAnchorDeps` with the cycle path.
+ *
+ * Used by `getDynamicTemplate`'s non-blank-PDF early return (no
+ * measurement, declared heights only). The blank-PDF reflow path uses
+ * the three-pass topo+engine flow inline.
  */
 function resolveAnchoredSchemas(pageSchemas: Schema[]): void {
+  const order = topoSortByAnchorDeps(pageSchemas);
   const lookup = buildSchemaIndex(pageSchemas);
-
-  for (let pass = 0; pass < pageSchemas.length; pass += 1) {
-    let changed = false;
-
-    for (const schema of pageSchemas) {
-      const layout = (schema as Schema & { layout?: SchemaLayoutRule }).layout;
-      if (!layout || layout.mode !== 'anchored') continue;
-
-      const previousX = schema.position.x;
-      const previousY = schema.position.y;
-      const nextX = resolveAnchorX(schema, lookup);
-      const nextY = resolveAnchorY(schema, lookup);
-      if (nextX !== null) schema.position.x = nextX;
-      if (nextY !== null) schema.position.y = nextY;
-
-      if (
-        Math.abs(previousX - schema.position.x) > ANCHOR_EPSILON ||
-        Math.abs(previousY - schema.position.y) > ANCHOR_EPSILON
-      ) {
-        changed = true;
-      }
-    }
-
-    if (!changed) return;
-
-    if (pass === pageSchemas.length - 1) {
-      throw new Error('[@pdfweave/common] Circular or non-converging anchor layout detected.');
-    }
+  for (const schema of order) {
+    const layout = (schema as Schema & { layout?: SchemaLayoutRule }).layout;
+    if (!layout || layout.mode !== 'anchored') continue;
+    const nextX = resolveAnchorX(schema, lookup);
+    const nextY = resolveAnchorY(schema, lookup);
+    if (nextX !== null) schema.position.x = nextX;
+    if (nextY !== null) schema.position.y = nextY;
   }
 }
 
@@ -617,6 +599,244 @@ function processDynamicPage(
   return pages;
 }
 
+interface PageReflowContext {
+  pageSchemas: Schema[];
+  basePdf: BlankPdf | StationeryPdf;
+  input: Record<string, string>;
+  options: CommonOptions;
+  _cache: Map<string | number, unknown>;
+  contentHeight: number;
+  paddingTop: number;
+  getDynamicLayout?: ModifyTemplateForDynamicTableArg['getDynamicLayout'];
+  getDynamicHeights?: ModifyTemplateForDynamicTableArg['getDynamicHeights'];
+}
+
+/**
+ * Measure a single layout item via the registered plugin's `measure` hook
+ * (or fall back to the schema's static height). Returned fragments may be
+ * a single-row entry (non-splittable plugin), a per-row dynamicHeights
+ * breakdown, or per-fragment heights for cross-page splitting.
+ */
+async function measurePageItem(
+  ctx: PageReflowContext,
+  item: LayoutItem,
+): Promise<LayoutUnitFragment[]> {
+  const value = getSchemaValue(item.schema, ctx.input, ctx.pageSchemas);
+  const measureArgs = {
+    schema: item.schema,
+    basePdf: ctx.basePdf,
+    options: ctx.options,
+    _cache: ctx._cache,
+  };
+  if (ctx.getDynamicLayout) {
+    const result = await ctx.getDynamicLayout(value, measureArgs);
+    const fragments = getLayoutFragmentsFromLayoutResult(item.schema, result);
+    return fragments.length === 0 ? layoutFragmentsFromHeights([0], 'height') : fragments;
+  }
+  if (ctx.getDynamicHeights) {
+    const heights = await ctx.getDynamicHeights(value, measureArgs);
+    return layoutFragmentsFromHeights(
+      heights.length === 0 ? [0] : heights,
+      'dynamicHeights',
+    );
+  }
+  return layoutFragmentsFromHeights([item.schema.height], 'height');
+}
+
+/**
+ * Apply a measurement result to a layout item: store the fragments and
+ * sync the actual height onto the schema (and its pageSchemas counterpart)
+ * so downstream anchor lookups via `buildSchemaIndex` read the post-measure
+ * value. `item.height` is intentionally NOT mutated — the engine relies
+ * on it as the declared baseEnd for grouped-offset accounting.
+ */
+function applyMeasurement(
+  item: LayoutItem,
+  fragments: LayoutUnitFragment[],
+  originalBySchemaName: Map<string, Schema>,
+): void {
+  item.fragments = fragments;
+  let actualHeight = 0;
+  for (const fragment of fragments) actualHeight += fragment.height;
+  item.schema.height = actualHeight;
+  const original = originalBySchemaName.get(item.schema.name);
+  if (original) original.height = actualHeight;
+}
+
+/**
+ * Resolve an anchored schema's x / y against the current `pageSchemas`
+ * geometry and mirror the result onto the layout item. Used for both
+ * tentative resolution in Pass 1 and final resolution in Pass 3.
+ */
+function resolveAnchoredItem(
+  schema: Schema,
+  item: LayoutItem,
+  pageSchemas: Schema[],
+  paddingTop: number,
+): void {
+  const lookup = buildSchemaIndex(pageSchemas);
+  const newX = resolveAnchorX(schema, lookup);
+  const newY = resolveAnchorY(schema, lookup);
+  if (newX !== null) {
+    schema.position.x = newX;
+    item.schema.position.x = newX;
+  }
+  if (newY !== null) {
+    schema.position.y = newY;
+    item.schema.position.y = newY;
+    item.baseY = Math.max(0, newY - paddingTop);
+  }
+}
+
+/**
+ * Walk the placed pages and write each placed schema's last-fragment
+ * geometry back onto its `pageSchemas` entry. Encoded as global Y
+ * (`pageIndex * contentHeight + fragmentY`) so single-page and
+ * page-spanning targets resolve uniformly through the same anchor
+ * arithmetic. (Phase 3 introduces an explicit fragment-aware anchor
+ * model; this is the Phase 2 stop-gap.)
+ */
+function syncLastFragmentGeometry(
+  name: string,
+  pages: Schema[][],
+  contentHeight: number,
+  originalBySchemaName: Map<string, Schema>,
+): void {
+  let last: { pageIndex: number; y: number; height: number; x: number } | undefined;
+  for (let p = 0; p < pages.length; p++) {
+    for (const placed of pages[p]) {
+      if (placed.name !== name) continue;
+      if (isPageBreakSchema(placed)) continue;
+      if (!last || p > last.pageIndex) {
+        last = {
+          pageIndex: p,
+          y: placed.position.y,
+          height: placed.height,
+          x: placed.position.x,
+        };
+      }
+    }
+  }
+  if (!last) return;
+  const original = originalBySchemaName.get(name);
+  if (!original) return;
+  original.position.x = last.x;
+  original.position.y = last.pageIndex * contentHeight + last.y;
+  original.height = last.height;
+}
+
+/**
+ * Absolute-only fast path: parallel-batch measure followed by a single
+ * `processDynamicPage` call. Unchanged from pre-Phase-2.
+ */
+async function processAbsoluteOnlyPage(
+  ctx: PageReflowContext,
+  parallelLimit: number,
+): Promise<Schema[][]> {
+  const { items, orderMap } = normalizePageSchemas(ctx.pageSchemas, ctx.paddingTop);
+  const originalBySchemaName = new Map<string, Schema>();
+  for (const schema of ctx.pageSchemas) originalBySchemaName.set(schema.name, schema);
+  for (let i = 0; i < items.length; i += parallelLimit) {
+    const chunk = items.slice(i, i + parallelLimit);
+    const chunkResults = await Promise.all(chunk.map((item) => measurePageItem(ctx, item)));
+    for (let j = 0; j < chunkResults.length; j++) {
+      applyMeasurement(items[i + j], chunkResults[j], originalBySchemaName);
+    }
+  }
+  return processDynamicPage(items, orderMap, ctx.contentHeight, ctx.paddingTop);
+}
+
+/**
+ * Three-pass layout for pages that contain any anchored schema (RFC 0001
+ * Phase 2):
+ *
+ *   Pass 1. **Measure.** Topo-walk the page's schemas. For each
+ *     anchored schema, do a tentative resolve against upstream measured
+ *     heights so `measure()` sees a sensible `position.y`. Then measure;
+ *     the actual height is synced onto schema.height for downstream
+ *     anchor lookups.
+ *   Pass 2. **Engine on absolute items.** `processDynamicPage` runs on
+ *     ABSOLUTE items only. Anchored items don't influence engine
+ *     accounting (Option C: absolute items aren't pushed by anchored
+ *     neighbours).
+ *   Pass 3. **Re-resolve and place anchored items.** Sync each absolute
+ *     item's final post-engine position back into pageSchemas, then
+ *     walk topo order, re-resolving anchored x / y against the
+ *     now-final upstream geometry and placing via `placeRowsOnPages`
+ *     into the same pages array. Each anchored placement also syncs
+ *     its own last-fragment geometry so chains where an upstream
+ *     target paginates resolve against the placed bottom edge.
+ */
+async function processAnchoredPage(ctx: PageReflowContext): Promise<Schema[][]> {
+  const { pageSchemas, contentHeight, paddingTop } = ctx;
+  const { items, orderMap } = normalizePageSchemas(pageSchemas, paddingTop);
+  const itemBySchemaName = new Map<string, LayoutItem>();
+  for (const item of items) itemBySchemaName.set(item.schema.name, item);
+  const originalBySchemaName = new Map<string, Schema>();
+  for (const schema of pageSchemas) originalBySchemaName.set(schema.name, schema);
+
+  // Pass 1: tentative anchor resolve + measure for every item.
+  const topoOrder = topoSortByAnchorDeps(pageSchemas);
+  for (const schema of topoOrder) {
+    const item = itemBySchemaName.get(schema.name);
+    if (!item) continue;
+    if (getAnchoredLayout(schema)) {
+      resolveAnchoredItem(schema, item, pageSchemas, paddingTop);
+    }
+    const fragments = await measurePageItem(ctx, item);
+    applyMeasurement(item, fragments, originalBySchemaName);
+  }
+
+  // Pass 2: engine on absolute items only.
+  const absoluteItems = items.filter((it) => !getAnchoredLayout(it.schema));
+  absoluteItems.sort((a, b) => {
+    if (Math.abs(a.baseY - b.baseY) > EPSILON) return a.baseY - b.baseY;
+    return (orderMap.get(a.schema.name) ?? 0) - (orderMap.get(b.schema.name) ?? 0);
+  });
+  const processedPages = processDynamicPage(
+    absoluteItems,
+    orderMap,
+    contentHeight,
+    paddingTop,
+  );
+
+  // Pass 3: sync absolute items' final geometry, then re-resolve and
+  // place each anchored item, syncing its own placed geometry back
+  // before the next anchored dependent resolves.
+  const absoluteNames = new Set<string>();
+  for (const page of processedPages) {
+    for (const placed of page) {
+      if (isPageBreakSchema(placed)) continue;
+      absoluteNames.add(placed.name);
+    }
+  }
+  for (const name of absoluteNames) {
+    syncLastFragmentGeometry(name, processedPages, contentHeight, originalBySchemaName);
+  }
+
+  for (const schema of topoOrder) {
+    if (!getAnchoredLayout(schema)) continue;
+    const item = itemBySchemaName.get(schema.name);
+    if (!item) continue;
+    resolveAnchoredItem(schema, item, pageSchemas, paddingTop);
+    placeRowsOnPages(
+      item.schema,
+      item.fragments,
+      item.baseY,
+      contentHeight,
+      paddingTop,
+      processedPages,
+    );
+    syncLastFragmentGeometry(schema.name, processedPages, contentHeight, originalBySchemaName);
+  }
+
+  // Anchored items were appended; resort each page by the original
+  // template order, and trim trailing empties.
+  sortPagesByOrder(processedPages, orderMap);
+  removeTrailingEmptyPages(processedPages);
+  return processedPages;
+}
+
 /**
  * Process a template containing tables with dynamic heights
  * and generate a new template with proper page breaks.
@@ -672,245 +892,26 @@ export const getDynamicTemplate = async (
   const resultPages: Schema[][] = [];
   const PARALLEL_LIMIT = 10;
 
-  // Process each template page independently.
-  //
-  // Phase 2 (RFC 0001) — three-pass layout for pages that contain any
-  // anchored schema:
-  //
-  //   Pass 1. **Measure.** Topo-walk the page's schemas. For each
-  //     anchored schema, do a tentative anchor resolve against the
-  //     latest measured upstream heights (gives `measure()` a sensible
-  //     `position.y` to read). Then measure. The actual measured height
-  //     is synced onto schema.height for downstream lookups.
-  //   Pass 2. **Engine on absolute items.** processDynamicPage runs on
-  //     ABSOLUTE items only (anchored items filtered out). This applies
-  //     the Phase 1 grouped-offset flow to absolute schemas, producing
-  //     their final placed positions. Anchored items do not influence
-  //     the engine's accounting — Option C: absolute means literal
-  //     coords-after-engine; anchored items don't push absolutes.
-  //   Pass 3. **Re-resolve and place anchored items.** Sync each
-  //     absolute item's final post-engine position back onto the
-  //     page's schema (so anchor lookups read the FINAL geometry, not
-  //     the design-time geometry — this fixes the case where an
-  //     anchored item targets an absolute that was pushed by upstream
-  //     growth). Then walk topo order, re-resolve anchored x/y using
-  //     the now-final upstream positions, and place via placeRowsOnPages
-  //     into the same pages array the engine returned.
-  //
-  // For pages with no anchored schemas, the existing absolute-only fast
-  // path applies (parallel-batch measurement + a single processDynamicPage
-  // call), unchanged.
-  //
-  // Pre-Phase-2 path (now removed): resolveAnchoredSchemas ran BEFORE
-  // measure with declared heights; the engine's totalYOffset then
-  // compensated for the declared/actual delta. Phase 2 makes the anchor
-  // graph the runtime source of truth for anchored schemas using actual
-  // measured heights, AND makes that resolution see the final
-  // post-engine position of any absolute target.
+  // Process each template page independently. The per-page work is
+  // delegated to processAnchoredPage / processAbsoluteOnlyPage; see
+  // those helpers for the Phase 2 design.
   for (let pageIndex = 0; pageIndex < workingTemplate.schemas.length; pageIndex++) {
     const pageSchemas = workingTemplate.schemas[pageIndex];
-
-    const { items, orderMap } = normalizePageSchemas(pageSchemas, paddingTop);
-    const itemBySchemaName = new Map<string, LayoutItem>();
-    for (const item of items) itemBySchemaName.set(item.schema.name, item);
-    const originalBySchemaName = new Map<string, Schema>();
-    for (const schema of pageSchemas) originalBySchemaName.set(schema.name, schema);
-
-    const measureItem = async (item: LayoutItem): Promise<LayoutUnitFragment[]> => {
-      const value = getSchemaValue(item.schema, input, pageSchemas);
-      const measureArgs = {
-        schema: item.schema,
-        basePdf,
-        options,
-        _cache,
-      };
-
-      if (getDynamicLayout) {
-        const result = await getDynamicLayout(value, measureArgs);
-        const fragments = getLayoutFragmentsFromLayoutResult(item.schema, result);
-        return fragments.length === 0
-          ? layoutFragmentsFromHeights([0], 'height')
-          : fragments;
-      }
-
-      if (getDynamicHeights) {
-        const heights = await getDynamicHeights(value, measureArgs);
-        return layoutFragmentsFromHeights(
-          heights.length === 0 ? [0] : heights,
-          'dynamicHeights',
-        );
-      }
-
-      return layoutFragmentsFromHeights([item.schema.height], 'height');
-    };
-
-    const applyMeasurement = (item: LayoutItem, fragments: LayoutUnitFragment[]): void => {
-      item.fragments = fragments;
-      // DO NOT mutate item.height. The engine relies on it being the
-      // declared height for grouped-offset accounting on absolute items.
-      // Sync the measured total onto schema.height so downstream anchor
-      // lookups read it via buildSchemaIndex.
-      let actualHeight = 0;
-      for (const fragment of fragments) actualHeight += fragment.height;
-      item.schema.height = actualHeight;
-      const original = originalBySchemaName.get(item.schema.name);
-      if (original) original.height = actualHeight;
-    };
-
-    const hasAnyAnchor = pageSchemas.some((s) => getAnchoredLayout(s));
-
-    if (!hasAnyAnchor) {
-      // Absolute-only fast path: unchanged from pre-Phase-2.
-      for (let i = 0; i < items.length; i += PARALLEL_LIMIT) {
-        const chunk = items.slice(i, i + PARALLEL_LIMIT);
-        const chunkResults = await Promise.all(chunk.map(measureItem));
-        for (let j = 0; j < chunkResults.length; j++) {
-          applyMeasurement(items[i + j], chunkResults[j]);
-        }
-      }
-      const processedPages = processDynamicPage(items, orderMap, contentHeight, paddingTop);
-      resultPages.push(...processedPages);
-      continue;
-    }
-
-    // === Pass 1: tentative anchor resolve + measure for every item ===
-    const topoOrder = topoSortByAnchorDeps(pageSchemas);
-    for (const schema of topoOrder) {
-      const item = itemBySchemaName.get(schema.name);
-      if (!item) continue;
-
-      if (getAnchoredLayout(schema)) {
-        // Tentative resolve so measure() sees a sensible position.y.
-        // Final positions are computed in Pass 3 after the engine has
-        // moved any absolute targets.
-        const lookup = buildSchemaIndex(pageSchemas);
-        const newX = resolveAnchorX(schema, lookup);
-        const newY = resolveAnchorY(schema, lookup);
-        if (newX !== null) {
-          schema.position.x = newX;
-          item.schema.position.x = newX;
-        }
-        if (newY !== null) {
-          schema.position.y = newY;
-          item.schema.position.y = newY;
-          item.baseY = Math.max(0, newY - paddingTop);
-        }
-      }
-
-      const fragments = await measureItem(item);
-      applyMeasurement(item, fragments);
-    }
-
-    // === Pass 2: engine on absolute items only ===
-    const absoluteItems = items.filter((it) => !getAnchoredLayout(it.schema));
-    absoluteItems.sort((a, b) => {
-      if (Math.abs(a.baseY - b.baseY) > EPSILON) return a.baseY - b.baseY;
-      return (orderMap.get(a.schema.name) ?? 0) - (orderMap.get(b.schema.name) ?? 0);
-    });
-    const processedPages = processDynamicPage(
-      absoluteItems,
-      orderMap,
+    const ctx: PageReflowContext = {
+      pageSchemas,
+      basePdf,
+      input,
+      options,
+      _cache,
       contentHeight,
       paddingTop,
-    );
-
-    // === Pass 3: sync engine's final positions, then re-resolve + place anchored ===
-    //
-    // For each placed schema, encode "global Y of last fragment" onto
-    // the corresponding pageSchemas entry so subsequent anchor lookups
-    // see the post-engine / post-placement geometry. This applies
-    // uniformly to:
-    //   (a) absolute items placed in Pass 2 (so anchored items resolving
-    //       against them read the engine-pushed position),
-    //   (b) anchored items placed earlier in Pass 3 (so chains of
-    //       anchored items where an upstream target paginates resolve
-    //       the downstream link against the LAST-fragment bottom, not
-    //       the start-page-y + measured-height).
-    //
-    // Single-page targets: position.y stays template-relative because
-    // pageIndex = 0. Page-spanning targets: position.y becomes a
-    // global-Y value (pageIndex * contentHeight + fragmentY); the
-    // arithmetic in resolveAnchorY (`target.position.y + target.height`)
-    // and in placeRowsOnPages (`floor(startGlobalY / contentHeight)`)
-    // both consume that uniformly.
-    //
-    // (Phase 3 will introduce an explicit fragment-aware anchor model;
-    // this Pass-3 sync is the Phase-2 stop-gap.)
-    const syncLastFragmentGeometry = (name: string): void => {
-      let last:
-        | { pageIndex: number; y: number; height: number; x: number }
-        | undefined;
-      for (let p = 0; p < processedPages.length; p++) {
-        for (const placed of processedPages[p]) {
-          if (placed.name !== name) continue;
-          if (isPageBreakSchema(placed)) continue;
-          if (!last || p > last.pageIndex) {
-            last = {
-              pageIndex: p,
-              y: placed.position.y,
-              height: placed.height,
-              x: placed.position.x,
-            };
-          }
-        }
-      }
-      if (!last) return;
-      const original = originalBySchemaName.get(name);
-      if (!original) return;
-      original.position.x = last.x;
-      original.position.y = last.pageIndex * contentHeight + last.y;
-      original.height = last.height;
+      getDynamicLayout,
+      getDynamicHeights,
     };
-
-    // Sync absolute items first (placed by the engine in Pass 2).
-    const absoluteNames = new Set<string>();
-    for (let p = 0; p < processedPages.length; p++) {
-      for (const placed of processedPages[p]) {
-        if (isPageBreakSchema(placed)) continue;
-        absoluteNames.add(placed.name);
-      }
-    }
-    for (const name of absoluteNames) syncLastFragmentGeometry(name);
-
-    for (const schema of topoOrder) {
-      if (!getAnchoredLayout(schema)) continue;
-      const item = itemBySchemaName.get(schema.name);
-      if (!item) continue;
-
-      const lookup = buildSchemaIndex(pageSchemas);
-      const newX = resolveAnchorX(schema, lookup);
-      const newY = resolveAnchorY(schema, lookup);
-      if (newX !== null) {
-        schema.position.x = newX;
-        item.schema.position.x = newX;
-      }
-      if (newY !== null) {
-        schema.position.y = newY;
-        item.schema.position.y = newY;
-        item.baseY = Math.max(0, newY - paddingTop);
-      }
-
-      placeRowsOnPages(
-        item.schema,
-        item.fragments,
-        item.baseY,
-        contentHeight,
-        paddingTop,
-        processedPages,
-      );
-
-      // Sync this anchored item's placed last-fragment geometry back
-      // into pageSchemas so any anchored dependent later in topo order
-      // resolves against the post-placement bottom edge (handles
-      // anchored→anchored chains where the upstream target paginates).
-      syncLastFragmentGeometry(schema.name);
-    }
-
-    // Anchored items were appended; resort each page by the original
-    // template order, and trim trailing empties that the late additions
-    // may have created.
-    sortPagesByOrder(processedPages, orderMap);
-    removeTrailingEmptyPages(processedPages);
+    const hasAnyAnchor = pageSchemas.some((s) => getAnchoredLayout(s));
+    const processedPages = hasAnyAnchor
+      ? await processAnchoredPage(ctx)
+      : await processAbsoluteOnlyPage(ctx, PARALLEL_LIMIT);
     resultPages.push(...processedPages);
   }
 
