@@ -816,42 +816,61 @@ export const getDynamicTemplate = async (
 
     // === Pass 3: sync engine's final positions, then re-resolve + place anchored ===
     //
-    // Walk the engine output to find each absolute schema's last
-    // fragment. For anchor-target purposes the bottom edge is the bottom
-    // of the LAST fragment; encode that as a global Y so single-page and
-    // page-spanning targets work uniformly. (Page-spanning targets carry
-    // an off-screen `position.y` that is consumed correctly by
-    // placeRowsOnPages in Pass 3 — it computes pageIndex/yInPage from
-    // the global value.)
-    const lastFragmentByName = new Map<
-      string,
-      { pageIndex: number; y: number; height: number; x: number }
-    >();
+    // For each placed schema, encode "global Y of last fragment" onto
+    // the corresponding pageSchemas entry so subsequent anchor lookups
+    // see the post-engine / post-placement geometry. This applies
+    // uniformly to:
+    //   (a) absolute items placed in Pass 2 (so anchored items resolving
+    //       against them read the engine-pushed position),
+    //   (b) anchored items placed earlier in Pass 3 (so chains of
+    //       anchored items where an upstream target paginates resolve
+    //       the downstream link against the LAST-fragment bottom, not
+    //       the start-page-y + measured-height).
+    //
+    // Single-page targets: position.y stays template-relative because
+    // pageIndex = 0. Page-spanning targets: position.y becomes a
+    // global-Y value (pageIndex * contentHeight + fragmentY); the
+    // arithmetic in resolveAnchorY (`target.position.y + target.height`)
+    // and in placeRowsOnPages (`floor(startGlobalY / contentHeight)`)
+    // both consume that uniformly.
+    //
+    // (Phase 3 will introduce an explicit fragment-aware anchor model;
+    // this Pass-3 sync is the Phase-2 stop-gap.)
+    const syncLastFragmentGeometry = (name: string): void => {
+      let last:
+        | { pageIndex: number; y: number; height: number; x: number }
+        | undefined;
+      for (let p = 0; p < processedPages.length; p++) {
+        for (const placed of processedPages[p]) {
+          if (placed.name !== name) continue;
+          if (isPageBreakSchema(placed)) continue;
+          if (!last || p > last.pageIndex) {
+            last = {
+              pageIndex: p,
+              y: placed.position.y,
+              height: placed.height,
+              x: placed.position.x,
+            };
+          }
+        }
+      }
+      if (!last) return;
+      const original = originalBySchemaName.get(name);
+      if (!original) return;
+      original.position.x = last.x;
+      original.position.y = last.pageIndex * contentHeight + last.y;
+      original.height = last.height;
+    };
+
+    // Sync absolute items first (placed by the engine in Pass 2).
+    const absoluteNames = new Set<string>();
     for (let p = 0; p < processedPages.length; p++) {
       for (const placed of processedPages[p]) {
         if (isPageBreakSchema(placed)) continue;
-        const existing = lastFragmentByName.get(placed.name);
-        if (!existing || p > existing.pageIndex) {
-          lastFragmentByName.set(placed.name, {
-            pageIndex: p,
-            y: placed.position.y,
-            height: placed.height,
-            x: placed.position.x,
-          });
-        }
+        absoluteNames.add(placed.name);
       }
     }
-    for (const [name, last] of lastFragmentByName) {
-      const original = originalBySchemaName.get(name);
-      if (!original) continue;
-      original.position.x = last.x;
-      // Encode "global Y of last fragment" so anchor resolve picks up
-      // page-aware bottom-edge geometry. (Phase 3 will introduce an
-      // explicit fragment-aware anchor model; for now this works for
-      // both single-page and multi-page targets via global-Y arithmetic.)
-      original.position.y = last.pageIndex * contentHeight + last.y;
-      original.height = last.height;
-    }
+    for (const name of absoluteNames) syncLastFragmentGeometry(name);
 
     for (const schema of topoOrder) {
       if (!getAnchoredLayout(schema)) continue;
@@ -879,6 +898,12 @@ export const getDynamicTemplate = async (
         paddingTop,
         processedPages,
       );
+
+      // Sync this anchored item's placed last-fragment geometry back
+      // into pageSchemas so any anchored dependent later in topo order
+      // resolves against the post-placement bottom edge (handles
+      // anchored→anchored chains where the upstream target paginates).
+      syncLastFragmentGeometry(schema.name);
     }
 
     // Anchored items were appended; resort each page by the original

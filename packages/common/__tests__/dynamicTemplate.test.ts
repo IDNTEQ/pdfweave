@@ -1531,6 +1531,81 @@ describe('Runtime anchor re-resolution (Phase 2 — RFC 0001)', () => {
     expect(b?.position.y).toBe(85);
   });
 
+  test('anchored chain where upstream target paginates: B uses A\'s last-fragment bottom', async () => {
+    // Regression for CodeRabbit feedback on PR #46:
+    // anchored-to-anchored chain where the upstream target spans
+    // pages. B targets A's bottom; A's actual content overflows page 1
+    // and continues onto page 2. B must resolve against A's
+    // LAST-fragment bottom (on page 2), not A's start-page-y +
+    // measured-height (which would put B too high).
+    //
+    // Setup: contentHeight = paddingTop+drawable = 10+90 = 100. A is
+    // anchored at pageTop offset 10, dynamic with 5×30 fragments
+    // (total 150 — fragment sequence overflows the 90mm drawable).
+    // First two fragments fit page 1 (y=10..70); last three fit page
+    // 2 (y=10..100).
+    const splitBasePdf: BasePdf = { width: 100, height: 110, padding: [10, 10, 10, 10] };
+    const template: Template = {
+      basePdf: splitBasePdf,
+      schemas: [
+        [
+          {
+            name: 'a',
+            content: 'a',
+            type: 'a',
+            position: { x: 10, y: 0 },
+            width: 80,
+            height: 30,
+            layout: {
+              mode: 'anchored',
+              x: { mode: 'pageLeft', offsetMm: 10 },
+              y: { mode: 'pageTop', offsetMm: 0 },
+            },
+          },
+          {
+            name: 'b',
+            content: 'b',
+            type: 'b',
+            position: { x: 10, y: 0 },
+            width: 80,
+            height: 10,
+            layout: {
+              mode: 'anchored',
+              x: { mode: 'pageLeft', offsetMm: 10 },
+              y: { mode: 'belowBottomEdge', ref: { schemaId: 'a' }, offsetMm: 5 },
+            },
+          },
+        ],
+      ],
+    };
+
+    const dynamic = await getDynamicTemplate({
+      template,
+      input: { a: 'a', b: 'b' },
+      options: {},
+      _cache: new Map(),
+      getDynamicHeights: async (_value, args: { schema: Schema }) => {
+        // a: five 30mm rows. With 90mm drawable, 3 rows fit per page.
+        if (args.schema.name === 'a') return [30, 30, 30, 30, 30];
+        return [args.schema.height];
+      },
+    });
+
+    // a should split across two pages: 3 rows on page 1 (y=10..100),
+    // 2 rows on page 2 (y=10..70).
+    expect(dynamic.schemas.length).toBe(2);
+    const aFragmentsP1 = dynamic.schemas[0].filter((s) => s.name === 'a');
+    const aFragmentsP2 = dynamic.schemas[1].filter((s) => s.name === 'a');
+    expect(aFragmentsP1.length).toBeGreaterThanOrEqual(1);
+    expect(aFragmentsP2.length).toBeGreaterThanOrEqual(1);
+    // a's last fragment lands on page 2.
+    const aLast = aFragmentsP2[aFragmentsP2.length - 1];
+    // b must land on page 2, below a's last fragment + offset 5.
+    const b = dynamic.schemas[1].find((s) => s.name === 'b');
+    expect(b).toBeDefined();
+    expect(b?.position.y).toBe((aLast.position.y ?? 0) + (aLast.height ?? 0) + 5);
+  });
+
   test('two-axis deps: B X-anchored to A, Y-anchored to C', async () => {
     const template: Template = {
       basePdf: phase2BasePdf,
