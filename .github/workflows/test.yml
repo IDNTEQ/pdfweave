@@ -87,7 +87,7 @@ jobs:
           fi
       - name: CRAP PR comment
         if: github.event_name == 'pull_request' && always() && steps.crap_exists.outputs.found == 'true'
-        uses: marocchino/sticky-pull-request-comment@v2
+        uses: marocchino/sticky-pull-request-comment@v3
         with:
           header: crap
           path: coverage/crap-report.md
