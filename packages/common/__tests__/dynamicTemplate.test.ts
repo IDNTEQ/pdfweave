@@ -1231,3 +1231,239 @@ describe('Same Y position scenarios (horizontal layout) — pdfme#1489', () => {
     expect(b?.height).toBe(10);
   });
 });
+
+describe('Runtime anchor re-resolution (Phase 2 — RFC 0001)', () => {
+  // Phase 2 wires the anchor graph as the runtime source of truth for
+  // anchored schemas. Anchored items are placed by the topological
+  // resolve walk in getDynamicTemplate using actual measured heights of
+  // their dependencies; processDynamicPage skips them so their positions
+  // are not double-shifted by the engine's grouped-offset flow.
+  //
+  // The four cases below cover the new code path:
+  //   1. anchored chain (B belowBottomEdge of A; A dynamic)
+  //   2. anchored siblings sharing a pageTop offset (A dynamic, B static)
+  //   3. mixed-mode (B anchored to an absolute target whose content grows)
+  //   4. two-axis deps (B X-anchored to A, Y-anchored to C; both dynamic)
+
+  const phase2BasePdf: BasePdf = { width: 200, height: 400, padding: [10, 10, 10, 10] };
+
+  test('anchored chain: B re-resolves below A using A\'s actual height', async () => {
+    const template: Template = {
+      basePdf: phase2BasePdf,
+      schemas: [
+        [
+          {
+            name: 'a',
+            content: 'a',
+            type: 'a',
+            position: { x: 10, y: 10 },
+            width: 80,
+            height: 10,
+          },
+          {
+            name: 'b',
+            content: 'b',
+            type: 'b',
+            position: { x: 10, y: 20 },
+            width: 80,
+            height: 10,
+            layout: {
+              mode: 'anchored',
+              x: { mode: 'pageLeft', offsetMm: 10 },
+              y: { mode: 'belowBottomEdge', ref: { schemaId: 'a' }, offsetMm: 5 },
+            },
+          },
+        ],
+      ],
+    };
+
+    const dynamic = await getDynamicTemplate({
+      template,
+      input: { a: 'a', b: 'b' },
+      options: {},
+      _cache: new Map(),
+      getDynamicHeights: async (_value, args: { schema: Schema }) => {
+        if (args.schema.name === 'a') return [10, 10, 10]; // a expands 10 -> 30
+        return [args.schema.height];
+      },
+    });
+
+    const a = dynamic.schemas[0].find((s) => s.name === 'a');
+    const b = dynamic.schemas[0].find((s) => s.name === 'b');
+    expect(a?.position.y).toBe(10);
+    expect(a?.height).toBe(30);
+    // B = A.position.y (10) + A.actualHeight (30) + offset (5) = 45.
+    // Pre-Phase-2 the answer happens to be the same via the engine's
+    // grouped offset; this test asserts the topo walk produces it
+    // independently of the engine.
+    expect(b?.position.y).toBe(45);
+  });
+
+  test('anchored siblings at pageTop: one grows, the other stays put', async () => {
+    const template: Template = {
+      basePdf: phase2BasePdf,
+      schemas: [
+        [
+          {
+            name: 'a',
+            content: 'a',
+            type: 'a',
+            position: { x: 10, y: 0 },
+            width: 80,
+            height: 10,
+            layout: {
+              mode: 'anchored',
+              x: { mode: 'pageLeft', offsetMm: 10 },
+              y: { mode: 'pageTop', offsetMm: 10 },
+            },
+          },
+          {
+            name: 'b',
+            content: 'b',
+            type: 'b',
+            position: { x: 100, y: 0 },
+            width: 80,
+            height: 10,
+            layout: {
+              mode: 'anchored',
+              x: { mode: 'pageLeft', offsetMm: 100 },
+              y: { mode: 'pageTop', offsetMm: 10 },
+            },
+          },
+        ],
+      ],
+    };
+
+    const dynamic = await getDynamicTemplate({
+      template,
+      input: { a: 'a', b: 'b' },
+      options: {},
+      _cache: new Map(),
+      getDynamicHeights: async (_value, args: { schema: Schema }) => {
+        if (args.schema.name === 'a') return [10, 10, 10]; // +20
+        return [args.schema.height];
+      },
+    });
+
+    const a = dynamic.schemas[0].find((s) => s.name === 'a');
+    const b = dynamic.schemas[0].find((s) => s.name === 'b');
+    // Both anchored at pageTop offset 10; A's expansion does not affect B.
+    // Anchored items skip the engine's grouped-offset pass entirely.
+    expect(a?.position.y).toBe(10);
+    expect(a?.height).toBe(30);
+    expect(b?.position.y).toBe(10);
+    expect(b?.height).toBe(10);
+  });
+
+  test('mixed mode: B anchored to absolute A; uses A\'s actual height', async () => {
+    const template: Template = {
+      basePdf: phase2BasePdf,
+      schemas: [
+        [
+          {
+            name: 'a',
+            content: 'a',
+            type: 'a',
+            position: { x: 10, y: 50 },
+            width: 80,
+            height: 10,
+          },
+          {
+            name: 'b',
+            content: 'b',
+            type: 'b',
+            position: { x: 10, y: 20 },
+            width: 80,
+            height: 10,
+            layout: {
+              mode: 'anchored',
+              x: { mode: 'pageLeft', offsetMm: 10 },
+              y: { mode: 'belowBottomEdge', ref: { schemaId: 'a' }, offsetMm: 5 },
+            },
+          },
+        ],
+      ],
+    };
+
+    const dynamic = await getDynamicTemplate({
+      template,
+      input: { a: 'a', b: 'b' },
+      options: {},
+      _cache: new Map(),
+      getDynamicHeights: async (_value, args: { schema: Schema }) => {
+        if (args.schema.name === 'a') return [10, 10, 10]; // +20 actual
+        return [args.schema.height];
+      },
+    });
+
+    const a = dynamic.schemas[0].find((s) => s.name === 'a');
+    const b = dynamic.schemas[0].find((s) => s.name === 'b');
+    expect(a?.position.y).toBe(50);
+    expect(a?.height).toBe(30);
+    // B = A.position.y (50) + A.actualHeight (30) + offset (5) = 85.
+    // The anchor reads A's measured height regardless of A's layout
+    // mode — `mode: 'absolute'` fixes A's position, not its rendered
+    // content height.
+    expect(b?.position.y).toBe(85);
+  });
+
+  test('two-axis deps: B X-anchored to A, Y-anchored to C', async () => {
+    const template: Template = {
+      basePdf: phase2BasePdf,
+      schemas: [
+        [
+          {
+            name: 'a',
+            content: 'a',
+            type: 'a',
+            position: { x: 20, y: 10 },
+            width: 50,
+            height: 10,
+          },
+          {
+            name: 'c',
+            content: 'c',
+            type: 'c',
+            position: { x: 10, y: 30 },
+            width: 80,
+            height: 10,
+          },
+          {
+            name: 'b',
+            content: 'b',
+            type: 'b',
+            position: { x: 0, y: 0 },
+            width: 20,
+            height: 10,
+            layout: {
+              mode: 'anchored',
+              x: { mode: 'afterRightEdge', ref: { schemaId: 'a' }, offsetMm: 5 },
+              y: { mode: 'belowBottomEdge', ref: { schemaId: 'c' }, offsetMm: 8 },
+            },
+          },
+        ],
+      ],
+    };
+
+    const dynamic = await getDynamicTemplate({
+      template,
+      input: { a: 'a', b: 'b', c: 'c' },
+      options: {},
+      _cache: new Map(),
+      getDynamicHeights: async (_value, args: { schema: Schema }) => {
+        if (args.schema.name === 'c') return [10, 10, 10, 10]; // c expands 10 -> 40
+        return [args.schema.height];
+      },
+    });
+
+    const a = dynamic.schemas[0].find((s) => s.name === 'a');
+    const c = dynamic.schemas[0].find((s) => s.name === 'c');
+    const b = dynamic.schemas[0].find((s) => s.name === 'b');
+    expect(a?.position.y).toBe(10);
+    expect(c?.height).toBe(40);
+    // B.x = A.x (20) + A.width (50) + offset (5) = 75
+    // B.y = C.position.y (30) + C.actualHeight (40) + offset (8) = 78
+    expect(b?.position.x).toBe(75);
+    expect(b?.position.y).toBe(78);
+  });
+});
