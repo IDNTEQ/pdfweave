@@ -1,8 +1,8 @@
 # RFC 0001 — Runtime anchor resolution + single-system layout
 
-- **Status:** Accepted (amended 2026-05-09)
+- **Status:** Accepted (amended 2026-05-10)
 - **Author:** PDFweave maintainers
-- **Date:** 2026-05-08, amended 2026-05-09
+- **Date:** 2026-05-08, amended 2026-05-09 and 2026-05-10
 - **Implementation tracking:** TBD GitHub issue
 - **Amendment note (2026-05-09):** clarified that PDFweave moves to a
   single-system layout model. Earlier draft framed Phase 4 as "two
@@ -11,6 +11,12 @@
   `totalYOffset` flow. That contradicts the actual decision: there is
   no flow mode; `absolute` is truly fixed; the engine's flow logic
   is deleted in Phase 4 and replaced by a migration script.
+- **Amendment note (2026-05-10):** Phase 3 split into 3a (cross-page
+  base case, **delivered as a side-effect of the Phase 2 PR via the
+  global-Y `syncLastFragmentGeometry` encoding**) and 3b (advanced
+  capabilities `belowFragment` mode + named-point
+  `LayoutFragment.anchors`, **deferred** until requested by a user
+  and likely warranting their own RFC).
 
 ## Summary
 
@@ -389,36 +395,51 @@ algorithm above) means correctness depends on the topological ordering
 being valid; cycle detection throws. Snapshot tests will catch any
 positional drift introduced by the algorithm change.
 
-### Phase 3 — Page-aware anchor resolution *(~1–2 weeks)*
+### Phase 3 — Page-aware anchor resolution *(landed in two parts)*
 
 **Goal:** support anchors across page boundaries — "B is below A's
 last fragment when A spans multiple pages."
 
-**Design:**
+**Phase 3a — cross-page anchor base case (DELIVERED in Phase 2 PR #46):**
 
-- Anchor resolution moves from operating on `Schema[]` to operating on
-  a flat list of `PlacedFragment`:
-  ```ts
-  type PlacedFragment = {
-    schemaId: string
-    fragmentIndex: number  // 0 if non-spanning
-    pageIndex: number
-    position: { x: number; y: number }
-    width: number
-    height: number
-    anchors: Record<string, LayoutAnchorPoint>
-  }
-  ```
-- `resolveAnchorY` looks up the LAST fragment of its target. If the
-  target spans pages, B is placed below the last fragment, on whatever
-  page that fragment ended up on. If B itself overflows the page, it
-  page-splits via the same fragmentation mechanism the target used.
-- New anchor mode: `belowFragment(targetSchemaId, fragmentIndex)` —
-  for advanced cases like "anchor below the second row of the table."
-  Optional; deferred until requested by a user.
-- `LayoutFragment.anchors` becomes consumable: anchor refs may target
-  named points within a fragment, e.g.
+The cross-page basic case for `belowBottomEdge` and `alignBottomEdge`
+landed as a side-effect of the Phase 2 implementation. The mechanism
+is `syncLastFragmentGeometry` in
+`packages/common/src/dynamicTemplate.ts`: after each item is placed
+(absolute via the engine in Pass 2, anchored via the topo walk in
+Pass 3), its corresponding `pageSchemas` entry has its
+`position.y` rewritten to the **global Y** of its last fragment
+(`lastPageIndex × contentHeight + lastFragmentY`) and its `height`
+set to the last fragment's height.
+
+With this encoding, `target.position.y + target.height` evaluated by
+`resolveAnchorY` gives the bottom edge in global-Y space, and
+`placeRowsOnPages`'s `pageIndex = floor(globalY / contentHeight)`
+derivation places the dependent on the correct page. This avoids the
+heavier `PlacedFragment[]` restructuring originally proposed for
+Phase 3 — the global-Y arithmetic does the same job for the common
+cases.
+
+**Phase 3b — extended capabilities (DEFERRED, opt-in):**
+
+Two advanced features remain available for follow-up PRs when a user
+requests them:
+
+- **New anchor mode `belowFragment(targetSchemaId, fragmentIndex)`** —
+  for cases like "anchor below the second row of the table" where the
+  user wants to land below an interior fragment, not the last
+  fragment.
+- **`LayoutFragment.anchors` becomes consumable** — anchor refs may
+  target named points within a fragment, e.g.
   `{ schemaId: 'invoiceTable', anchorName: 'totalRowBaseline' }`.
+  Today the field exists in `types.ts` and is populated by overlay
+  rendering, but anchor resolution doesn't read it.
+
+If/when these ship, anchor resolution will need to grow a richer
+target model than the global-Y trick — likely the
+`PlacedFragment[]` shape sketched in the original draft. That work
+should arrive with its own RFC since the lookup model and Designer
+ergonomics need design discussion.
 
 **Migration:**
 
@@ -428,10 +449,19 @@ last fragment when A spans multiple pages."
   level; users don't need to think about fragments unless they
   explicitly opt in.
 
-**Risk:** medium-high. The fragmentation model is invasive; cross-page
-anchor relationships need careful test coverage; existing tests must
-continue to pass byte-for-byte. RFC may need a follow-up RFC on the
-PlacedFragment shape before implementation.
+**Test coverage (Phase 3a):**
+
+- `dynamicTemplate.test.ts > Page-aware anchor resolution (Phase 3)`
+  block covers anchored→anchored chains where two upstream items
+  paginate, anchored→absolute chains where the engine pushes the
+  absolute upstream across pages, and X-anchor cross-page cases
+  where the X target is on a different page than the dependent.
+- The Phase 2 paginated-target test in the runtime re-resolution
+  block also exercises the simple case.
+
+**Risk (Phase 3a, retrospective):** low. The global-Y encoding is
+contained within `syncLastFragmentGeometry`; existing snapshot tests
+remained byte-equal across the Phase 2 merge.
 
 ### Phase 4 — Delete the engine flow + ship migration tooling *(~1–2 weeks)*
 
@@ -554,7 +584,8 @@ preserved as a fallback.
 |---|---|---|---|
 | 1 | Low | Yes (revert) | None — bug fix only |
 | 2 | Medium | Yes (disable topo-walk; fall back to engine-only flow) | None — same final positions, different mechanism |
-| 3 | Medium-high | Hard (new fragment shape) | New capabilities (cross-page anchors) |
+| 3a | Low (delivered in Phase 2) | n/a | Cross-page anchor refs work via global-Y encoding |
+| 3b | Medium-high (deferred) | Hard (richer target model) | New capabilities (`belowFragment`, named-point anchors within fragments) |
 | 4 | Medium | Hard once shipped (engine deletion) | Templates relying on implicit flow must run the migration script; the script reproduces the same rendered output |
 
 Ship phases independently. After Phase 1 lands, Phase 2 can be a

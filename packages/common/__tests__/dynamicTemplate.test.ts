@@ -1718,3 +1718,248 @@ describe('Runtime anchor re-resolution (Phase 2 — RFC 0001)', () => {
     expect(b?.position.y).toBe(78);
   });
 });
+
+describe('Page-aware anchor resolution (Phase 3 — RFC 0001)', () => {
+  // Phase 3 ratifies cross-page anchor refs. The mechanism is the
+  // global-Y encoding from Phase 2's syncLastFragmentGeometry: when a
+  // target paginates, its `position.y` is rewritten to
+  // `lastPageIndex * contentHeight + lastFragmentY` so resolveAnchorY's
+  // `target.position.y + target.height` arithmetic yields the bottom
+  // edge in global-Y space, and placeRowsOnPages's
+  // `floor(globalY / contentHeight)` derivation places the dependent
+  // on the correct page. These tests cover the cases that go beyond
+  // the single Phase-2 paginated-target test.
+
+  // Drawable height = 90mm (page 110, padding 10/10). Wide pages so
+  // X-position arithmetic doesn't interfere with the cross-page Y tests.
+  const splitBasePdf: BasePdf = { width: 200, height: 110, padding: [10, 10, 10, 10] };
+
+  test('anchored chain where two upstream items both paginate (A → B → C)', async () => {
+    // A paginates (5×30mm = 150mm > 90mm drawable → 2 pages),
+    // B (anchored below A) also paginates (4×30mm = 120mm), and C
+    // (anchored below B) lands wherever B's last fragment ends. The
+    // Pass 3 sync-after-each-anchored-placement chain must propagate
+    // each link's last-fragment global-Y forward.
+    const template: Template = {
+      basePdf: splitBasePdf,
+      schemas: [
+        [
+          {
+            name: 'a',
+            content: 'a',
+            type: 'a',
+            position: { x: 10, y: 0 },
+            width: 80,
+            height: 30,
+            layout: {
+              mode: 'anchored',
+              x: { mode: 'pageLeft', offsetMm: 10 },
+              y: { mode: 'pageTop', offsetMm: 0 },
+            },
+          },
+          {
+            name: 'b',
+            content: 'b',
+            type: 'b',
+            position: { x: 10, y: 0 },
+            width: 80,
+            height: 30,
+            layout: {
+              mode: 'anchored',
+              x: { mode: 'pageLeft', offsetMm: 10 },
+              y: { mode: 'belowBottomEdge', ref: { schemaId: 'a' }, offsetMm: 0 },
+            },
+          },
+          {
+            name: 'c',
+            content: 'c',
+            type: 'c',
+            position: { x: 10, y: 0 },
+            width: 80,
+            height: 10,
+            layout: {
+              mode: 'anchored',
+              x: { mode: 'pageLeft', offsetMm: 10 },
+              y: { mode: 'belowBottomEdge', ref: { schemaId: 'b' }, offsetMm: 5 },
+            },
+          },
+        ],
+      ],
+    };
+
+    const dynamic = await getDynamicTemplate({
+      template,
+      input: { a: 'a', b: 'b', c: 'c' },
+      options: {},
+      _cache: new Map(),
+      getDynamicHeights: async (_value, args: { schema: Schema }) => {
+        if (args.schema.name === 'a') return [30, 30, 30, 30, 30];
+        if (args.schema.name === 'b') return [30, 30, 30, 30];
+        return [args.schema.height];
+      },
+    });
+
+    // A's last fragment lands somewhere; B follows; C follows B.
+    // Just assert C lands directly below B's last placed fragment.
+    const allBs = dynamic.schemas.flatMap((page, p) =>
+      page.filter((s) => s.name === 'b').map((s) => ({ schema: s, page: p })),
+    );
+    const bLast = allBs[allBs.length - 1];
+    const c = dynamic.schemas
+      .flatMap((page, p) => page.filter((s) => s.name === 'c').map((s) => ({ schema: s, page: p })))
+      .at(-1);
+    expect(bLast).toBeDefined();
+    expect(c).toBeDefined();
+    expect(c?.page).toBe(bLast.page);
+    expect(c?.schema.position.y).toBe(
+      (bLast.schema.position.y ?? 0) + (bLast.schema.height ?? 0) + 5,
+    );
+  });
+
+  test('anchored item targets an absolute that the engine pushed across pages', async () => {
+    // X (absolute, dynamic) paginates 10 → 150mm. A (absolute,
+    // declared height 10) sits below X and gets pushed by engine
+    // grouped offset onto a later page. B (anchored to A) must
+    // resolve against A's POST-ENGINE landing site (global-Y
+    // encoded), not its template-declared position.
+    const template: Template = {
+      basePdf: splitBasePdf,
+      schemas: [
+        [
+          {
+            name: 'x',
+            content: 'x',
+            type: 'x',
+            position: { x: 10, y: 10 },
+            width: 80,
+            height: 10,
+          },
+          {
+            name: 'a',
+            content: 'a',
+            type: 'a',
+            position: { x: 10, y: 30 },
+            width: 80,
+            height: 10,
+          },
+          {
+            name: 'b',
+            content: 'b',
+            type: 'b',
+            position: { x: 10, y: 0 },
+            width: 80,
+            height: 10,
+            layout: {
+              mode: 'anchored',
+              x: { mode: 'pageLeft', offsetMm: 10 },
+              y: { mode: 'belowBottomEdge', ref: { schemaId: 'a' }, offsetMm: 5 },
+            },
+          },
+        ],
+      ],
+    };
+
+    const dynamic = await getDynamicTemplate({
+      template,
+      input: { x: 'x', a: 'a', b: 'b' },
+      options: {},
+      _cache: new Map(),
+      getDynamicHeights: async (_value, args: { schema: Schema }) => {
+        if (args.schema.name === 'x') return [30, 30, 30, 30, 30]; // 5×30 → 2 pages
+        return [args.schema.height];
+      },
+    });
+
+    // Locate A's final placement and B's final placement. B's global
+    // Y (pageIndex × contentHeight + position.y) must equal A's global
+    // bottom edge + offset, OR B page-breaks because the remaining
+    // space on A's page can't hold B (placeRowsOnPages's orphan
+    // protection). Assert one of those two.
+    const aPlaced = dynamic.schemas
+      .flatMap((page, p) => page.filter((s) => s.name === 'a').map((s) => ({ schema: s, page: p })))
+      .at(-1);
+    const bPlaced = dynamic.schemas
+      .flatMap((page, p) => page.filter((s) => s.name === 'b').map((s) => ({ schema: s, page: p })))
+      .at(-1);
+    expect(aPlaced).toBeDefined();
+    expect(bPlaced).toBeDefined();
+    const contentHeight = 90; // page 110 - padding (10 top + 10 bottom)
+    const aGlobalBottom =
+      aPlaced.page * contentHeight + (aPlaced.schema.position.y ?? 0) + (aPlaced.schema.height ?? 0);
+    const bGlobalTop = bPlaced.page * contentHeight + (bPlaced.schema.position.y ?? 0);
+    const idealBStart = aGlobalBottom + 5;
+    // B starts either at idealBStart (fits) or at the start of the
+    // next page (orphan-protected). It must NOT be above the ideal
+    // start (which would mean anchor read A's pre-engine position).
+    expect(bGlobalTop).toBeGreaterThanOrEqual(idealBStart);
+    // And it must be on a page no earlier than A's page.
+    expect(bPlaced?.page).toBeGreaterThanOrEqual(aPlaced.page);
+  });
+
+  test('X-anchor across pages: X coord stays correct regardless of which page B lands on', async () => {
+    // A is on page 1. B is anchored Y-belowBottomEdge of a
+    // page-spanning C (so B lands on page 2), but B's X anchor is
+    // afterRightEdge of A (page 1). X is page-independent — B's x
+    // should still be A.x + A.width + offset.
+    const template: Template = {
+      basePdf: splitBasePdf,
+      schemas: [
+        [
+          {
+            name: 'a',
+            content: 'a',
+            type: 'a',
+            position: { x: 20, y: 10 },
+            width: 60,
+            height: 10,
+          },
+          {
+            name: 'c',
+            content: 'c',
+            type: 'c',
+            position: { x: 10, y: 30 },
+            width: 80,
+            height: 30,
+            layout: {
+              mode: 'anchored',
+              x: { mode: 'pageLeft', offsetMm: 10 },
+              y: { mode: 'pageTop', offsetMm: 30 },
+            },
+          },
+          {
+            name: 'b',
+            content: 'b',
+            type: 'b',
+            position: { x: 0, y: 0 },
+            width: 20,
+            height: 10,
+            layout: {
+              mode: 'anchored',
+              x: { mode: 'afterRightEdge', ref: { schemaId: 'a' }, offsetMm: 5 },
+              y: { mode: 'belowBottomEdge', ref: { schemaId: 'c' }, offsetMm: 5 },
+            },
+          },
+        ],
+      ],
+    };
+
+    const dynamic = await getDynamicTemplate({
+      template,
+      input: { a: 'a', b: 'b', c: 'c' },
+      options: {},
+      _cache: new Map(),
+      getDynamicHeights: async (_value, args: { schema: Schema }) => {
+        if (args.schema.name === 'c') return [30, 30, 30]; // 3×30 → 2 pages
+        return [args.schema.height];
+      },
+    });
+
+    const b = dynamic.schemas
+      .flatMap((page, p) => page.filter((s) => s.name === 'b').map((s) => ({ schema: s, page: p })))
+      .at(-1);
+    expect(b).toBeDefined();
+    // B.x = A.x (20) + A.width (60) + offset (5) = 85
+    // — independent of which page B ends up on.
+    expect(b?.schema.position.x).toBe(85);
+  });
+});
