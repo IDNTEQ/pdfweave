@@ -66,10 +66,12 @@ With this encoding:
 - `resolveAnchorY`'s `target.position.y + target.height` arithmetic
   yields the bottom edge in global-Y space — correct regardless of
   whether the target paginated.
-- `placeRowsOnPages`, which derives `pageIndex = floor(globalY /
-  contentHeight)` and `yInPage = globalY mod contentHeight`, places
-  the dependent on the correct page without separate
-  fragment-index plumbing.
+- The dependent's resolved `position.y` is then a global-Y value.
+  `normalizePageSchemas` converts it to a padding-relative `baseY =
+  position.y − paddingTop`, and `placeRowsOnPages` (which already
+  derives `pageIndex = floor(baseY / contentHeight)` and `yInPage =
+  baseY mod contentHeight`) places the dependent on the correct
+  page without separate fragment-index plumbing.
 
 Single-page targets are unaffected because `lastPageIndex = 0`, so
 the encoded value equals the on-page coordinate.
