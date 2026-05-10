@@ -56,7 +56,7 @@ know *which page* the target's bottom edge ended up on. Phase 2's
 `syncLastFragmentGeometry` solves this by encoding the bottom edge
 as a **global Y** value:
 
-```
+```text
 target.position.y  ←  lastPageIndex × contentHeight + lastFragmentY
 target.height      ←  lastFragmentHeight
 ```
@@ -78,7 +78,7 @@ the encoded value equals the on-page coordinate.
 
 ### Anchored chain on a single page
 
-```
+```text
 A: absolute,   y=10,  declared height 10, actual 30  (dynamic)
 B: anchored to A.belowBottomEdge, offset 5
 ```
@@ -95,7 +95,7 @@ B: anchored to A.belowBottomEdge, offset 5
 
 ### Anchored chain where the upstream target paginates
 
-```
+```text
 basePdf:    page height 110, padding 10/10  (drawable 90mm)
 A: anchored at pageTop, dynamic with 5 × 30mm rows  (total 150mm)
 B: anchored to A.belowBottomEdge, offset 5
@@ -109,15 +109,18 @@ B: anchored to A.belowBottomEdge, offset 5
   - chunk 2 (rows 4–5, height 60mm) on page 1 at `y=10`.
 - Sync after A's placement: A's `position.y` rewritten to
   `1 × 90 + 10 = 100` (global Y of last fragment top), `height` 60.
-- B re-resolved: `B.y = 100 + 60 + 5 = 165` (global Y).
-  `placeRowsOnPages(B, …, baseY=155, …)` →
-  `pageIndex = floor(155/90) = 1`, `yInPage = 65`. B's
-  10mm fits in the remaining 25mm of page 1, so B lands on page 1
-  at `y=75` (5mm below A's last fragment bottom).
+- B re-resolved: `B.position.y = A.position.y (100) + A.height (60)
+  + offset (5) = 165` (global Y, top edge of B).
+- `placeRowsOnPages` consumes B's `baseY` — that's the
+  padding-relative form: `baseY = position.y − paddingTop = 165 −
+  10 = 155`. From `baseY = 155`: `pageIndex = floor(155/90) = 1`,
+  `yInPage = 155 − 90 = 65`. B's 10mm fits in the remaining 25mm
+  of page 1, so B lands on page 1 at `y = yInPage + paddingTop =
+  75` (5mm below A's last-fragment bottom on the same page).
 
 ### Anchored item targets an absolute pushed by upstream growth
 
-```
+```text
 X: absolute, y=10, dynamic 10 → 50mm   (paginates if drawable < 50)
 A: absolute, y=30, height 10            (engine pushes by X's growth)
 B: anchored to A.belowBottomEdge, offset 5
