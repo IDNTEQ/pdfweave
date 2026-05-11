@@ -166,6 +166,71 @@ describe('migrateTemplateToAnchored', () => {
     });
   });
 
+  test('overlapping siblings in a non-first group both anchor to the previous group host', () => {
+    // Header schema h at y=10..20 forms group 1.
+    // Then x at y=30 (height 10) and y at y=33 (height 5) overlap each
+    // other (ranges 30..40 and 33..38) → group 2. Both should anchor
+    // to h with offsets computed from their respective Ys.
+    const before: Template = {
+      basePdf: blankBasePdf,
+      schemas: [
+        [
+          {
+            name: 'h',
+            content: 'h',
+            type: 'text',
+            position: { x: 10, y: 10 },
+            width: 80,
+            height: 10,
+          },
+          {
+            name: 'x',
+            content: 'x',
+            type: 'text',
+            position: { x: 10, y: 30 },
+            width: 40,
+            height: 10,
+          },
+          {
+            name: 'y',
+            content: 'y',
+            type: 'text',
+            position: { x: 50, y: 33 },
+            width: 40,
+            height: 5,
+          },
+        ],
+      ],
+    };
+    const after = migrateTemplateToAnchored(before);
+
+    expect((after.schemas[0][0] as Record<string, unknown>).layout).toEqual({
+      mode: 'anchored',
+      x: { mode: 'pageLeft', offsetMm: 10 },
+      y: { mode: 'pageTop', offsetMm: 10 },
+    });
+    // Both x and y anchor to h (previous group's host) with offsets
+    // computed from their Y minus h.y minus h.height (= 20).
+    expect((after.schemas[0][1] as Record<string, unknown>).layout).toEqual({
+      mode: 'anchored',
+      x: { mode: 'pageLeft', offsetMm: 10 },
+      y: {
+        mode: 'belowBottomEdge',
+        ref: { schemaId: 'h' },
+        offsetMm: 10, // 30 - 10 - 10
+      },
+    });
+    expect((after.schemas[0][2] as Record<string, unknown>).layout).toEqual({
+      mode: 'anchored',
+      x: { mode: 'pageLeft', offsetMm: 50 },
+      y: {
+        mode: 'belowBottomEdge',
+        ref: { schemaId: 'h' },
+        offsetMm: 13, // 33 - 10 - 10
+      },
+    });
+  });
+
   test('document order does NOT determine chain order — Y order does', () => {
     // a is at y=80, b at y=10. Document order has a first, but the
     // migration must use Y order (b first since y=10 < y=80) and chain
