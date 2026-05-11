@@ -15,7 +15,12 @@
         "readOnly": false,
         "required": false,
         "text": "Hello **{name}**\nRole: *{role}*\nBold italic: ***{role}***\nStatus: ~~{status}~~ and `{code}`",
-        "variables": ["name", "role", "status", "code"],
+        "variables": [
+          "name",
+          "role",
+          "status",
+          "code"
+        ],
         "alignment": "left",
         "verticalAlignment": "top",
         "fontName": "NotoSansJP",
@@ -25,7 +30,18 @@
         "textFormat": "inline-markdown",
         "fontVariantFallback": "synthetic",
         "fontColor": "#000000",
-        "backgroundColor": ""
+        "backgroundColor": "",
+        "layout": {
+          "mode": "anchored",
+          "x": {
+            "mode": "pageLeft",
+            "offsetMm": 20
+          },
+          "y": {
+            "mode": "pageTop",
+            "offsetMm": 30
+          }
+        }
       },
       {
         "name": "plainText",
@@ -48,13 +64,32 @@
         "textFormat": "inline-markdown",
         "fontVariantFallback": "synthetic",
         "fontColor": "#000000",
-        "backgroundColor": ""
+        "backgroundColor": "",
+        "layout": {
+          "mode": "anchored",
+          "x": {
+            "mode": "pageLeft",
+            "offsetMm": 20
+          },
+          "y": {
+            "mode": "belowBottomEdge",
+            "ref": {
+              "schemaId": "message"
+            },
+            "offsetMm": 20
+          }
+        }
       }
     ]
   ],
   "basePdf": {
     "width": 210,
     "height": 297,
-    "padding": [20, 10, 20, 10]
+    "padding": [
+      20,
+      10,
+      20,
+      10
+    ]
   }
 }

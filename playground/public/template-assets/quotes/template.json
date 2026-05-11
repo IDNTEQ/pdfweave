@@ -12,7 +12,18 @@
         "width": 23.86,
         "height": 23.86,
         "readOnly": true,
-        "name": "logo"
+        "name": "logo",
+        "layout": {
+          "mode": "anchored",
+          "x": {
+            "mode": "pageLeft",
+            "offsetMm": 20
+          },
+          "y": {
+            "mode": "pageTop",
+            "offsetMm": 20
+          }
+        }
       },
       {
         "type": "text",
@@ -34,7 +45,21 @@
         "opacity": 1,
         "readOnly": true,
         "fontName": "",
-        "name": "head"
+        "name": "head",
+        "layout": {
+          "mode": "anchored",
+          "x": {
+            "mode": "pageLeft",
+            "offsetMm": 120.13
+          },
+          "y": {
+            "mode": "belowBottomEdge",
+            "ref": {
+              "schemaId": "logo"
+            },
+            "offsetMm": -23.86
+          }
+        }
       },
       {
         "type": "text",
@@ -56,7 +81,21 @@
         "opacity": 1,
         "readOnly": true,
         "fontName": "",
-        "name": "preparedForLabel"
+        "name": "preparedForLabel",
+        "layout": {
+          "mode": "anchored",
+          "x": {
+            "mode": "pageLeft",
+            "offsetMm": 20
+          },
+          "y": {
+            "mode": "belowBottomEdge",
+            "ref": {
+              "schemaId": "head"
+            },
+            "offsetMm": 15.200000000000003
+          }
+        }
       },
       {
         "type": "text",
@@ -82,7 +121,21 @@
           "fit": "vertical"
         },
         "fontName": "",
-        "name": "preparedForInput"
+        "name": "preparedForInput",
+        "layout": {
+          "mode": "anchored",
+          "x": {
+            "mode": "pageLeft",
+            "offsetMm": 20
+          },
+          "y": {
+            "mode": "belowBottomEdge",
+            "ref": {
+              "schemaId": "preparedForLabel"
+            },
+            "offsetMm": 0.6399999999999952
+          }
+        }
       },
       {
         "type": "multiVariableText",
@@ -111,7 +164,21 @@
           "ValidUntil"
         ],
         "fontName": "",
-        "name": "quoteInfo"
+        "name": "quoteInfo",
+        "layout": {
+          "mode": "anchored",
+          "x": {
+            "mode": "pageLeft",
+            "offsetMm": 119.87
+          },
+          "y": {
+            "mode": "belowBottomEdge",
+            "ref": {
+              "schemaId": "preparedForInput"
+            },
+            "offsetMm": -34.13
+          }
+        }
       },
       {
         "type": "table",
@@ -194,7 +261,21 @@
           }
         },
         "name": "orders",
-        "readOnly": false
+        "readOnly": false,
+        "layout": {
+          "mode": "anchored",
+          "x": {
+            "mode": "pageLeft",
+            "offsetMm": 20
+          },
+          "y": {
+            "mode": "belowBottomEdge",
+            "ref": {
+              "schemaId": "quoteInfo"
+            },
+            "offsetMm": 9.410000000000004
+          }
+        }
       },
       {
         "type": "text",
@@ -216,7 +297,21 @@
         "opacity": 1,
         "readOnly": true,
         "fontName": "",
-        "name": "subtotalLabel"
+        "name": "subtotalLabel",
+        "layout": {
+          "mode": "anchored",
+          "x": {
+            "mode": "pageLeft",
+            "offsetMm": 133.01
+          },
+          "y": {
+            "mode": "belowBottomEdge",
+            "ref": {
+              "schemaId": "orders"
+            },
+            "offsetMm": 0.3207999999999771
+          }
+        }
       },
       {
         "type": "multiVariableText",
@@ -250,7 +345,21 @@
           "max": 13,
           "fit": "vertical"
         },
-        "fontName": ""
+        "fontName": "",
+        "layout": {
+          "mode": "anchored",
+          "x": {
+            "mode": "pageLeft",
+            "offsetMm": 118.73
+          },
+          "y": {
+            "mode": "belowBottomEdge",
+            "ref": {
+              "schemaId": "subtotalLabel"
+            },
+            "offsetMm": 3.552713678800501e-15
+          }
+        }
       },
       {
         "type": "line",
@@ -265,7 +374,21 @@
         "readOnly": true,
         "color": "#000000",
         "name": "line",
-        "content": ""
+        "content": "",
+        "layout": {
+          "mode": "anchored",
+          "x": {
+            "mode": "pageLeft",
+            "offsetMm": 132.09
+          },
+          "y": {
+            "mode": "belowBottomEdge",
+            "ref": {
+              "schemaId": "taxInput"
+            },
+            "offsetMm": 0.19000000000000483
+          }
+        }
       },
       {
         "type": "text",
@@ -293,6 +416,20 @@
           "min": 4,
           "max": 13,
           "fit": "horizontal"
+        },
+        "layout": {
+          "mode": "anchored",
+          "x": {
+            "mode": "pageLeft",
+            "offsetMm": 158.79
+          },
+          "y": {
+            "mode": "belowBottomEdge",
+            "ref": {
+              "schemaId": "line"
+            },
+            "offsetMm": -17.35
+          }
         }
       },
       {
@@ -321,6 +458,20 @@
           "min": 4,
           "max": 13,
           "fit": "horizontal"
+        },
+        "layout": {
+          "mode": "anchored",
+          "x": {
+            "mode": "pageLeft",
+            "offsetMm": 158.79
+          },
+          "y": {
+            "mode": "belowBottomEdge",
+            "ref": {
+              "schemaId": "subtotal"
+            },
+            "offsetMm": 0.31999999999999584
+          }
         }
       },
       {
@@ -343,7 +494,21 @@
         "backgroundColor": "",
         "opacity": 1,
         "readOnly": true,
-        "name": "totalLabel"
+        "name": "totalLabel",
+        "layout": {
+          "mode": "anchored",
+          "x": {
+            "mode": "pageLeft",
+            "offsetMm": 131.94
+          },
+          "y": {
+            "mode": "belowBottomEdge",
+            "ref": {
+              "schemaId": "tax"
+            },
+            "offsetMm": 0.769999999999996
+          }
+        }
       },
       {
         "type": "text",
@@ -371,6 +536,20 @@
           "min": 4,
           "max": 20,
           "fit": "horizontal"
+        },
+        "layout": {
+          "mode": "anchored",
+          "x": {
+            "mode": "pageLeft",
+            "offsetMm": 159.05
+          },
+          "y": {
+            "mode": "belowBottomEdge",
+            "ref": {
+              "schemaId": "totalLabel"
+            },
+            "offsetMm": -11
+          }
         }
       },
       {
@@ -393,7 +572,21 @@
         "backgroundColor": "",
         "opacity": 1,
         "readOnly": true,
-        "name": "thankyou"
+        "name": "thankyou",
+        "layout": {
+          "mode": "anchored",
+          "x": {
+            "mode": "pageLeft",
+            "offsetMm": 20
+          },
+          "y": {
+            "mode": "belowBottomEdge",
+            "ref": {
+              "schemaId": "total"
+            },
+            "offsetMm": 5.940000000000026
+          }
+        }
       },
       {
         "type": "text",
@@ -415,7 +608,21 @@
         "opacity": 1,
         "readOnly": true,
         "fontName": "",
-        "name": "termsLabel"
+        "name": "termsLabel",
+        "layout": {
+          "mode": "anchored",
+          "x": {
+            "mode": "pageLeft",
+            "offsetMm": 20
+          },
+          "y": {
+            "mode": "belowBottomEdge",
+            "ref": {
+              "schemaId": "thankyou"
+            },
+            "offsetMm": 21.089999999999975
+          }
+        }
       },
       {
         "type": "text",
@@ -441,7 +648,21 @@
           "fit": "vertical"
         },
         "fontName": "",
-        "name": "termsInput"
+        "name": "termsInput",
+        "layout": {
+          "mode": "anchored",
+          "x": {
+            "mode": "pageLeft",
+            "offsetMm": 20
+          },
+          "y": {
+            "mode": "belowBottomEdge",
+            "ref": {
+              "schemaId": "termsLabel"
+            },
+            "offsetMm": 0.7400000000000251
+          }
+        }
       },
       {
         "type": "text",
@@ -463,7 +684,21 @@
         "opacity": 1,
         "readOnly": true,
         "fontName": "",
-        "name": "shopName"
+        "name": "shopName",
+        "layout": {
+          "mode": "anchored",
+          "x": {
+            "mode": "pageLeft",
+            "offsetMm": 119.33
+          },
+          "y": {
+            "mode": "belowBottomEdge",
+            "ref": {
+              "schemaId": "termsInput"
+            },
+            "offsetMm": -28.510000000000026
+          }
+        }
       },
       {
         "type": "text",
@@ -485,7 +720,21 @@
         "opacity": 1,
         "readOnly": true,
         "fontName": "",
-        "name": "shopAddress"
+        "name": "shopAddress",
+        "layout": {
+          "mode": "anchored",
+          "x": {
+            "mode": "pageLeft",
+            "offsetMm": 107.69
+          },
+          "y": {
+            "mode": "belowBottomEdge",
+            "ref": {
+              "schemaId": "shopName"
+            },
+            "offsetMm": 0.14999999999999147
+          }
+        }
       }
     ]
   ],

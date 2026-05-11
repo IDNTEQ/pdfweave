@@ -485,117 +485,49 @@ function removeTrailingEmptyPages(pages: Schema[][]): void {
 }
 
 /**
- * Process a single template page that has dynamic content.
+ * Place absolute items at their literal page coordinates and emit the
+ * resulting per-page schema arrays.
  *
- * Two schemas are treated as part of the same horizontal group when their
- * *original* Y ranges (`baseY` to `baseY + height`) overlap. Strict
- * baseY equality would falsely separate side-by-side schemas placed at
- * e.g. y=20 and y=21 due to manual layout drift. Items in a group share
- * the same offset; schemas below the group are pushed down by how far
- * the group as a whole expanded, not by each member's individual
- * expansion.
+ * Phase 4 (RFC 0001) replaced the earlier `processDynamicPage`
+ * implementation — which carried the upstream-inherited `totalYOffset`
+ * grouped-offset flow propagation — with this single-loop placement.
+ * Under the post-Phase-4 single-system layout model, `mode: 'absolute'`
+ * means literal coords: an absolute schema does not move under any
+ * circumstance, even if a growing neighbour overlaps it. Templates
+ * that depended on the old flow propagation must run
+ * `migrateTemplateToAnchored` (chain-anchoring document-order
+ * predecessors) — see `packages/common/src/migrate.ts`.
  *
- * The offset for a group is computed as
- * `cumMaxActualEnd - cumMaxOriginalEnd` over all already-committed
- * groups. This formulation has two important properties:
- *  1. When a single schema spans multiple pages (e.g. a long table that
- *     breaks across 5 pages), downstream schemas correctly land below
- *     the last page, because actualEnd reflects the page-break drift.
- *  2. When an unrelated schema is merely *pushed* onto a later page
- *     without expanding itself, both its actualEnd and originalEnd
- *     increase by similar amounts (the page-break drift cancels), so
- *     the offset for the *next* group does not accumulate the drift
- *     twice.
+ * pageBreak primitive support is intentionally not preserved here.
+ * It was a flow-aware concept (snap subsequent items to the next page
+ * boundary in the offset accumulator) that has no meaning for items
+ * with literal coords. If/when an anchored equivalent is requested,
+ * it'll arrive as a new anchor mode.
  *
- * `items` is pre-sorted by `normalizePageSchemas` (baseY ascending;
- * original order preserved for ties), so each new item only needs to
- * check whether it starts before the running `groupYEnd`.
- *
- * Adapted from upstream pdfme/pdfme#1489 with PDFweave-specific
- * pageBreak interleaving (pdfme#637): a page-break commits the current
- * group before snapping to the next page boundary, then resets the
- * group tracker so the items after the break form a fresh group.
+ * Anchored items skip this function entirely; they're placed by
+ * `processAnchoredPage`'s Pass 3 walk via direct `placeRowsOnPages`
+ * calls.
  */
-function processDynamicPage(
+function placeAbsoluteItems(
   items: LayoutItem[],
   orderMap: Map<string, number>,
   contentHeight: number,
   paddingTop: number,
 ): Schema[][] {
   const pages: Schema[][] = [];
-
-  let cumMaxActualEnd = 0;
-  let cumMaxOriginalEnd = 0;
-  let groupYEnd = Number.NEGATIVE_INFINITY;
-  let groupMaxActualEnd = Number.NEGATIVE_INFINITY;
-  let groupMaxOriginalEnd = Number.NEGATIVE_INFINITY;
-
-  const commitGroup = () => {
-    if (groupMaxActualEnd === Number.NEGATIVE_INFINITY) return;
-    if (groupMaxActualEnd > cumMaxActualEnd) cumMaxActualEnd = groupMaxActualEnd;
-    if (groupMaxOriginalEnd > cumMaxOriginalEnd) cumMaxOriginalEnd = groupMaxOriginalEnd;
-    groupMaxActualEnd = Number.NEGATIVE_INFINITY;
-    groupMaxOriginalEnd = Number.NEGATIVE_INFINITY;
-  };
-
   for (const item of items) {
-    // pageBreak primitive (pdfme#637): force everything that follows
-    // onto the next page regardless of remaining vertical space. We
-    // don't emit the marker in the output (zero render footprint); we
-    // just bump cumMaxActualEnd so the next item's groupOffset rounds
-    // up to a page boundary, AND commit / reset the group tracker so
-    // post-break items don't share a group with pre-break items.
-    if (isPageBreakSchema(item.schema)) {
-      commitGroup();
-      const currentGroupOffset = Math.max(0, cumMaxActualEnd - cumMaxOriginalEnd);
-      const currentGlobalStartY = item.baseY + currentGroupOffset;
-      const currentPageIndex = Math.floor(currentGlobalStartY / contentHeight);
-      const currentYInPage = currentGlobalStartY - currentPageIndex * contentHeight;
-      // Snap to the start of the next page only if we're not already
-      // exactly at one — back-to-back page breaks shouldn't double-skip.
-      if (currentYInPage > EPSILON) {
-        const nextPageStart = (currentPageIndex + 1) * contentHeight;
-        cumMaxActualEnd += nextPageStart - currentGlobalStartY;
-      }
-      // Reset group tracker; items after a page break form a new group.
-      groupYEnd = Number.NEGATIVE_INFINITY;
-      // Ensure the (now-next) page exists so subsequent layout has a slot.
-      const postBreakOffset = Math.max(0, cumMaxActualEnd - cumMaxOriginalEnd);
-      const targetPageIndex = Math.floor((item.baseY + postBreakOffset) / contentHeight);
-      while (pages.length <= targetPageIndex) pages.push([]);
-      continue;
-    }
-
-    const itemBaseEnd = item.baseY + item.height;
-    const overlapsCurrentGroup = item.baseY < groupYEnd - EPSILON;
-
-    if (!overlapsCurrentGroup) {
-      commitGroup();
-      groupYEnd = itemBaseEnd;
-    } else if (itemBaseEnd > groupYEnd) {
-      groupYEnd = itemBaseEnd;
-    }
-
-    const groupOffset = Math.max(0, cumMaxActualEnd - cumMaxOriginalEnd);
-    const currentGlobalStartY = item.baseY + groupOffset;
-
-    const actualGlobalEndY = placeRowsOnPages(
+    if (isPageBreakSchema(item.schema)) continue;
+    placeRowsOnPages(
       item.schema,
       item.fragments,
-      currentGlobalStartY,
+      item.baseY,
       contentHeight,
       paddingTop,
       pages,
     );
-
-    if (actualGlobalEndY > groupMaxActualEnd) groupMaxActualEnd = actualGlobalEndY;
-    if (itemBaseEnd > groupMaxOriginalEnd) groupMaxOriginalEnd = itemBaseEnd;
   }
-  commitGroup();
-
   sortPagesByOrder(pages, orderMap);
   removeTrailingEmptyPages(pages);
-
   return pages;
 }
 
@@ -749,7 +681,8 @@ function syncLastFragmentGeometry(
 
 /**
  * Absolute-only fast path: parallel-batch measure followed by a single
- * `processDynamicPage` call. Unchanged from pre-Phase-2.
+ * `placeAbsoluteItems` call. Used for pages where every schema is
+ * absolute (no anchored layouts).
  */
 async function processAbsoluteOnlyPage(
   ctx: PageReflowContext,
@@ -765,29 +698,30 @@ async function processAbsoluteOnlyPage(
       applyMeasurement(items[i + j], chunkResults[j], originalBySchemaName);
     }
   }
-  return processDynamicPage(items, orderMap, ctx.contentHeight, ctx.paddingTop);
+  return placeAbsoluteItems(items, orderMap, ctx.contentHeight, ctx.paddingTop);
 }
 
 /**
  * Three-pass layout for pages that contain any anchored schema (RFC 0001
- * Phase 2):
+ * Phases 2 + 3a + 4):
  *
  *   Pass 1. **Measure.** Topo-walk the page's schemas. For each
  *     anchored schema, do a tentative resolve against upstream measured
  *     heights so `measure()` sees a sensible `position.y`. Then measure;
  *     the actual height is synced onto schema.height for downstream
  *     anchor lookups.
- *   Pass 2. **Engine on absolute items.** `processDynamicPage` runs on
- *     ABSOLUTE items only. Anchored items don't influence engine
- *     accounting (Option C: absolute items aren't pushed by anchored
- *     neighbours).
+ *   Pass 2. **Place absolute items.** `placeAbsoluteItems` runs on
+ *     ABSOLUTE items only. Each absolute item lands at its literal
+ *     coords. Anchored items don't participate (Option C: absolute
+ *     items aren't pushed by anchored neighbours).
  *   Pass 3. **Re-resolve and place anchored items.** Sync each absolute
- *     item's final post-engine position back into pageSchemas, then
- *     walk topo order, re-resolving anchored x / y against the
- *     now-final upstream geometry and placing via `placeRowsOnPages`
- *     into the same pages array. Each anchored placement also syncs
- *     its own last-fragment geometry so chains where an upstream
- *     target paginates resolve against the placed bottom edge.
+ *     item's final post-placement geometry back into pageSchemas
+ *     (encoded as global Y so cross-page anchor refs work), then walk
+ *     topo order, re-resolving anchored x / y against the now-final
+ *     upstream geometry and placing via `placeRowsOnPages` into the
+ *     same pages array. Each anchored placement also syncs its own
+ *     last-fragment geometry so chains where an upstream target
+ *     paginates resolve against the placed bottom edge.
  */
 async function processAnchoredPage(ctx: PageReflowContext): Promise<Schema[][]> {
   const { pageSchemas, contentHeight, paddingTop } = ctx;
@@ -821,7 +755,7 @@ async function processAnchoredPage(ctx: PageReflowContext): Promise<Schema[][]> 
     if (Math.abs(a.baseY - b.baseY) > EPSILON) return a.baseY - b.baseY;
     return (orderMap.get(a.schema.name) ?? 0) - (orderMap.get(b.schema.name) ?? 0);
   });
-  const processedPages = processDynamicPage(
+  const processedPages = placeAbsoluteItems(
     absoluteItems,
     orderMap,
     contentHeight,

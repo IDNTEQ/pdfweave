@@ -1,7 +1,7 @@
 # Dynamic layout in PDFweave
 
 > Status: living document. Captures the layout model as of RFC 0001
-> Phases 1–3a (merged 2026-05-09 / 2026-05-10).
+> Phases 1–4 (last update 2026-05-11).
 
 ## Two layout modes
 
@@ -13,10 +13,9 @@ A schema's vertical position comes from one of two mechanisms:
 - **`absolute`** (default; no `layout` field) — position is the
   literal `position.x` / `position.y` from the template. Does not
   move under any circumstance, even if a growing neighbour overlaps
-  it. (See "Phase 4 migration" in [RFC 0001][rfc] for the path that
-  deletes the upstream `totalYOffset` flow propagation entirely;
-  during the migration window `processDynamicPage` still flows
-  absolute items so existing templates render unchanged.)
+  it. As of Phase 4 (RFC 0001) the engine's `totalYOffset` flow
+  propagation is deleted; absolute items are placed at their literal
+  coords by `placeAbsoluteItems` and never get pushed.
 
 [rfc]: ../rfc/0001-runtime-anchor-resolution.md
 
@@ -32,10 +31,11 @@ anchored schema, three passes run in `processAnchoredPage`
    (the built-in text plugin reads it via `getRemainingPageHeight`).
    The actual measured height is synced onto `schema.height` for
    downstream lookups.
-2. **Engine on absolute items.** `processDynamicPage` runs on
-   absolute items only and applies the Phase 1 grouped-offset flow.
-   Anchored items don't influence the engine's accounting — Option C:
-   absolute schemas aren't pushed by anchored neighbours.
+2. **Place absolute items.** `placeAbsoluteItems` runs on absolute
+   items only — each lands at its literal coords (`position.x` /
+   `position.y` from the template), with multi-page splitting via
+   `placeRowsOnPages` when content overflows a single page. No flow
+   propagation, no grouped offsets.
 3. **Re-resolve and place anchored.** Walk the topological order
    again; for each anchored schema, re-resolve x/y against the
    final post-engine geometry of upstream items, then place via
@@ -120,21 +120,30 @@ B: anchored to A.belowBottomEdge, offset 5
   of page 1, so B lands on page 1 at `y = yInPage + paddingTop =
   75` (5mm below A's last-fragment bottom on the same page).
 
-### Anchored item targets an absolute pushed by upstream growth
+### Migrating pre-Phase-4 templates
 
-```text
-X: absolute, y=10, dynamic 10 → 50mm   (paginates if drawable < 50)
-A: absolute, y=30, height 10            (engine pushes by X's growth)
-B: anchored to A.belowBottomEdge, offset 5
+Templates that historically relied on the engine's flow propagation
+(absolute schemas getting pushed by dynamic predecessors) need
+chain-anchoring to keep rendering the same after Phase 4. Run the
+migration tool:
+
+```bash
+npx pdfweave migrate template.json            # rewrite in place
+npx pdfweave migrate template.json --check    # dry run, exit 1 if changes needed
+npx pdfweave migrate template.json -o new.json
 ```
 
-- Pass 2 engine: X spans pages. A pushed by `X.actual − X.declared =
-  40` to a later page.
-- Pass 3 sync (absolute): A's `position.y` rewritten to its
-  engine-determined global Y. B re-resolved against the synced value
-  — *not* A's template-declared `y=30`.
-- B lands directly below A's final position (or page-breaks per the
-  orphan-protection logic if A's page has no remaining space).
+The conversion is document-order chaining: each non-anchored schema
+becomes `belowBottomEdge` of the immediately preceding non-pageBreak
+schema with `offsetMm = current.y − prev.y − prev.height`. Same-Y
+siblings (label / value pairs at the same baseline) work via
+*negative* offsets — `resolveAnchorY` evaluates them correctly back
+to the predecessor's top edge. Schemas that already have a `layout`
+field are left untouched.
+
+The 6 dynamic-content templates in `playground/public/template-assets`
+were migrated in Phase 4's PR; CI's image-snapshot tests confirmed
+byte-equal rendering before and after.
 
 ## What's deferred
 
