@@ -150,9 +150,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "recipientName1"
+              "schemaId": "title"
             },
-            "offsetMm": 0
+            "offsetMm": 9
           }
         }
       },
@@ -180,9 +180,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "recipientName2"
+              "schemaId": "title"
             },
-            "offsetMm": 3
+            "offsetMm": 17
           }
         }
       },
@@ -210,9 +210,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "subjectTitle"
+              "schemaId": "title"
             },
-            "offsetMm": 4
+            "offsetMm": 27
           }
         }
       },
@@ -240,9 +240,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "greeting"
+              "schemaId": "senderAddress1"
             },
-            "offsetMm": 4.5
+            "offsetMm": 2.5
           }
         }
       },
@@ -282,9 +282,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "totalAmountLabel"
+              "schemaId": "senderAddress1"
             },
-            "offsetMm": -6.849999999999994
+            "offsetMm": 1.6500000000000057
           }
         }
       },
@@ -324,9 +324,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "totalAmountValue"
+              "schemaId": "senderEmail"
             },
-            "offsetMm": 2.4699999999999944
+            "offsetMm": 1
           }
         }
       },
@@ -352,9 +352,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "dueDate"
+              "schemaId": "title"
             },
-            "offsetMm": -48
+            "offsetMm": 2
           }
         }
       },
@@ -380,9 +380,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "senderName1"
+              "schemaId": "title"
             },
-            "offsetMm": 0
+            "offsetMm": 7
           }
         }
       },
@@ -410,9 +410,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "senderName2"
+              "schemaId": "title"
             },
-            "offsetMm": 1
+            "offsetMm": 13
           }
         }
       },
@@ -440,9 +440,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "senderRegistrationNumberLabel"
+              "schemaId": "title"
             },
-            "offsetMm": -5.230000000000003
+            "offsetMm": 12.799999999999997
           }
         }
       },
@@ -470,9 +470,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "senderRegistrationNumber"
+              "schemaId": "title"
             },
-            "offsetMm": 1.1700000000000026
+            "offsetMm": 19
           }
         }
       },
@@ -499,9 +499,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "senderPostalCodeLabel"
+              "schemaId": "title"
             },
-            "offsetMm": 0
+            "offsetMm": 24
           }
         }
       },
@@ -583,9 +583,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "senderTel"
+              "schemaId": "senderAddress1"
             },
-            "offsetMm": 0
+            "offsetMm": 5
           }
         }
       },
@@ -608,9 +608,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "senderEmail"
+              "schemaId": "title"
             },
-            "offsetMm": -39.09
+            "offsetMm": 4.909999999999997
           }
         }
       },
@@ -636,9 +636,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "senderImprint"
+              "schemaId": "eligibleForReducedTaxRate"
             },
-            "offsetMm": 68.32
+            "offsetMm": 0.7299999999999924
           }
         }
       },
@@ -730,9 +730,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "taxSubtotalsLabel"
+              "schemaId": "eligibleForReducedTaxRate"
             },
-            "offsetMm": 0.4000000000000057
+            "offsetMm": 6.129999999999998
           }
         }
       },
@@ -760,9 +760,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "taxSubtotalsTable"
+              "schemaId": "eligibleForReducedTaxRate"
             },
-            "offsetMm": -21.4672
+            "offsetMm": 5.129999999999998
           }
         }
       },
@@ -790,9 +790,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "subtotalLabel"
+              "schemaId": "eligibleForReducedTaxRate"
             },
-            "offsetMm": -7
+            "offsetMm": 4.629999999999998
           }
         }
       },
@@ -820,9 +820,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "subtotal"
+              "schemaId": "eligibleForReducedTaxRate"
             },
-            "offsetMm": 1
+            "offsetMm": 12.129999999999999
           }
         }
       },
@@ -850,9 +850,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "taxLabel"
+              "schemaId": "eligibleForReducedTaxRate"
             },
-            "offsetMm": -7.009999999999991
+            "offsetMm": 11.620000000000008
           }
         }
       },
@@ -880,9 +880,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "taxValue"
+              "schemaId": "eligibleForReducedTaxRate"
             },
-            "offsetMm": 0.8999999999999906
+            "offsetMm": 19.13
           }
         }
       },
@@ -909,9 +909,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "totalLabel"
+              "schemaId": "eligibleForReducedTaxRate"
             },
-            "offsetMm": -7
+            "offsetMm": 18.63
           }
         }
       },
@@ -951,9 +951,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "totalValue"
+              "schemaId": "taxSubtotalsTable"
             },
-            "offsetMm": 10
+            "offsetMm": 8.532800000000002
           }
         }
       },
@@ -1079,9 +1079,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "note"
+              "schemaId": "dueDate"
             },
-            "offsetMm": -93.9
+            "offsetMm": 2.569999999999993
           }
         }
       },
@@ -1148,9 +1148,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "eligibleForReducedTaxRate"
+              "schemaId": "title"
             },
-            "offsetMm": -73.87
+            "offsetMm": 19
           }
         }
       },
@@ -1177,9 +1177,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "senderPostalCode"
+              "schemaId": "title"
             },
-            "offsetMm": -7.03
+            "offsetMm": 17
           }
         }
       },
@@ -1207,9 +1207,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "subject"
+              "schemaId": "senderAddress1"
             },
-            "offsetMm": 20.33
+            "offsetMm": 9.329999999999998
           }
         }
       }

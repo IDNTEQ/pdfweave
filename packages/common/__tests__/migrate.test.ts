@@ -65,12 +65,13 @@ describe('migrateTemplateToAnchored', () => {
     });
   });
 
-  test('same-Y siblings encoded via negative offset (chain preserves visual layout)', () => {
+  test('same-Y siblings in the first group both anchor to pageTop (group-aware)', () => {
     const before: Template = {
       basePdf: blankBasePdf,
       schemas: [
         [
-          // a and b at same y, side-by-side (think label + value).
+          // a and b at same y, side-by-side (label + value pattern).
+          // No earlier group → both anchor to pageTop independently.
           {
             name: 'a',
             content: 'a',
@@ -91,20 +92,22 @@ describe('migrateTemplateToAnchored', () => {
       ],
     };
     const after = migrateTemplateToAnchored(before);
-    // b chains to a with offset = b.y (50) - a.y (50) - a.height (10) = -10.
-    // resolveAnchorY then evaluates b.y = a.y + a.height + (-10) = 50.
+    expect((after.schemas[0][0] as Record<string, unknown>).layout).toEqual({
+      mode: 'anchored',
+      x: { mode: 'pageLeft', offsetMm: 10 },
+      y: { mode: 'pageTop', offsetMm: 50 },
+    });
     expect((after.schemas[0][1] as Record<string, unknown>).layout).toEqual({
       mode: 'anchored',
       x: { mode: 'pageLeft', offsetMm: 60 },
-      y: {
-        mode: 'belowBottomEdge',
-        ref: { schemaId: 'a' },
-        offsetMm: -10,
-      },
+      y: { mode: 'pageTop', offsetMm: 50 },
     });
   });
 
-  test('overlapping schemas (b inside a\'s vertical range) preserved via negative offset', () => {
+  test('overlapping schemas form one group; downstream group chains to group host', () => {
+    // a and b overlap (b sits inside a's vertical range) → same group.
+    // c sits below the group → chains to the group HOST (the tallest
+    // member, here a) with a positive offset.
     const before: Template = {
       basePdf: blankBasePdf,
       schemas: [
@@ -126,18 +129,86 @@ describe('migrateTemplateToAnchored', () => {
             width: 80,
             height: 5,
           },
+          {
+            // c sits below the a/b group at y=50
+            name: 'c',
+            content: 'c',
+            type: 'text',
+            position: { x: 10, y: 50 },
+            width: 80,
+            height: 10,
+          },
         ],
       ],
     };
     const after = migrateTemplateToAnchored(before);
-    // offset = 15 - 10 - 30 = -25. resolveAnchorY: 10 + 30 + (-25) = 15. ✓
+    // Both a and b are in the first group → both anchor to pageTop.
+    expect((after.schemas[0][0] as Record<string, unknown>).layout).toEqual({
+      mode: 'anchored',
+      x: { mode: 'pageLeft', offsetMm: 10 },
+      y: { mode: 'pageTop', offsetMm: 10 },
+    });
     expect((after.schemas[0][1] as Record<string, unknown>).layout).toEqual({
+      mode: 'anchored',
+      x: { mode: 'pageLeft', offsetMm: 10 },
+      y: { mode: 'pageTop', offsetMm: 15 },
+    });
+    // c chains to the group host (a, with the bottom-most edge).
+    // offset = c.y (50) - a.y (10) - a.height (30) = 10.
+    expect((after.schemas[0][2] as Record<string, unknown>).layout).toEqual({
       mode: 'anchored',
       x: { mode: 'pageLeft', offsetMm: 10 },
       y: {
         mode: 'belowBottomEdge',
         ref: { schemaId: 'a' },
-        offsetMm: -25,
+        offsetMm: 10,
+      },
+    });
+  });
+
+  test('document order does NOT determine chain order — Y order does', () => {
+    // a is at y=80, b at y=10. Document order has a first, but the
+    // migration must use Y order (b first since y=10 < y=80) and chain
+    // a to b (not the other way around).
+    const before: Template = {
+      basePdf: blankBasePdf,
+      schemas: [
+        [
+          {
+            name: 'a',
+            content: 'a',
+            type: 'text',
+            position: { x: 10, y: 80 },
+            width: 80,
+            height: 10,
+          },
+          {
+            name: 'b',
+            content: 'b',
+            type: 'text',
+            position: { x: 10, y: 10 },
+            width: 80,
+            height: 10,
+          },
+        ],
+      ],
+    };
+    const after = migrateTemplateToAnchored(before);
+    // b is the first group (y=10) → anchor to pageTop.
+    expect((after.schemas[0][1] as Record<string, unknown>).layout).toEqual({
+      mode: 'anchored',
+      x: { mode: 'pageLeft', offsetMm: 10 },
+      y: { mode: 'pageTop', offsetMm: 10 },
+    });
+    // a (y=80) chains to b (the previous group's host) with
+    // offset = 80 - 10 - 10 = 60.
+    expect((after.schemas[0][0] as Record<string, unknown>).layout).toEqual({
+      mode: 'anchored',
+      x: { mode: 'pageLeft', offsetMm: 10 },
+      y: {
+        mode: 'belowBottomEdge',
+        ref: { schemaId: 'b' },
+        offsetMm: 60,
       },
     });
   });

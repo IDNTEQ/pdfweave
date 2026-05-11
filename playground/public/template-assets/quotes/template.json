@@ -53,11 +53,8 @@
             "offsetMm": 120.13
           },
           "y": {
-            "mode": "belowBottomEdge",
-            "ref": {
-              "schemaId": "logo"
-            },
-            "offsetMm": -23.86
+            "mode": "pageTop",
+            "offsetMm": 20
           }
         }
       },
@@ -91,9 +88,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "head"
+              "schemaId": "logo"
             },
-            "offsetMm": 15.200000000000003
+            "offsetMm": 14.020000000000003
           }
         }
       },
@@ -174,9 +171,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "preparedForInput"
+              "schemaId": "preparedForLabel"
             },
-            "offsetMm": -34.13
+            "offsetMm": 0.579999999999993
           }
         }
       },
@@ -271,9 +268,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "quoteInfo"
+              "schemaId": "preparedForInput"
             },
-            "offsetMm": 9.410000000000004
+            "offsetMm": 8.800000000000004
           }
         }
       },
@@ -426,9 +423,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "line"
+              "schemaId": "orders"
             },
-            "offsetMm": -17.35
+            "offsetMm": 0.5307999999999851
           }
         }
       },
@@ -468,9 +465,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "subtotal"
+              "schemaId": "subtotalLabel"
             },
-            "offsetMm": 0.31999999999999584
+            "offsetMm": 3.552713678800501e-15
           }
         }
       },
@@ -504,9 +501,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "tax"
+              "schemaId": "line"
             },
-            "offsetMm": 0.769999999999996
+            "offsetMm": 0.18999999999999204
           }
         }
       },
@@ -546,9 +543,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "totalLabel"
+              "schemaId": "line"
             },
-            "offsetMm": -11
+            "offsetMm": 0.18999999999999204
           }
         }
       },
@@ -582,7 +579,7 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "total"
+              "schemaId": "totalLabel"
             },
             "offsetMm": 5.940000000000026
           }
@@ -694,9 +691,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "termsInput"
+              "schemaId": "termsLabel"
             },
-            "offsetMm": -28.510000000000026
+            "offsetMm": 6.299999999999999
           }
         }
       },
@@ -730,9 +727,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "shopName"
+              "schemaId": "termsLabel"
             },
-            "offsetMm": 0.14999999999999147
+            "offsetMm": 14.80999999999999
           }
         }
       }

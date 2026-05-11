@@ -66,11 +66,8 @@
             "offsetMm": 13.21
           },
           "y": {
-            "mode": "belowBottomEdge",
-            "ref": {
-              "schemaId": "titleBox"
-            },
-            "offsetMm": -14.330000000000002
+            "mode": "pageTop",
+            "offsetMm": 24.38
           }
         }
       },
@@ -107,9 +104,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "title"
+              "schemaId": "titleBox"
             },
-            "offsetMm": 8.66
+            "offsetMm": 4.329999999999998
           }
         }
       },
@@ -137,9 +134,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "subTitleLabel"
+              "schemaId": "titleBox"
             },
-            "offsetMm": -0.060000000000002274
+            "offsetMm": 14.269999999999996
           }
         }
       },
@@ -181,9 +178,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "subTitleLine"
+              "schemaId": "titleBox"
             },
-            "offsetMm": -10.939999999999998
+            "offsetMm": 4.329999999999998
           }
         }
       },
@@ -210,9 +207,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "subTitle"
+              "schemaId": "subTitleLine"
             },
-            "offsetMm": 11.229999999999997
+            "offsetMm": 10.29
           }
         }
       },
@@ -488,9 +485,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "preparedByLabel"
+              "schemaId": "image"
             },
-            "offsetMm": -75.38
+            "offsetMm": 4.579999999999998
           }
         }
       },
@@ -532,7 +529,7 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "quoteType"
+              "schemaId": "quoteTypeLabel"
             },
             "offsetMm": 1.169999999999991
           }
@@ -576,7 +573,7 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "quoteNo"
+              "schemaId": "quoteNoLabel"
             },
             "offsetMm": 1.1700000000000195
           }
@@ -620,7 +617,7 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "stockNo"
+              "schemaId": "stockNoLabel"
             },
             "offsetMm": 1.1600000000000001
           }
@@ -664,7 +661,7 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "serialNo"
+              "schemaId": "serialNoLabel"
             },
             "offsetMm": 1.169999999999991
           }
@@ -708,7 +705,7 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "documentDate"
+              "schemaId": "documentDateLabel"
             },
             "offsetMm": 1.169999999999991
           }
@@ -747,9 +744,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "preparedBy"
+              "schemaId": "image"
             },
-            "offsetMm": -75.38
+            "offsetMm": 4.579999999999998
           }
         }
       },
@@ -786,7 +783,7 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "customerNoLabel"
+              "schemaId": "quoteTypeLabel"
             },
             "offsetMm": 1.169999999999991
           }
@@ -825,7 +822,7 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "preparedForLabel"
+              "schemaId": "quoteNoLabel"
             },
             "offsetMm": 1.1700000000000195
           }
@@ -864,7 +861,7 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "emailAddressLabel"
+              "schemaId": "stockNoLabel"
             },
             "offsetMm": 1.1600000000000001
           }
@@ -903,7 +900,7 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "phoneNumberLabel"
+              "schemaId": "serialNoLabel"
             },
             "offsetMm": 1.169999999999991
           }
@@ -942,7 +939,7 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "companyAddressLabel"
+              "schemaId": "documentDateLabel"
             },
             "offsetMm": 1.169999999999991
           }
@@ -986,9 +983,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "siteAddressLabel"
+              "schemaId": "image"
             },
-            "offsetMm": -75.38
+            "offsetMm": 4.579999999999998
           }
         }
       },
@@ -1030,7 +1027,7 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "customerNo"
+              "schemaId": "quoteTypeLabel"
             },
             "offsetMm": 1.169999999999991
           }
@@ -1074,7 +1071,7 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "preparedFor"
+              "schemaId": "quoteNoLabel"
             },
             "offsetMm": 1.1700000000000195
           }
@@ -1118,7 +1115,7 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "emailAddress"
+              "schemaId": "stockNoLabel"
             },
             "offsetMm": 1.1600000000000001
           }
@@ -1162,7 +1159,7 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "phoneNumber"
+              "schemaId": "serialNoLabel"
             },
             "offsetMm": 1.169999999999991
           }
@@ -1206,7 +1203,7 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "companyAddress"
+              "schemaId": "documentDateLabel"
             },
             "offsetMm": 1.169999999999991
           }
@@ -1245,7 +1242,7 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "siteAddress"
+              "schemaId": "preparedByLabel"
             },
             "offsetMm": 5.230000000000022
           }
@@ -1353,11 +1350,8 @@
             "offsetMm": 10
           },
           "y": {
-            "mode": "belowBottomEdge",
-            "ref": {
-              "schemaId": "tableTitleLabel"
-            },
-            "offsetMm": -0.08999999999999986
+            "mode": "pageTop",
+            "offsetMm": 29.91
           }
         }
       },
@@ -1527,9 +1521,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "topTable"
+              "schemaId": "tableTitleLine"
             },
-            "offsetMm": -0.14559999999999818
+            "offsetMm": 29.580000000000002
           }
         }
       },
@@ -1613,9 +1607,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "powertrain"
+              "schemaId": "powertrainTable"
             },
-            "offsetMm": 6.653600000000002
+            "offsetMm": 0.23360000000000714
           }
         }
       },
@@ -1699,9 +1693,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "electrical"
+              "schemaId": "electricalTable"
             },
-            "offsetMm": 6.653599999999995
+            "offsetMm": 0.23359999999999292
           }
         }
       },
@@ -1785,9 +1779,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "operatorEnvironment"
+              "schemaId": "operatorEnvironmentTable"
             },
-            "offsetMm": 6.623600000000008
+            "offsetMm": 0.203600000000006
           }
         }
       },
@@ -1871,9 +1865,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "technologyProducts"
+              "schemaId": "technologyProductsTable"
             },
-            "offsetMm": 6.583599999999987
+            "offsetMm": 0.16359999999999975
           }
         }
       },
@@ -1957,9 +1951,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "tiresRimsAndWheels"
+              "schemaId": "tiresRimsAndWheelsTable"
             },
-            "offsetMm": 6.613600000000003
+            "offsetMm": 0.18359999999999577
           }
         }
       },
@@ -2043,9 +2037,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "fluids"
+              "schemaId": "fluidsTable"
             },
-            "offsetMm": 6.653599999999995
+            "offsetMm": 0.23359999999999292
           }
         }
       },
@@ -2131,9 +2125,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "otherStandardEquipment"
+              "schemaId": "tableTitleLine"
             },
-            "offsetMm": -79.4664
+            "offsetMm": 36
           }
         }
       },

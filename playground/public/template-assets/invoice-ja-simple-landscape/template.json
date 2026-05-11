@@ -154,9 +154,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "recipientName1"
+              "schemaId": "title"
             },
-            "offsetMm": 0
+            "offsetMm": 7.68
           }
         }
       },
@@ -184,9 +184,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "recipientName2"
+              "schemaId": "title"
             },
-            "offsetMm": 3
+            "offsetMm": 15.68
           }
         }
       },
@@ -214,9 +214,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "subjectTitle"
+              "schemaId": "title"
             },
-            "offsetMm": 4
+            "offsetMm": 25.680000000000003
           }
         }
       },
@@ -244,9 +244,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "greeting"
+              "schemaId": "senderAddress1"
             },
-            "offsetMm": 4.5
+            "offsetMm": 1.5
           }
         }
       },
@@ -286,9 +286,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "totalAmountLabel"
+              "schemaId": "senderAddress1"
             },
-            "offsetMm": -6.850000000000001
+            "offsetMm": 0.6499999999999986
           }
         }
       },
@@ -328,9 +328,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "totalAmountValue"
+              "schemaId": "senderEmail"
             },
-            "offsetMm": 2.4700000000000015
+            "offsetMm": 0
           }
         }
       },
@@ -360,9 +360,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "dueDate"
+              "schemaId": "title"
             },
-            "offsetMm": -47
+            "offsetMm": 1.6799999999999997
           }
         }
       },
@@ -392,9 +392,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "senderName1"
+              "schemaId": "title"
             },
-            "offsetMm": 0
+            "offsetMm": 6.68
           }
         }
       },
@@ -423,9 +423,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "senderName2"
+              "schemaId": "title"
             },
-            "offsetMm": 1
+            "offsetMm": 12.68
           }
         }
       },
@@ -454,9 +454,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "senderRegistrationNumberLabel"
+              "schemaId": "title"
             },
-            "offsetMm": -5.78
+            "offsetMm": 11.93
           }
         }
       },
@@ -484,9 +484,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "senderRegistrationNumber"
+              "schemaId": "title"
             },
-            "offsetMm": 1.2199999999999998
+            "offsetMm": 18.18
           }
         }
       },
@@ -515,9 +515,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "senderPostalCodeLabel"
+              "schemaId": "title"
             },
-            "offsetMm": 0.5
+            "offsetMm": 23.680000000000003
           }
         }
       },
@@ -599,9 +599,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "senderTel"
+              "schemaId": "senderAddress1"
             },
-            "offsetMm": 0
+            "offsetMm": 5
           }
         }
       },
@@ -624,9 +624,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "senderEmail"
+              "schemaId": "title"
             },
-            "offsetMm": -38.03
+            "offsetMm": 5.649999999999999
           }
         }
       },
@@ -652,9 +652,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "senderImprint"
+              "schemaId": "subtotalLine"
             },
-            "offsetMm": 63.19
+            "offsetMm": 0.3700000000000017
           }
         }
       },
@@ -746,9 +746,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "taxSubtotalsLabel"
+              "schemaId": "subtotalLine"
             },
-            "offsetMm": 0
+            "offsetMm": 5.370000000000002
           }
         }
       },
@@ -779,9 +779,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "taxSubtotalsTable"
+              "schemaId": "dueDate"
             },
-            "offsetMm": -32.487199999999994
+            "offsetMm": 32.980000000000004
           }
         }
       },
@@ -811,9 +811,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "subtotalLabel"
+              "schemaId": "dueDate"
             },
-            "offsetMm": -6.5
+            "offsetMm": 32.980000000000004
           }
         }
       },
@@ -844,9 +844,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "subtotal"
+              "schemaId": "subtotalLine"
             },
-            "offsetMm": 0.5
+            "offsetMm": 0.3500000000000057
           }
         }
       },
@@ -877,9 +877,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "taxLabel"
+              "schemaId": "subtotalLine"
             },
-            "offsetMm": -6.609999999999999
+            "offsetMm": 0.24000000000000626
           }
         }
       },
@@ -910,9 +910,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "taxValue"
+              "schemaId": "subtotalLine"
             },
-            "offsetMm": 0.4999999999999991
+            "offsetMm": 7.350000000000006
           }
         }
       },
@@ -941,9 +941,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "totalLabel"
+              "schemaId": "subtotalLine"
             },
-            "offsetMm": -6.5
+            "offsetMm": 7.350000000000006
           }
         }
       },
@@ -983,9 +983,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "totalValue"
+              "schemaId": "taxSubtotalsTable"
             },
-            "offsetMm": 19.519999999999996
+            "offsetMm": 7.532800000000002
           }
         }
       },
@@ -1116,9 +1116,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "note"
+              "schemaId": "dueDate"
             },
-            "offsetMm": -90.28
+            "offsetMm": 1.1899999999999977
           }
         }
       },
@@ -1155,9 +1155,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "orders"
+              "schemaId": "dueDate"
             },
-            "offsetMm": 0.008000000000002672
+            "offsetMm": 33.31
           }
         }
       },
@@ -1187,9 +1187,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "eligibleForReducedTaxRate"
+              "schemaId": "title"
             },
-            "offsetMm": -68.87
+            "offsetMm": 18.68
           }
         }
       },
@@ -1216,9 +1216,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "senderPostalCode"
+              "schemaId": "title"
             },
-            "offsetMm": -8.030000000000001
+            "offsetMm": 15.68
           }
         }
       },
@@ -1246,9 +1246,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "subject"
+              "schemaId": "senderAddress1"
             },
-            "offsetMm": 20.33
+            "offsetMm": 8.329999999999998
           }
         }
       },
@@ -1276,9 +1276,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "totalAmountLine"
+              "schemaId": "dueDate"
             },
-            "offsetMm": 45.7
+            "offsetMm": 39.33
           }
         }
       },
@@ -1336,9 +1336,9 @@
           "y": {
             "mode": "belowBottomEdge",
             "ref": {
-              "schemaId": "taxValueLine"
+              "schemaId": "subtotalLine"
             },
-            "offsetMm": 6.7
+            "offsetMm": 13.7
           }
         }
       }
