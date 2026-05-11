@@ -51,7 +51,7 @@
     "coverage": "npm run build && vitest run --config ../../vitest.config.ts --coverage"
   },
   "dependencies": {
-    "@napi-rs/canvas": "^0.1.100",
+    "@napi-rs/canvas": "^1.0.0",
     "@pdfweave/common": "0.1.0",
     "@pdfweave/converter": "0.1.0",
     "@pdfweave/generator": "0.1.0",
