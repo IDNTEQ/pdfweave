@@ -90,6 +90,7 @@ import {
   getDynamicHeights,
   PAGE_BREAK_SCHEMA_TYPE,
 } from './dynamicTemplate.js';
+import { migrateTemplateToAnchored } from './migrate.js';
 import { resolveAnchorTargetPoint } from './anchorLayout.js';
 import type { AnchorAxis, ResolvedAnchorTarget } from './anchorLayout.js';
 import { replacePlaceholders } from './expression.js';
@@ -145,6 +146,7 @@ export {
   getDynamicTemplate,
   getDynamicHeights,
   PAGE_BREAK_SCHEMA_TYPE,
+  migrateTemplateToAnchored,
   resolveAnchorTargetPoint,
   formatDesignDataValue,
   getDesignDataInput,

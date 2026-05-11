@@ -72,21 +72,12 @@ describe('getDynamicTemplate', () => {
   };
 
   describe('Single page scenarios', () => {
-    test('should handle no page break', async () => {
-      const increaseHeights = [10, 10, 10, 10, 10];
-      const dynamicTemplate = await getDynamicTemplate(
-        createGetDynamicTemplateArg(increaseHeights),
-      );
-
-      verifyBasicStructure(dynamicTemplate);
-      expect(dynamicTemplate.schemas.length).toBe(1);
-      expect(dynamicTemplate.schemas[0][0].position.y).toEqual(aPositionY);
-      expect(dynamicTemplate.schemas[0][0].name).toEqual('a');
-      expect(dynamicTemplate.schemas[0][1].position.y).toEqual(
-        increaseHeights.reduce((a, b) => a + b, 0) - height + bPositionY,
-      );
-      expect(dynamicTemplate.schemas[0][1].name).toEqual('b');
-    });
+    // The "should handle no page break" test was deleted in Phase 4 of
+    // RFC 0001 — it asserted that absolute schema `b` is pushed down
+    // when its predecessor `a` (also absolute) expands. Under Option C
+    // (Phase 4), absolute means literal coords and does not move.
+    // Templates that depended on that flow propagation must be migrated
+    // via `migrateTemplateToAnchored` (chain-anchored predecessors).
 
     test('should resolve bounded two-axis anchors before dynamic height offsets', async () => {
       const anchoredTemplate: Template = {
@@ -201,141 +192,14 @@ describe('getDynamicTemplate', () => {
     });
   });
 
-  describe('Multiple page scenarios', () => {
-    test('should handle page break with a on page 1 and b on page 2', async () => {
-      const increaseHeights = [20, 20, 20, 20];
-      const dynamicTemplate = await getDynamicTemplate(
-        createGetDynamicTemplateArg(increaseHeights),
-      );
-
-      verifyBasicStructure(dynamicTemplate);
-      expect(dynamicTemplate.schemas.length).toBe(2);
-      expect(dynamicTemplate.schemas[0][0].position.y).toEqual(aPositionY);
-      expect(dynamicTemplate.schemas[0][0].name).toEqual('a');
-      expect(dynamicTemplate.schemas[0][1]).toBeUndefined();
-      expect(dynamicTemplate.schemas[1][0].name).toEqual('b');
-      // b maintains its relative offset from a's end position
-      // a ends at y=90 (page content), b was 20 units below a, so b is at y=10 in page coords + padding = 20
-      expect(dynamicTemplate.schemas[1][0].position.y).toEqual(padding + padding);
-      expect(dynamicTemplate.schemas[1][1]).toBeUndefined();
-    });
-
-    test('should handle page break with a on page 1 and 2, b on page 2', async () => {
-      const increaseHeights = [20, 20, 20, 20, 20];
-      const dynamicTemplate = await getDynamicTemplate(
-        createGetDynamicTemplateArg(increaseHeights),
-      );
-
-      verifyBasicStructure(dynamicTemplate);
-      expect(dynamicTemplate.schemas.length).toBe(2);
-      expect(dynamicTemplate.schemas[0][0].position.y).toEqual(aPositionY);
-      expect(dynamicTemplate.schemas[0][0].name).toEqual('a');
-      expect(dynamicTemplate.schemas[0][1]).toBeUndefined();
-      expect(dynamicTemplate.schemas[1][0].position.y).toEqual(padding);
-      expect(dynamicTemplate.schemas[1][0].name).toEqual('a');
-      expect(dynamicTemplate.schemas[1][1].position.y).toEqual(
-        increaseHeights.slice(3).reduce((a, b) => a + b, 0) - height + padding,
-      );
-      expect(dynamicTemplate.schemas[1][1].name).toEqual('b');
-    });
-
-    test('should handle multiple page breaks', async () => {
-      const increaseHeights = [50, 50, 50, 50, 50];
-      const dynamicTemplate = await getDynamicTemplate(
-        createGetDynamicTemplateArg(increaseHeights),
-      );
-
-      verifyBasicStructure(dynamicTemplate);
-      expect(dynamicTemplate.schemas.length).toBe(5);
-
-      // Verify 'a' elements across pages
-      // Page 0: 'a' first segment (50px)
-      expect(dynamicTemplate.schemas[0][0]).toBeDefined();
-      expect(dynamicTemplate.schemas[0][0].position.y).toEqual(aPositionY);
-      expect(dynamicTemplate.schemas[0][0].height).toEqual(50);
-      expect(dynamicTemplate.schemas[0][0].name).toEqual('a');
-
-      // Page 1: 'a' second segment (50px)
-      expect(dynamicTemplate.schemas[1][0]).toBeDefined();
-      expect(dynamicTemplate.schemas[1][0].position.y).toEqual(padding);
-      expect(dynamicTemplate.schemas[1][0].height).toEqual(50);
-      expect(dynamicTemplate.schemas[1][0].name).toEqual('a');
-
-      // Page 2: 'a' third segment (50px)
-      expect(dynamicTemplate.schemas[2][0]).toBeDefined();
-      expect(dynamicTemplate.schemas[2][0].position.y).toEqual(padding);
-      expect(dynamicTemplate.schemas[2][0].height).toEqual(50);
-      expect(dynamicTemplate.schemas[2][0].name).toEqual('a');
-
-      // Page 3: 'a' fourth segment (50px)
-      expect(dynamicTemplate.schemas[3][0]).toBeDefined();
-      expect(dynamicTemplate.schemas[3][0].position.y).toEqual(padding);
-      expect(dynamicTemplate.schemas[3][0].height).toEqual(50);
-      expect(dynamicTemplate.schemas[3][0].name).toEqual('a');
-
-      // Page 4: 'a' fifth segment (50px) and 'b' element (10px)
-      expect(dynamicTemplate.schemas[4][0]).toBeDefined();
-      expect(dynamicTemplate.schemas[4][0].position.y).toEqual(padding);
-      expect(dynamicTemplate.schemas[4][0].height).toEqual(50);
-      expect(dynamicTemplate.schemas[4][0].name).toEqual('a');
-
-      expect(dynamicTemplate.schemas[4][1]).toBeDefined();
-      expect(dynamicTemplate.schemas[4][1].position.y).toEqual(70);
-      expect(dynamicTemplate.schemas[4][1].height).toEqual(10);
-      expect(dynamicTemplate.schemas[4][1].name).toEqual('b');
-    });
-
-    test('should handle both a and b on next page', async () => {
-      const increaseHeights = [80, 10, 10];
-      const dynamicTemplate = await getDynamicTemplate(
-        createGetDynamicTemplateArg(increaseHeights),
-      );
-
-      verifyBasicStructure(dynamicTemplate);
-      expect(dynamicTemplate.schemas.length).toBe(2);
-
-      // Check first page
-      expect(dynamicTemplate.schemas[0][0]).toBeDefined();
-      expect(dynamicTemplate.schemas[0][0].position.y).toEqual(aPositionY);
-      expect(dynamicTemplate.schemas[0][0].height).toEqual(80);
-      expect(dynamicTemplate.schemas[0][1]).toBeUndefined();
-
-      // Check second page
-      expect(dynamicTemplate.schemas[1][0]).toBeDefined();
-      expect(dynamicTemplate.schemas[1][0].position.y).toEqual(padding);
-      expect(dynamicTemplate.schemas[1][0].height).toEqual(20);
-
-      expect(dynamicTemplate.schemas[1][1]).toBeDefined();
-      expect(dynamicTemplate.schemas[1][1].position.y).toBeGreaterThanOrEqual(
-        dynamicTemplate.schemas[1][0].position.y + dynamicTemplate.schemas[1][0].height,
-      );
-    });
-  });
-
-  describe('Element height modifications', () => {
-    test('should handle increased height for b', async () => {
-      const increaseHeights = [10, 10, 10, 10, 10];
-      const bHeight = 30;
-      const dynamicTemplate = await getDynamicTemplate(
-        createGetDynamicTemplateArg(increaseHeights, bHeight),
-      );
-
-      verifyBasicStructure(dynamicTemplate);
-      expect(dynamicTemplate.schemas.length).toBe(2);
-
-      // Check 'a' element
-      expect(dynamicTemplate.schemas[0][0]).toBeDefined();
-      expect(dynamicTemplate.schemas[0][0].position.y).toEqual(aPositionY);
-      expect(dynamicTemplate.schemas[0][0].height).toEqual(50);
-      expect(dynamicTemplate.schemas[0][0].name).toEqual('a');
-
-      // Check 'b' element
-      expect(dynamicTemplate.schemas[1][0]).toBeDefined();
-      expect(dynamicTemplate.schemas[1][0].position.y).toEqual(padding);
-      expect(dynamicTemplate.schemas[1][0].height).toEqual(bHeight);
-      expect(dynamicTemplate.schemas[1][0].name).toEqual('b');
-    });
-  });
+  // Multiple page scenarios + Element height modifications: removed in
+  // Phase 4 of RFC 0001. They asserted the engine's `totalYOffset`
+  // grouped-offset flow propagation (e.g. "absolute b is pushed onto
+  // page 2 because absolute a expanded across page 1"). Under Option C
+  // that propagation is gone — absolute means literal coords. The
+  // anchored equivalent (chain-anchored b → belowBottomEdge of a) is
+  // what `migrateTemplateToAnchored` produces, and is exercised by the
+  // generator-package playground integration tests.
 
   describe('Validation (pdfme#1346)', () => {
     // Reproduces upstream pdfme#1346: a schema whose y is above the top
@@ -530,58 +394,12 @@ describe('getDynamicTemplate', () => {
       expect(textOnPage3!.position.y).toBe(10);
     });
 
-    test('should keep static page schemas together with dynamic page when both on same template page', async () => {
-      // When table and text are on the SAME template page, they should be processed together
-      const templateWithOnePage: Template = {
-        schemas: [
-          [
-            {
-              name: 'table',
-              content: 'table',
-              type: 'table',
-              position: { x: 10, y: 10 },
-              width: 80,
-              height: 10,
-            },
-            {
-              name: 'text',
-              content: 'text',
-              type: 'text',
-              position: { x: 10, y: 30 },
-              width: 80,
-              height: 10,
-            },
-          ],
-        ],
-        basePdf: { width: 100, height: 100, padding: [10, 10, 10, 10] },
-      };
-
-      const dynamicTemplate = await getDynamicTemplate({
-        template: templateWithOnePage,
-        input: { table: 'table', text: 'text' },
-        options: { font: getSampleFont() },
-        _cache: new Map(),
-        getDynamicHeights: async (value: string, args: { schema: Schema }) => {
-          if (args.schema.type === 'table') {
-            return [10, 10, 10, 10]; // 40 total height
-          }
-          return [args.schema.height];
-        },
-      });
-
-      verifyBasicStructure(dynamicTemplate);
-      // Table expands from 10 to 40, pushing text down by 30
-      // Both should still fit on one page (table ends at 50, text at 70)
-      expect(dynamicTemplate.schemas.length).toBe(1);
-      expect(dynamicTemplate.schemas[0].some((s) => s.name === 'table')).toBe(true);
-      expect(dynamicTemplate.schemas[0].some((s) => s.name === 'text')).toBe(true);
-
-      const table = dynamicTemplate.schemas[0].find((s) => s.name === 'table');
-      const text = dynamicTemplate.schemas[0].find((s) => s.name === 'text');
-      expect(table!.height).toBe(40);
-      // Text should be pushed down: original y=30 + (40-10) offset = 60
-      expect(text!.position.y).toBe(60);
-    });
+    // "should keep static page schemas together with dynamic page when
+    // both on same template page" was deleted in Phase 4 — under
+    // Option C, an absolute text below an absolute (dynamic) table is
+    // NOT pushed by the table's expansion. The migration script
+    // chain-anchors them; the chain-anchored equivalent is exercised
+    // by the generator-package playground integration tests.
   });
 });
 
@@ -880,68 +698,15 @@ describe('getDynamicTemplate staticSchema-aware reflow (pdfme#1434)', () => {
 });
 
 describe('pageBreak schema type (pdfme#637)', () => {
-  // Reproduces upstream pdfme#637: a built-in primitive that forces
-  // subsequent schemas onto a new page during the dynamic reflow pass —
-  // CSS `break-before: page`. The layout engine recognises the type tag
-  // and emits no rendered output for the marker itself; the paired
-  // render-time plugin (a no-op) ships in @pdfweave/schemas.
+  // The PAGE_BREAK_SCHEMA_TYPE constant remains exported for the
+  // migration tool's skip logic and any third-party code that still
+  // references it. The runtime "force next page" semantics that
+  // pdfme#637 originally added were tied to the engine's grouped-offset
+  // flow; that flow is gone in Phase 4 (RFC 0001), so a pageBreak
+  // marker now renders as a no-op in the layout engine. If/when an
+  // anchored equivalent is requested, it'll arrive as a new anchor mode.
   test('exports the type marker constant', () => {
     expect(PAGE_BREAK_SCHEMA_TYPE).toBe('pageBreak');
-  });
-
-  test('a [text, pageBreak, text] template puts the second text on page 2', async () => {
-    const template: Template = {
-      schemas: [
-        [
-          {
-            name: 'first',
-            type: 'text',
-            content: 'first',
-            position: { x: 10, y: 10 },
-            width: 80,
-            height: 10,
-          },
-          {
-            name: 'br',
-            type: PAGE_BREAK_SCHEMA_TYPE,
-            content: '',
-            position: { x: 0, y: 30 },
-            width: 0,
-            height: 0,
-          },
-          {
-            name: 'second',
-            type: 'text',
-            content: 'second',
-            position: { x: 10, y: 50 },
-            width: 80,
-            height: 10,
-          },
-        ],
-      ],
-      basePdf: { width: 100, height: 100, padding: [10, 10, 10, 10] },
-    };
-
-    const dynamicTemplate = await getDynamicTemplate({
-      template,
-      input: { first: 'first', second: 'second' },
-      options: {},
-      _cache: new Map(),
-    });
-
-    // Two pages: first text on page 1, second text on page 2.
-    // The pageBreak itself is not emitted to the rendered output.
-    expect(dynamicTemplate.schemas.length).toBe(2);
-    expect(dynamicTemplate.schemas[0].some((s) => s.name === 'first')).toBe(true);
-    expect(dynamicTemplate.schemas[0].some((s) => s.name === 'second')).toBe(false);
-    expect(dynamicTemplate.schemas[1].some((s) => s.name === 'second')).toBe(true);
-
-    // No pageBreak markers leak into the rendered output.
-    for (const page of dynamicTemplate.schemas) {
-      for (const schema of page) {
-        expect(schema.type).not.toBe(PAGE_BREAK_SCHEMA_TYPE);
-      }
-    }
   });
 });
 
@@ -989,197 +754,15 @@ describe('Same Y position scenarios (horizontal layout) — pdfme#1489', () => {
     expect(b?.height).toBe(10);
   });
 
-  test('schema below same-Y group is pushed by the group\'s largest expansion', async () => {
-    const template: Template = {
-      basePdf: sameYBasePdf,
-      schemas: [
-        [
-          { name: 'a', content: 'a', type: 'a', position: { x: 10, y: 10 }, width: 80, height: 10 },
-          { name: 'b', content: 'b', type: 'b', position: { x: 100, y: 10 }, width: 80, height: 10 },
-          { name: 'c', content: 'c', type: 'c', position: { x: 10, y: 30 }, width: 80, height: 10 },
-        ],
-      ],
-    };
-
-    const dynamic = await getDynamicTemplate({
-      template,
-      input: { a: 'a', b: 'b', c: 'c' },
-      options: {},
-      _cache: new Map(),
-      getDynamicHeights: async (_value, args: { schema: Schema }) => {
-        if (args.schema.name === 'a') return [10, 10, 10]; // +20
-        return [args.schema.height];
-      },
-    });
-
-    const a = dynamic.schemas[0].find((s) => s.name === 'a');
-    const b = dynamic.schemas[0].find((s) => s.name === 'b');
-    const c = dynamic.schemas[0].find((s) => s.name === 'c');
-    expect(a?.position.y).toBe(10);
-    expect(b?.position.y).toBe(10);
-    // c sits below the group; pushed down by the max group expansion (+20).
-    expect(c?.position.y).toBe(50);
-  });
-
-  test('near-Y schemas (overlapping ranges) are treated as one group', async () => {
-    // y=20 and y=21 with height=10 each: ranges [20,30] and [21,31] overlap.
-    // Manual placement drift of 1pt should not split them into separate groups.
-    const template: Template = {
-      basePdf: sameYBasePdf,
-      schemas: [
-        [
-          { name: 'a', content: 'a', type: 'a', position: { x: 10, y: 20 }, width: 80, height: 10 },
-          { name: 'b', content: 'b', type: 'b', position: { x: 100, y: 21 }, width: 80, height: 10 },
-        ],
-      ],
-    };
-
-    const dynamic = await getDynamicTemplate({
-      template,
-      input: { a: 'a', b: 'b' },
-      options: {},
-      _cache: new Map(),
-      getDynamicHeights: async (_value, args: { schema: Schema }) => {
-        if (args.schema.name === 'a') return [10, 10, 10];
-        return [args.schema.height];
-      },
-    });
-
-    const a = dynamic.schemas[0].find((s) => s.name === 'a');
-    const b = dynamic.schemas[0].find((s) => s.name === 'b');
-    expect(a?.position.y).toBe(20);
-    expect(a?.height).toBe(30);
-    // b overlaps a's range, so it stays at its original y=21.
-    expect(b?.position.y).toBe(21);
-    expect(b?.height).toBe(10);
-  });
-
-  test('larger expansion wins when both same-Y schemas expand', async () => {
-    const template: Template = {
-      basePdf: sameYBasePdf,
-      schemas: [
-        [
-          { name: 'a', content: 'a', type: 'a', position: { x: 10, y: 10 }, width: 80, height: 10 },
-          { name: 'b', content: 'b', type: 'b', position: { x: 100, y: 10 }, width: 80, height: 10 },
-          { name: 'c', content: 'c', type: 'c', position: { x: 10, y: 30 }, width: 80, height: 10 },
-        ],
-      ],
-    };
-
-    const dynamic = await getDynamicTemplate({
-      template,
-      input: { a: 'a', b: 'b', c: 'c' },
-      options: {},
-      _cache: new Map(),
-      getDynamicHeights: async (_value, args: { schema: Schema }) => {
-        if (args.schema.name === 'a') return [10, 10]; // +10
-        if (args.schema.name === 'b') return [10, 10, 10]; // +20
-        return [args.schema.height];
-      },
-    });
-
-    const a = dynamic.schemas[0].find((s) => s.name === 'a');
-    const b = dynamic.schemas[0].find((s) => s.name === 'b');
-    const c = dynamic.schemas[0].find((s) => s.name === 'c');
-    expect(a?.position.y).toBe(10);
-    expect(b?.position.y).toBe(10);
-    // c is pushed down by max(b's +20, a's +10) = +20.
-    expect(c?.position.y).toBe(50);
-  });
-
-  test('schemas below same-Y group correct after a sibling spans pages', async () => {
-    const template: Template = {
-      basePdf: sameYBasePdf,
-      schemas: [
-        [
-          { name: 'a', content: 'a', type: 'a', position: { x: 10, y: 10 }, width: 80, height: 10 },
-          { name: 'b', content: 'b', type: 'b', position: { x: 100, y: 10 }, width: 80, height: 10 },
-          { name: 'c', content: 'c', type: 'c', position: { x: 10, y: 30 }, width: 80, height: 10 },
-        ],
-      ],
-    };
-
-    const dynamic = await getDynamicTemplate({
-      template,
-      input: { a: 'a', b: 'b', c: 'c' },
-      options: {},
-      _cache: new Map(),
-      getDynamicHeights: async (_value, args: { schema: Schema }) => {
-        if (args.schema.name === 'a') return [90, 90, 30];
-        return [args.schema.height];
-      },
-    });
-
-    expect(dynamic.schemas.length).toBe(2);
-    const firstPageA = dynamic.schemas[0].find((s) => s.name === 'a');
-    const firstPageB = dynamic.schemas[0].find((s) => s.name === 'b');
-    const secondPageA = dynamic.schemas[1].find((s) => s.name === 'a');
-    const secondPageC = dynamic.schemas[1].find((s) => s.name === 'c');
-    expect(firstPageA?.position.y).toBe(10);
-    expect(firstPageA?.height).toBe(180);
-    expect(firstPageB?.position.y).toBe(10);
-    expect(firstPageB?.height).toBe(10);
-    expect(secondPageA?.position.y).toBe(10);
-    expect(secondPageA?.height).toBe(30);
-    // c preserves its original 10pt gap below the same-Y group after a splits.
-    expect(secondPageC?.position.y).toBe(50);
-    expect(secondPageC?.height).toBe(10);
-  });
-
-  test('PDFweave: pageBreak commits the current same-Y group', async () => {
-    // Adaptation specific to pdfweave's pageBreak primitive (pdfme#637).
-    // A and B form a same-Y group on page 1; A expands (+20). The
-    // pageBreak between the group and C must commit the group BEFORE
-    // snapping to page 2, so C lands at the top of page 2 (no extra
-    // accumulated offset). Without the commitGroup() call at the
-    // page-break branch, C would be pushed an extra ~20pt past the
-    // page-2 origin.
-    const template: Template = {
-      basePdf: sameYBasePdf,
-      schemas: [
-        [
-          { name: 'a', content: 'a', type: 'a', position: { x: 10, y: 10 }, width: 80, height: 10 },
-          { name: 'b', content: 'b', type: 'b', position: { x: 100, y: 10 }, width: 80, height: 10 },
-          {
-            name: 'br',
-            type: PAGE_BREAK_SCHEMA_TYPE,
-            content: '',
-            position: { x: 0, y: 30 },
-            width: 0,
-            height: 0,
-          },
-          { name: 'c', content: 'c', type: 'c', position: { x: 10, y: 50 }, width: 80, height: 10 },
-        ],
-      ],
-    };
-
-    const dynamic = await getDynamicTemplate({
-      template,
-      input: { a: 'a', b: 'b', c: 'c' },
-      options: {},
-      _cache: new Map(),
-      getDynamicHeights: async (_value, args: { schema: Schema }) => {
-        if (args.schema.name === 'a') return [10, 10, 10]; // +20
-        return [args.schema.height];
-      },
-    });
-
-    expect(dynamic.schemas.length).toBe(2);
-    const firstPageA = dynamic.schemas[0].find((s) => s.name === 'a');
-    const firstPageB = dynamic.schemas[0].find((s) => s.name === 'b');
-    const secondPageC = dynamic.schemas[1].find((s) => s.name === 'c');
-    expect(firstPageA?.position.y).toBe(10);
-    expect(firstPageA?.height).toBe(30);
-    expect(firstPageB?.position.y).toBe(10);
-    // pageBreak is at template y=30, c is at template y=50 — a 20pt
-    // baseY gap. After snap to page 2, c preserves that gap below
-    // page 2's content top (paddingTop=10): template y=30.
-    // Without commitGroup() at the pageBreak branch, the group's +20
-    // expansion would not be folded into the snap accounting and c
-    // would land at template y=20 instead.
-    expect(secondPageC?.position.y).toBe(30);
-    expect(secondPageC?.height).toBe(10);
-  });
+  // The Phase 1 stop-gap (grouped offset, near-Y group detection,
+  // pageBreak group commit) lived in `processDynamicPage` and was
+  // deleted in Phase 4 along with the rest of the engine flow. Most
+  // of these tests asserted that flow propagation (e.g. "absolute c
+  // below the same-Y group is pushed down by the group's max
+  // expansion"). Under Option C, absolute means literal coords —
+  // there's nothing to push. The migration tool produces
+  // chain-anchored equivalents, exercised end-to-end by the generator
+  // package's playground integration snapshot tests.
 
   test('PDFweave: anchored same-Y siblings stay at their pageTop offset', async () => {
     // Anchored schemas pass through the same processDynamicPage path,
@@ -1515,13 +1098,14 @@ describe('Runtime anchor re-resolution (Phase 2 — RFC 0001)', () => {
     expect(b?.position.y).toBe(30);
   });
 
-  test('anchored item targets an absolute pushed by upstream growth', async () => {
-    // Regression for CodeRabbit feedback on PR #46:
-    // - X is absolute and dynamic (10 -> 50). The engine pushes A
-    //   (also absolute, originally below X's declared bottom) by 40.
-    // - B is anchored to A (belowBottomEdge, offset 5). Phase 2 must
-    //   resolve B against A's POST-ENGINE position, not A's
-    //   template-declared position.
+  test('anchored item targets a (no-longer-pushed) absolute neighbour — uses literal y', async () => {
+    // The Phase 2 version of this test asserted that an upstream
+    // absolute X (dynamic) would push A (absolute, declared below X)
+    // via the engine, and B (anchored to A) would resolve against A's
+    // post-engine y. Phase 4 deletes that engine push: under Option C,
+    // absolute items don't move regardless of upstream growth.
+    // X grows but stays at y=10; A stays at y=30 even though X now
+    // overlaps it. B (anchored to A) resolves against A's literal y=30.
     const template: Template = {
       basePdf: phase2BasePdf,
       schemas: [
@@ -1575,12 +1159,10 @@ describe('Runtime anchor re-resolution (Phase 2 — RFC 0001)', () => {
     const b = dynamic.schemas[0].find((s) => s.name === 'b');
     expect(x?.position.y).toBe(10);
     expect(x?.height).toBe(50);
-    // a was at y=30; engine pushes by (50 - 10) = 40 → a at y=70.
-    expect(a?.position.y).toBe(70);
-    // b = a.position.y (70) + a.height (10) + offset (5) = 85.
-    // Phase 2 resolves anchors AFTER the engine has placed absolute
-    // targets, so b sees a's final y=70 not its declared y=30.
-    expect(b?.position.y).toBe(85);
+    // a stays at template y=30 even though x now overlaps it (Option C).
+    expect(a?.position.y).toBe(30);
+    // b = a.position.y (30) + a.height (10) + offset (5) = 45.
+    expect(b?.position.y).toBe(45);
   });
 
   test('anchored chain where upstream target paginates: B uses A\'s last-fragment bottom', async () => {
@@ -1816,85 +1398,14 @@ describe('Page-aware anchor resolution (Phase 3 — RFC 0001)', () => {
     );
   });
 
-  test('anchored item targets an absolute that the engine pushed across pages', async () => {
-    // X (absolute, dynamic) paginates 10 → 150mm. A (absolute,
-    // declared height 10) sits below X and gets pushed by engine
-    // grouped offset onto a later page. B (anchored to A) must
-    // resolve against A's POST-ENGINE landing site (global-Y
-    // encoded), not its template-declared position.
-    const template: Template = {
-      basePdf: splitBasePdf,
-      schemas: [
-        [
-          {
-            name: 'x',
-            content: 'x',
-            type: 'x',
-            position: { x: 10, y: 10 },
-            width: 80,
-            height: 10,
-          },
-          {
-            name: 'a',
-            content: 'a',
-            type: 'a',
-            position: { x: 10, y: 30 },
-            width: 80,
-            height: 10,
-          },
-          {
-            name: 'b',
-            content: 'b',
-            type: 'b',
-            position: { x: 10, y: 0 },
-            width: 80,
-            height: 10,
-            layout: {
-              mode: 'anchored',
-              x: { mode: 'pageLeft', offsetMm: 10 },
-              y: { mode: 'belowBottomEdge', ref: { schemaId: 'a' }, offsetMm: 5 },
-            },
-          },
-        ],
-      ],
-    };
-
-    const dynamic = await getDynamicTemplate({
-      template,
-      input: { x: 'x', a: 'a', b: 'b' },
-      options: {},
-      _cache: new Map(),
-      getDynamicHeights: async (_value, args: { schema: Schema }) => {
-        if (args.schema.name === 'x') return [30, 30, 30, 30, 30]; // 5×30 → 2 pages
-        return [args.schema.height];
-      },
-    });
-
-    // Locate A's final placement and B's final placement. B's global
-    // Y (pageIndex × contentHeight + position.y) must equal A's global
-    // bottom edge + offset, OR B page-breaks because the remaining
-    // space on A's page can't hold B (placeRowsOnPages's orphan
-    // protection). Assert one of those two.
-    const aPlaced = dynamic.schemas
-      .flatMap((page, p) => page.filter((s) => s.name === 'a').map((s) => ({ schema: s, page: p })))
-      .at(-1);
-    const bPlaced = dynamic.schemas
-      .flatMap((page, p) => page.filter((s) => s.name === 'b').map((s) => ({ schema: s, page: p })))
-      .at(-1);
-    expect(aPlaced).toBeDefined();
-    expect(bPlaced).toBeDefined();
-    const contentHeight = 90; // page 110 - padding (10 top + 10 bottom)
-    const aGlobalBottom =
-      aPlaced.page * contentHeight + (aPlaced.schema.position.y ?? 0) + (aPlaced.schema.height ?? 0);
-    const bGlobalTop = bPlaced.page * contentHeight + (bPlaced.schema.position.y ?? 0);
-    const idealBStart = aGlobalBottom + 5;
-    // B starts either at idealBStart (fits) or at the start of the
-    // next page (orphan-protected). It must NOT be above the ideal
-    // start (which would mean anchor read A's pre-engine position).
-    expect(bGlobalTop).toBeGreaterThanOrEqual(idealBStart);
-    // And it must be on a page no earlier than A's page.
-    expect(bPlaced?.page).toBeGreaterThanOrEqual(aPlaced.page);
-  });
+  // The "anchored item targets an absolute that the engine pushed
+  // across pages" test was deleted in Phase 4 of RFC 0001. It
+  // validated that an anchored dependent resolved against the engine's
+  // post-flow-push position of an absolute target. Phase 4 removes the
+  // engine push entirely (Option C: absolute items don't move).
+  // Cross-page chains are still supported when the *anchor target* is
+  // anchored (the chain naturally tracks the upstream's last fragment
+  // via the global-Y encoding); see the surrounding cross-page tests.
 
   test('X-anchor across pages: X coord stays correct regardless of which page B lands on', async () => {
     // A is on page 1. B is anchored Y-belowBottomEdge of a

@@ -1,5 +1,11 @@
 [
   {
+    "file": "packages/cli/src/commands/migrate.ts",
+    "function": "<anonymous>",
+    "reason": "CLI commands run via execFileSync in tests; vitest v8 coverage doesn't instrument the spawned Node process. Same allowance as other CLI command run() callbacks.",
+    "until": "2026-08-01"
+  },
+  {
     "file": "packages/pdf-lib/src/api/svg.ts",
     "function": "parseAttributes",
     "reason": "Phase 4 cleanup",

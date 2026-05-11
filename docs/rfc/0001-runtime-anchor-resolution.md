@@ -1,9 +1,10 @@
 # RFC 0001 — Runtime anchor resolution + single-system layout
 
-- **Status:** Accepted (amended 2026-05-10)
+- **Status:** Accepted; Phases 1, 2, 3a, 4 all delivered (2026-05-11)
 - **Author:** PDFweave maintainers
-- **Date:** 2026-05-08, amended 2026-05-09 and 2026-05-10
-- **Implementation tracking:** TBD GitHub issue
+- **Date:** 2026-05-08, amended 2026-05-09, 2026-05-10, and 2026-05-11
+- **Implementation tracking:** Phase 1 PR #43, Phase 2 PR #46,
+  Phase 3a PR #47, Phase 4 PR (forthcoming)
 - **Amendment note (2026-05-09):** clarified that PDFweave moves to a
   single-system layout model. Earlier draft framed Phase 4 as "two
   systems coexist on disjoint subsets" and described
@@ -17,6 +18,15 @@
   capabilities `belowFragment` mode + named-point
   `LayoutFragment.anchors`, **deferred** until requested by a user
   and likely warranting their own RFC).
+- **Amendment note (2026-05-11):** Phase 4 delivered as a single PR
+  per project decision (vs the originally scoped two-PR
+  migrate-then-delete sequence). `processDynamicPage`'s grouped
+  `totalYOffset` flow propagation replaced with `placeAbsoluteItems`
+  (a literal-coords loop); pageBreak primitive becomes a no-op in
+  the layout engine (constant retained for the migration tool's
+  skip logic). All 6 dynamic-content playground templates migrated
+  in-place via `migrateTemplateToAnchored`; `npx pdfweave migrate`
+  CLI ships for future external users.
 
 ## Summary
 
