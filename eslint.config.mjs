@@ -30,6 +30,17 @@ const packageNames = [
   'ui',
 ];
 
+const packagePublicEntrypoints = {
+  cli: ['./index.ts'],
+  common: ['./index.ts'],
+  converter: ['./index.ts'],
+  generator: ['./index.ts'],
+  manipulator: ['./index.ts'],
+  'pdf-lib': ['./index.ts'],
+  schemas: ['./index.ts', './builtins.ts', './tables.ts', './utils.ts'],
+  ui: ['./index.ts'],
+};
+
 const sourceFiles = [
   'packages/*/src/**/*.{ts,tsx}',
   'packages/*/__tests__/**/*.{ts,tsx}',
@@ -95,13 +106,19 @@ const disableTypeScriptRulesMatching = (predicate) =>
       .map((ruleName) => [`@typescript-eslint/${ruleName}`, 'off'])
   );
 
-const packageBoundaryZones = packageNames.map((targetPackage) => ({
-  target: `./packages/${targetPackage}/src`,
-  from: packageNames
+const packageBoundaryZones = packageNames.flatMap((targetPackage) =>
+  packageNames
     .filter((sourcePackage) => sourcePackage !== targetPackage)
-    .map((sourcePackage) => `./packages/${sourcePackage}/src`),
-  message: 'Import other packages through their @pdfweave/* entry point instead of packages/*/src.',
-}));
+    .map((sourcePackage) => ({
+      target: `./packages/${targetPackage}/src`,
+      from: `./packages/${sourcePackage}/src`,
+      // The TS resolver maps public @pdfweave/* imports to src files; keep those entrypoints allowed.
+      except: packagePublicEntrypoints[sourcePackage],
+      message: 'Import other packages through their @pdfweave/* entry point instead of packages/*/src.',
+    }))
+);
+
+const testFiles = ['**/*.test.{ts,tsx}', '**/*.spec.{ts,tsx}', '**/__tests__/**/*.{ts,tsx}'];
 
 const typedStrictConfigs = [
   ...tseslint.configs.strictTypeChecked,
@@ -269,7 +286,7 @@ export default [
   },
   {
     name: 'pdfweave/tests-carve-out',
-    files: ['**/*.test.{ts,tsx}', '**/*.spec.{ts,tsx}', '**/__tests__/**/*.{ts,tsx}'],
+    files: testFiles,
     rules: {
       'sonarjs/no-duplicate-string': 'off',
       'sonarjs/cognitive-complexity': 'off',
