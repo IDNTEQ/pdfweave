@@ -1,0 +1,66 @@
+name: Deploy playground to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'packages/**'
+      - 'playground/**'
+      - '.github/workflows/deploy-playground.yml'
+  workflow_dispatch:
+
+# Allow only one concurrent deployment, skipping in-progress runs so newest
+# main always wins.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '20.x'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            playground/package-lock.json
+
+      - name: Install root workspaces
+        run: npm ci
+
+      - name: Build packages
+        run: npm run build
+
+      - name: Install playground dependencies
+        run: npm ci --prefix playground
+
+      - name: Build playground
+        run: npm --prefix playground run build
+
+      - name: Stage SPA fallback
+        # GitHub Pages doesn't honour vercel.json. Copy index.html → 404.html
+        # so client-side routes resolve on deep-link reload.
+        run: cp playground/dist/index.html playground/dist/404.html
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: playground/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
