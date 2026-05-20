@@ -10,7 +10,9 @@ import {
   handleLoadTemplate,
   generatePDF,
   isJsonString,
+  readFile,
   translations,
+  DEFAULT_TEMPLATE_ID,
 } from '../helper';
 import { getPlugins } from '../plugins';
 import { NavItem, NavBar } from '../components/NavBar';
@@ -47,6 +49,17 @@ function FormAndViewerApp() {
           const templateJson = JSON.parse(templateFromLocal) as Template;
           checkTemplate(templateJson);
           template = templateJson;
+        } else {
+          // First-visit fallback: same populated invoice that the Designer loads,
+          // so the Form/Viewer page isn't a blank canvas on first arrival.
+          try {
+            const templateJson = await getTemplateById(DEFAULT_TEMPLATE_ID);
+            checkTemplate(templateJson);
+            template = templateJson;
+            localStorage.setItem('template', JSON.stringify(templateJson));
+          } catch (_) {
+            // keep blank template fallback
+          }
         }
 
         let inputs = getInputFromTemplate(template);
@@ -97,7 +110,7 @@ function FormAndViewerApp() {
 
   const onSetInputs = () => {
     if (ui.current) {
-      const prompt = window.prompt('Enter Inputs JSONString') || '';
+      const prompt = window.prompt('Enter Inputs JSON string') || '';
       try {
         const json = isJsonString(prompt) ? JSON.parse(prompt) : [{}];
         ui.current.setInputs(json);
@@ -105,6 +118,24 @@ function FormAndViewerApp() {
         alert(e);
       }
     }
+  };
+
+  const onLoadInputsFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !ui.current) return;
+    void readFile(file, 'text').then((jsonStr) => {
+      try {
+        const parsed = JSON.parse(jsonStr as string);
+        const inputs = Array.isArray(parsed) ? parsed : [parsed];
+        ui.current?.setInputs(inputs);
+        toast.success(`Loaded inputs from ${file.name}`);
+      } catch (err) {
+        toast.error(`Invalid JSON in ${file.name}`);
+        console.error(err);
+      }
+      // Clear the input so the same file can be re-uploaded later
+      e.target.value = '';
+    });
   };
 
   const onSaveInputs = () => {
@@ -188,6 +219,17 @@ function FormAndViewerApp() {
       ),
     },
     {
+      label: 'Load Inputs',
+      content: (
+        <input
+          type="file"
+          accept="application/json"
+          onChange={onLoadInputsFile}
+          className="w-full text-sm border rounded border-gray-300"
+        />
+      ),
+    },
+    {
       label: '',
       content: (
         <div className="flex gap-2">
@@ -200,8 +242,9 @@ function FormAndViewerApp() {
           <button
             className="px-2 py-1 border rounded hover:bg-gray-100 border-gray-300"
             onClick={onSetInputs}
+            title="Paste JSON string"
           >
-            Set Inputs
+            Paste Inputs
           </button>
         </div>
       ),
