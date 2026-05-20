@@ -73,6 +73,17 @@ const computeDisplayValue = (
   const content = schema.content || '';
   if (mode === 'designer' || !schema.readOnly) return content;
 
+  // Plugin-managed content types store structured JSON in `content` (a
+  // `Record<string, string>` for multiVariableText, an array of rows for
+  // tables). Running the text-shaped `replacePlaceholders` evaluator over
+  // those would re-interpret the JSON braces as `{varname}` placeholders
+  // and shred the payload — the MVT plugin then sees a bare variable name
+  // and throws "invalid JSON string". The plugin already handles its own
+  // variable substitution, so pass content through verbatim.
+  if (schema.type === 'multiVariableText' || schema.type === 'table') {
+    return content;
+  }
+
   const variables: Record<string, string | number> = {
     totalPages: schemasList.length,
     currentPage: index + 1,
