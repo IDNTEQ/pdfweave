@@ -1,0 +1,9 @@
+[
+  {
+    "billedToInput": "Imani Olowe\n+123-456-7890\n63 Ivy Road, Hawkville, GA, USA 31036",
+    "info": "{\"InvoiceNo\":\"12345\",\"Date\":\"16 June 2025\"}",
+    "orders": "[[\"Eggshell Camisole Top\",\"1\",\"123\",\"123\"],[\"Cuban Collar Shirt\",\"2\",\"127\",\"254\"],[\"Floral Print Blouse\",\"3\",\"95\",\"285\"],[\"Linen Wide-Leg Trousers\",\"1\",\"189\",\"189\"],[\"Denim Pencil Skirt\",\"2\",\"110\",\"220\"],[\"Cropped Knit Cardigan\",\"1\",\"168\",\"168\"],[\"Wrap Midi Dress\",\"1\",\"245\",\"245\"],[\"Wool Blend Blazer\",\"1\",\"320\",\"320\"],[\"Silk Scarf - Botanical\",\"3\",\"58\",\"174\"],[\"Leather Belt - Cognac\",\"2\",\"75\",\"150\"],[\"Pleated Wide-Leg Pants\",\"1\",\"195\",\"195\"],[\"Tailored Wool Coat\",\"1\",\"410\",\"410\"],[\"Cashmere V-Neck Sweater\",\"2\",\"285\",\"570\"]]",
+    "taxInput": "{\"rate\":\"10\"}",
+    "paymentInfoInput": "Briard Bank\nAccount Name: Samira Hadid\nAccount No.: 123-456-7890\nPay by: 5 July 2025"
+  }
+]

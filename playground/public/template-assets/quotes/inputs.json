@@ -1,0 +1,9 @@
+[
+  {
+    "preparedForInput": "Imani Olowe\n+123-456-7890\n63 Ivy Road, Hawkville, GA, USA 31036",
+    "quoteInfo": "{\"QuoteNo\":\"Q-2025-042\",\"Date\":\"16 June 2025\",\"ValidUntil\":\"16 July 2025\"}",
+    "orders": "[[\"Brand strategy workshop\",\"1\",\"1800\",\"1800\"],[\"Logo + identity system\",\"1\",\"2400\",\"2400\"],[\"Print collateral suite\",\"1\",\"950\",\"950\"],[\"Website (5 pages)\",\"1\",\"3200\",\"3200\"],[\"Photography day rate\",\"2\",\"850\",\"1700\"],[\"Copywriting (page-rate)\",\"6\",\"180\",\"1080\"]]",
+    "taxInput": "{\"rate\":\"10\"}",
+    "termsInput": "This quote is valid for 30 days from the date of issue.\nPayment due net-15 from invoice.\nDeposit of 30% required to start work."
+  }
+]

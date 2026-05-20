@@ -177,3 +177,28 @@ export const getTemplateById = async (templateId: string): Promise<Template> => 
   checkTemplate(template);
   return template as Template;
 };
+
+/**
+ * Look for an `inputs.json` companion file next to the template. Returns the
+ * parsed inputs array if present, or `null` if the file is missing or the
+ * fetch fails for any reason — callers fall back to
+ * `getInputFromTemplate(template)` in that case.
+ */
+export const getInputsById = async (
+  templateId: string,
+): Promise<{ [key: string]: string }[] | null> => {
+  try {
+    const res = await fetch(`${BASE_URL}template-assets/${templateId}/inputs.json`);
+    if (!res.ok) return null;
+    const parsed = (await res.json()) as unknown;
+    if (Array.isArray(parsed)) {
+      return parsed as { [key: string]: string }[];
+    }
+    if (parsed && typeof parsed === 'object') {
+      return [parsed as { [key: string]: string }];
+    }
+    return null;
+  } catch {
+    return null;
+  }
+};

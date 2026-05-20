@@ -6,6 +6,7 @@ import { Form, Viewer } from '@pdfweave/ui';
 import {
   getFontsData,
   getTemplateById,
+  getInputsById,
   getBlankTemplate,
   handleLoadTemplate,
   generatePDF,
@@ -32,6 +33,9 @@ function FormAndViewerApp() {
       if (!uiRef.current) return;
       try {
         let template: Template = getBlankTemplate();
+        // Tracks which template id (if any) the current `template` came from
+        // — used to look up the optional `inputs.json` companion.
+        let templateIdInUse: string | null = null;
         const templateIdFromQuery = searchParams.get('template');
         searchParams.delete('template');
         setSearchParams(searchParams, { replace: true });
@@ -41,6 +45,7 @@ function FormAndViewerApp() {
           const templateJson = await getTemplateById(templateIdFromQuery);
           checkTemplate(templateJson);
           template = templateJson;
+          templateIdInUse = templateIdFromQuery;
 
           if (!templateFromLocal) {
             localStorage.setItem('template', JSON.stringify(templateJson));
@@ -56,13 +61,22 @@ function FormAndViewerApp() {
             const templateJson = await getTemplateById(DEFAULT_TEMPLATE_ID);
             checkTemplate(templateJson);
             template = templateJson;
+            templateIdInUse = DEFAULT_TEMPLATE_ID;
             localStorage.setItem('template', JSON.stringify(templateJson));
           } catch (_) {
             // keep blank template fallback
           }
         }
 
+        // Resolution order for inputs:
+        //   1. user's saved inputs in localStorage (highest precedence)
+        //   2. the template's companion inputs.json, if any
+        //   3. getInputFromTemplate(template) — derived from schema.content
         let inputs = getInputFromTemplate(template);
+        if (templateIdInUse) {
+          const sampleInputs = await getInputsById(templateIdInUse);
+          if (sampleInputs) inputs = sampleInputs;
+        }
         const inputsString = localStorage.getItem('inputs');
         if (inputsString) {
           const inputsJson = JSON.parse(inputsString);
