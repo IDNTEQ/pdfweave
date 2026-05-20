@@ -13,6 +13,7 @@ import {
   generatePDF,
   downloadJsonFile,
   translations,
+  DEFAULT_TEMPLATE_ID,
 } from '../helper';
 import { getPlugins } from '../plugins';
 import { NavBar, NavItem } from '../components/NavBar';
@@ -49,6 +50,18 @@ function DesignerApp() {
         const templateJson = JSON.parse(templateFromLocal) as Template;
         checkTemplate(templateJson);
         template = templateJson;
+      } else {
+        // First-visit: load a populated example so new users see real fields
+        // and a layout to play with. Falls back silently to the blank
+        // template if the fetch fails (e.g. offline / network blip).
+        try {
+          const templateJson = await getTemplateById(DEFAULT_TEMPLATE_ID);
+          checkTemplate(templateJson);
+          template = templateJson;
+          localStorage.setItem('template', JSON.stringify(templateJson));
+        } catch (_) {
+          // keep the blank template fallback
+        }
       }
 
       designer.current = new Designer({
@@ -100,7 +113,7 @@ function DesignerApp() {
             className="text-blue-500 underline"
             target="_blank"
             rel="noopener noreferrer"
-            href="https://pdfme.com/docs/template-contribution-guide"
+            href="https://idnteq.github.io/pdfweave/docs/template-contribution-guide"
           >
             See: Template Contribution Guide
           </a>
@@ -149,7 +162,7 @@ function DesignerApp() {
               className="text-blue-500 underline"
               target="_blank"
               rel="noopener noreferrer"
-              href="https://pdfme.com/docs/headers-and-footers"
+              href="https://idnteq.github.io/pdfweave/docs/headers-and-footers"
             >
               See: Headers and Footers
             </a>
@@ -338,7 +351,7 @@ function DesignerApp() {
     {
       label: '',
       content: React.createElement(ExternalButton, {
-        href: 'https://github.com/pdfme/pdfme/issues/new?template=template_feedback.yml&title=TEMPLATE_NAME',
+        href: 'https://github.com/IDNTEQ/pdfweave/issues/new?template=template_feedback.yml&title=TEMPLATE_NAME',
         title: 'Feedback this template',
       }),
     },

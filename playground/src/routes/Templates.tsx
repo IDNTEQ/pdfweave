@@ -27,7 +27,7 @@ const DEVIN_INVITE_URL = 'https://app.devin.ai/invite/KyOTXVPrlFl2TjcT';
 
 const CopyButton = ({ ui, name }: { ui: UIType; name: string }) => {
   const handleCopy = async () => {
-    const shareableUrl = `https://pdfme.com/template-design?ui=${ui}&template=${name}`;
+    const shareableUrl = `/template-design?ui=${ui}&template=${name}`;
     try {
       if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(shareableUrl);
@@ -69,7 +69,7 @@ const ContributionCard = () => (
         <a
           target="_blank"
           rel="noopener noreferrer"
-          href="https://pdfme.com/docs/template-contribution-guide"
+          href="https://idnteq.github.io/pdfweave/docs/template-contribution-guide"
           className="text-md font-extrabold text-green-700 underline decoration-green-400 hover:text-green-600 hover:decoration-green-500 transition duration-300"
         >
           Contribute Your Template ❤️
@@ -83,7 +83,7 @@ const ContributionCard = () => (
         <a
           target="_blank"
           rel="noopener noreferrer"
-          href="https://pdfme.com/docs/template-contribution-guide"
+          href="https://idnteq.github.io/pdfweave/docs/template-contribution-guide"
           className="w-full relative flex items-center justify-center rounded-md bg-gradient-to-r from-green-400 to-green-600 px-8 py-3 text-sm font-semibold text-white hover:opacity-90 transition duration-300"
         >
           See Contribution Guide
@@ -184,7 +184,7 @@ function TemplatesApp({ isEmbedded }: { isEmbedded: boolean }) {
           </p>
           <div className="mt-4 ml-auto">
             {React.createElement(ExternalButton, {
-              href: 'https://github.com/pdfme/pdfme/issues/new?template=template_request.yml&title=TEMPLATE_NAME',
+              href: 'https://github.com/IDNTEQ/pdfweave/issues/new?template=template_request.yml&title=TEMPLATE_NAME',
               title: 'Request a Template',
             })}
           </div>
@@ -194,7 +194,7 @@ function TemplatesApp({ isEmbedded }: { isEmbedded: boolean }) {
             <React.Fragment key={name}>
               {index === 3 && (
                 <div
-                  data-ea-publisher="pdfmecom"
+                  data-ea-publisher=""
                   data-ea-type="image"
                   style={{ width: '100%', display: 'flex', justifyContent: 'center' }}
                 />

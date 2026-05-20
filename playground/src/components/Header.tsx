@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { PDFME_VERSION } from '@pdfweave/common';
+import { PDFWEAVE_VERSION } from '@pdfweave/common';
 import { Dialog, DialogBackdrop, DialogPanel, DialogTitle } from '@headlessui/react';
 
 const externalIcon = (
@@ -62,7 +62,7 @@ function HelpModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }
                   <button
                     onClick={() =>
                       window.open(
-                        'https://app.pdfme.com/contact?utm_source=playground&utm_content=need-help',
+                        'https://github.com/IDNTEQ/pdfweave/issues',
                         '_blank',
                       )
                     }
@@ -79,7 +79,7 @@ function HelpModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }
                     {externalIcon}
                   </button>
                   <button
-                    onClick={() => window.open('https://github.com/pdfme/pdfme/issues', '_blank')}
+                    onClick={() => window.open('https://github.com/IDNTEQ/pdfweave/issues', '_blank')}
                     className="flex justify-center items-center w-full rounded-md bg-gray-500 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gray-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-500"
                   >
                     Found bugs? Report them on our GitHub issues page.
@@ -124,7 +124,7 @@ export default function Navigation() {
   return (
     <div className="border-b border-gray-200 my-1 overflow-x-auto">
       <nav aria-label="Tabs" className="-mb-px flex items-center space-x-3 px-4">
-        <span className="text-xs text-gray-500 select-none">Version: {PDFME_VERSION}</span>
+        <span className="text-xs text-gray-500 select-none">Version: {PDFWEAVE_VERSION}</span>
 
         {navLinks.map((item) => (
           <NavLink id={item.id} key={item.to} to={item.to} end className={linkClass}>
@@ -133,7 +133,7 @@ export default function Navigation() {
         ))}
 
         <a
-          href="https://github.com/pdfme/pdfme/tree/main/playground"
+          href="https://github.com/IDNTEQ/pdfweave/tree/main/playground"
           target="_blank"
           rel="noopener noreferrer"
           className="border-b-2 border-transparent px-1 py-2 text-sm font-medium text-gray-500 hover:border-gray-300 hover:text-gray-700 flex items-center"

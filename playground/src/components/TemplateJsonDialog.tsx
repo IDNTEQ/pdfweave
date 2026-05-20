@@ -3,7 +3,7 @@ import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Check, X } from 'lucide-react';
 import { Template, checkTemplate } from '@pdfweave/common';
 
-const ASSET_PLACEHOLDER_PREFIX = '__PDFME_ASSET__:';
+const ASSET_PLACEHOLDER_PREFIX = '__PDFWEAVE_ASSET__:';
 const EMBEDDED_ASSET_MIN_LENGTH = 1000;
 
 type JsonPathSegment = string | number;

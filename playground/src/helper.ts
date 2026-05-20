@@ -128,7 +128,7 @@ export const generatePDF = async (
       options: {
         font,
         lang: options.lang,
-        title: 'pdfme',
+        title: 'PDFweave',
       },
       plugins: getPlugins(),
     });
@@ -149,6 +149,11 @@ export const isJsonString = (str: string) => {
   }
   return true;
 };
+
+// First-visit default template — populated invoice so new users land on
+// something interesting instead of an empty A4. Reset button still uses
+// getBlankTemplate() below.
+export const DEFAULT_TEMPLATE_ID = 'invoice';
 
 export const getBlankTemplate = () =>
   ({

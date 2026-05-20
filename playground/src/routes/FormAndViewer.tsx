@@ -251,7 +251,7 @@ function FormAndViewerApp() {
     {
       label: '',
       content: React.createElement(ExternalButton, {
-        href: 'https://github.com/pdfme/pdfme/issues/new?template=template_feedback.yml&title=TEMPLATE_NAME',
+        href: 'https://github.com/IDNTEQ/pdfweave/issues/new?template=template_feedback.yml&title=TEMPLATE_NAME',
         title: 'Feedback this template',
       }),
     },
