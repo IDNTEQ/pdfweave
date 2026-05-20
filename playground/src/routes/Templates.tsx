@@ -2,17 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ClipboardCopy } from 'lucide-react';
 import { toast } from 'react-toastify';
-import { fromKebabCase } from '../helper';
+import { fromKebabCase, BASE_URL } from '../helper';
 import ExternalButton from '../components/ExternalButton';
-
-declare global {
-  interface Window {
-    ethicalads?: {
-      load: () => void;
-      wait?: Promise<unknown>;
-    };
-  }
-}
 
 type TemplateData = {
   name: string;
@@ -128,7 +119,7 @@ function TemplatesApp({ isEmbedded }: { isEmbedded: boolean }) {
 
   // Fetch templates and author avatars
   useEffect(() => {
-    void fetch('/template-assets/index.json')
+    void fetch(`${BASE_URL}template-assets/index.json`)
       .then((response) => response.json())
       .then((data: TemplateData[]) => {
         setTemplates(data);
@@ -139,7 +130,7 @@ function TemplatesApp({ isEmbedded }: { isEmbedded: boolean }) {
         return Promise.all(
           Array.from(authors).map((author) => {
             if (author === DEVIN_AI_AUTHOR) {
-              avatarUrlMap[author] = '/imgs/devin.svg';
+              avatarUrlMap[author] = `${BASE_URL}imgs/devin.svg`;
               return Promise.resolve();
             } else {
               return fetch(`https://api.github.com/users/${author}`)
@@ -154,15 +145,6 @@ function TemplatesApp({ isEmbedded }: { isEmbedded: boolean }) {
         });
       });
   }, []);
-
-  // Load ethical ads
-  useEffect(() => {
-    if (window.ethicalads && typeof window.ethicalads.load === 'function') {
-      window.ethicalads.load();
-    } else {
-      console.warn('EthicalAds script is not loaded yet.');
-    }
-  }, [templates]);
 
   // Unified navigation function
   const navigateTo = (name: string, ui: UIType) => {
@@ -192,13 +174,6 @@ function TemplatesApp({ isEmbedded }: { isEmbedded: boolean }) {
         <div className="mt-8 grid grid-cols-1 gap-y-12 sm:grid-cols-2 sm:gap-x-6 lg:grid-cols-4 xl:gap-x-8">
           {templates.map(({ name, author }, index) => (
             <React.Fragment key={name}>
-              {index === 3 && (
-                <div
-                  data-ea-publisher=""
-                  data-ea-type="image"
-                  style={{ width: '100%', display: 'flex', justifyContent: 'center' }}
-                />
-              )}
               <div>
                 <div className="relative border border-gray-200 rounded-lg p-4 bg-white shadow-sm">
                   <div className="relative h-72 w-full overflow-hidden">
@@ -206,7 +181,7 @@ function TemplatesApp({ isEmbedded }: { isEmbedded: boolean }) {
                       id={`template-img-${name}`}
                       onClick={() => navigateTo(name, 'designer')}
                       alt={fromKebabCase(name)}
-                      src={`/template-assets/${name}/thumbnail.png`}
+                      src={`${BASE_URL}template-assets/${name}/thumbnail.png`}
                       className="border border-gray-100 size-full object-contain cursor-pointer"
                     />
                   </div>

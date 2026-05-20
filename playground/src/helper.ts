@@ -165,9 +165,14 @@ export const getBlankTemplate = () =>
     },
   }) as Template;
 
+// Vite's BASE_URL always has a trailing slash (or is '/' for root). When
+// serving the playground at a subpath like /pdfweave/, asset fetches need
+// that prefix or they 404.
+export const BASE_URL: string = import.meta.env.BASE_URL ?? '/';
+
 export const getTemplateById = async (templateId: string): Promise<Template> => {
-  const template = await fetch(`/template-assets/${templateId}/template.json`).then((res) =>
-    res.json(),
+  const template = await fetch(`${BASE_URL}template-assets/${templateId}/template.json`).then(
+    (res) => res.json(),
   );
   checkTemplate(template);
   return template as Template;

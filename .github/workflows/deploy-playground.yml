@@ -26,6 +26,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          # Fetch tags so packages/common/set-version.js can stamp the
+          # latest release version into the bundle (otherwise PDFWEAVE_VERSION
+          # falls back to 'x.x.x' and shows that in the playground header).
+          fetch-depth: 0
 
       - uses: actions/setup-node@v6
         with:
