@@ -3,13 +3,14 @@
 
 /** @type {import('@docusaurus/types').Config} */
 const config = {
-  title: 'pdfme',
-  url: 'https://pdfme.com',
-  baseUrl: '/',
+  title: 'PDFweave',
+  tagline: 'TypeScript PDF template engine with first-class data binding',
+  url: 'https://idnteq.github.io',
+  baseUrl: '/pdfweave/',
   onBrokenLinks: 'throw',
   favicon: 'favicon.ico',
-  organizationName: 'pdfme',
-  projectName: 'pdfme',
+  organizationName: 'IDNTEQ',
+  projectName: 'pdfweave',
   deploymentBranch: 'website',
   trailingSlash: false,
   markdown: {
@@ -38,14 +39,13 @@ const config = {
       {
         docs: {
           sidebarPath: require.resolve('./sidebars.js'),
-          editUrl: 'https://github.com/pdfme/pdfme/tree/main/website/',
+          editUrl: 'https://github.com/IDNTEQ/pdfweave/tree/main/website/',
         },
         theme: {
           customCss: require.resolve('./src/css/custom.css'),
         },
-        gtag: {
-          trackingID: 'G-1Z2MZW44WP',
-        },
+        // Analytics tracking ID is upstream pdfme's — leave disabled until
+        // PDFweave has its own GA property.
       },
     ],
   ],
@@ -93,10 +93,6 @@ const config = {
   themeConfig:
   /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
   {
-    announcementBar: {
-      id: 'deepwiki_launch',
-      content: `🚀 &nbsp; Check out our new <a target="_blank" rel="noopener noreferrer" href="https://deepwiki.com/pdfme/pdfme">DeepWiki</a>! Ask interactive questions on docs and source code. &nbsp; 🧑‍💻`,
-    },    
     image: 'img/ogimage.png',
     docs: {
       sidebar: {
@@ -105,7 +101,7 @@ const config = {
     },
     hideOnScroll: true,
     navbar: {
-      title: 'pdfme',
+      title: 'PDFweave',
       items: [
         {
           type: 'doc',
@@ -124,23 +120,8 @@ const config = {
           label: 'Template Design',
         },
         {
-          href: 'https://github.com/pdfme/pdfme',
+          href: 'https://github.com/IDNTEQ/pdfweave',
           label: 'GitHub',
-          position: 'right',
-        },
-        {
-          href: 'https://discord.gg/xWPTJbmgNV',
-          label: 'Discord',
-          position: 'right',
-        },
-        {
-          href: 'https://app.pdfme.com?utm_source=website&utm_content=navbar',
-          label: 'Try pdfme Cloud',
-          position: 'right',
-        },
-        {
-          href: 'https://app.pdfme.com/contact?utm_source=website&utm_content=navbar',
-          label: 'Contact',
           position: 'right',
         },
         {
@@ -176,40 +157,23 @@ const config = {
               label: 'Template Design',
               to: '/template-design',
             },
-            {
-              label: 'Try pdfme Cloud',
-              href: 'https://app.pdfme.com?utm_source=website&utm_content=footer',
-            }
           ],
         },
         {
           title: 'Community',
           items: [
             {
-              label: 'Github',
-              href: 'https://github.com/pdfme/pdfme',
-            },
-            {
-              label: 'Discord',
-              href: 'https://discord.gg/xWPTJbmgNV',
+              label: 'GitHub',
+              href: 'https://github.com/IDNTEQ/pdfweave',
             },
           ],
         },
       ],
-      copyright: `Copyright © ${new Date().getFullYear()} pdfme`,
+      copyright: `Copyright © ${new Date().getFullYear()} IDNTEQ. PDFweave is MIT-licensed; built atop the work of pdfme contributors.`,
     },
-    algolia: {
-      appId: 'V6YWG1D4SV',
-      apiKey: '873346e96f9110d660c39fd1edd7eb17',
-      indexName: 'pdfme',
-    },
+    // Algolia search index is upstream pdfme's; disabled until PDFweave
+    // has its own DocSearch index. Restore by re-adding the algolia block.
   },
-  scripts: [
-    {
-      src: 'https://media.ethicalads.io/media/client/ethicalads.min.js',
-      async: true,
-    },
-  ],
 };
 
 module.exports = config;

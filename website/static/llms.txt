@@ -1,38 +1,35 @@
-# pdfme Open Source Library
-> A lightweight, performant JavaScript/TypeScript library for PDF generation and manipulation, designed for developers who need complete control over PDF creation in web and Node.js applications.
+# PDFweave Open Source Library
+> A TypeScript PDF template engine with first-class data binding, anchor layouts, smart tables, and stationery PDFs. Built for production document workflows in both browser and Node.js environments.
 
-pdfme is built with a focus on performance, minimal dependencies, and ease of use. It supports complex layouts, custom fonts, images, and templates while maintaining a small bundle size. Perfect for generating invoices, reports, certificates, and any document that requires precise control over layout and styling.
+PDFweave is a hard fork of pdfme (MIT-licensed), focused on production document generation: dynamic layout that reflows across pages, anchor-based positioning that resolves at render time, expression-driven data binding, and stationery overlays. The eight workspaces ship together under `@pdfweave/*` on npm.
 
 ## Installation & Setup
-- [Getting Started](https://pdfme.com/docs/getting-started): Installation and basic setup guide
-- [Development Guide](https://pdfme.com/docs/development-guide): Contributing and local development
-- [Playground Examples](https://playground.pdfme.com/): Interactive code examples and demos
+- [Getting Started](https://idnteq.github.io/pdfweave/docs/getting-started): Installation and basic setup guide
+- [Development Guide](https://idnteq.github.io/pdfweave/docs/development-guide): Contributing and local development
+- [Playground](https://idnteq.github.io/pdfweave/): Interactive Designer, Form, and Viewer in your browser
 
 ## Documentation
-- [Supported Features](https://pdfme.com/docs/supported-features): Complete feature overview
-- [Custom Schemas](https://pdfme.com/docs/custom-schemas): Creating custom field types
-- [Custom Fonts](https://pdfme.com/docs/custom-fonts): Font integration and management
-- [Custom UI](https://pdfme.com/docs/custom-ui): UI customization options
+- [Supported Features](https://idnteq.github.io/pdfweave/docs/supported-features): Complete feature overview
+- [Custom Schemas](https://idnteq.github.io/pdfweave/docs/custom-schemas): Creating custom field types
+- [Custom Fonts](https://idnteq.github.io/pdfweave/docs/custom-fonts): Font integration and management
+- [Custom UI](https://idnteq.github.io/pdfweave/docs/custom-ui): UI customization options
 
 ## Core Concepts
-- [Tables](https://pdfme.com/docs/tables): Dynamic table generation
-- [Headers and Footers](https://pdfme.com/docs/headers-and-footers): Page layout management
-- [Expression](https://pdfme.com/docs/expression): Dynamic content and calculations
-- [Template Contribution](https://pdfme.com/docs/template-contribution-guide): Template sharing guidelines
+- [Tables](https://idnteq.github.io/pdfweave/docs/tables): Dynamic table generation
+- [Headers and Footers](https://idnteq.github.io/pdfweave/docs/headers-and-footers): Page layout management
+- [Expression](https://idnteq.github.io/pdfweave/docs/expression): Dynamic content and calculations
+- [Template Contribution](https://idnteq.github.io/pdfweave/docs/template-contribution-guide): Template sharing guidelines
 
 ## Community & Development
-- [GitHub Repository](https://github.com/pdfme/pdfme): Source code and issue tracking
-- [Discord Community](https://discord.gg/xWPTJbmgNV): Get help and share ideas
-- [DeepWiki Help](https://deepwiki.com/pdfme/pdfme): AI-powered documentation assistant
-- [Changelog](https://github.com/pdfme/pdfme/releases): Version history and updates
+- [GitHub Repository](https://github.com/IDNTEQ/pdfweave): Source code and issue tracking
+- [Releases / Changelog](https://github.com/IDNTEQ/pdfweave/releases): Version history and updates
 
 ## Package Ecosystem
-- [Generator Package](https://www.npmjs.com/package/@pdfme/generator): PDF generation from templates
-- [UI Package](https://www.npmjs.com/package/@pdfme/ui): Designer, Form, and Viewer components
-- [Schemas Package](https://www.npmjs.com/package/@pdfme/schemas): Built-in field types and schemas
-- [Manipulator Package](https://www.npmjs.com/package/@pdfme/manipulator): PDF manipulation utilities
-
-## Optional
-- [Converter Package](https://www.npmjs.com/package/@pdfme/converter): PDF conversion utilities
-- [Common Package](https://www.npmjs.com/package/@pdfme/common): Shared utilities and types
-- [Cloud Service](https://app.pdfme.com): Commercial hosted solution
+- [@pdfweave/generator](https://www.npmjs.com/package/@pdfweave/generator): PDF generation from templates
+- [@pdfweave/ui](https://www.npmjs.com/package/@pdfweave/ui): Designer, Form, and Viewer components
+- [@pdfweave/schemas](https://www.npmjs.com/package/@pdfweave/schemas): Built-in field types and schemas
+- [@pdfweave/manipulator](https://www.npmjs.com/package/@pdfweave/manipulator): PDF manipulation utilities
+- [@pdfweave/converter](https://www.npmjs.com/package/@pdfweave/converter): PDF conversion utilities
+- [@pdfweave/common](https://www.npmjs.com/package/@pdfweave/common): Shared utilities and types
+- [@pdfweave/cli](https://www.npmjs.com/package/@pdfweave/cli): Command-line tooling
+- [@pdfweave/pdf-lib](https://www.npmjs.com/package/@pdfweave/pdf-lib): Forked pdf-lib with PDFweave additions
