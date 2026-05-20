@@ -1,21 +1,21 @@
 # Tables with Dynamic Data
 
-[![Preview of Dynamic Tables](/img/table.png)](https://playground.pdfme.com/)
+[![Preview of Dynamic Tables](/img/table.png)](https://idnteq.github.io/pdfweave/)
 
-The table schema has been added in since [V4.5.0](https://github.com/pdfme/pdfme/releases/tag/4.5.0).  
+The table schema has been added in since [V4.5.0](https://github.com/IDNTEQ/pdfweave/releases/tag/4.5.0).  
 This schema allows you to add tables to PDFs and dynamically modify the table data.
 
 ## Using the Table Schema
 
-The table schema is included in the `@pdfme/schemas` package and is exported as `table`.  
-You can add the table schema as a plugin to `@pdfme/ui` and `@pdfme/generator` using the code below.
+The table schema is included in the `@pdfweave/schemas` package and is exported as `table`.  
+You can add the table schema as a plugin to `@pdfweave/ui` and `@pdfweave/generator` using the code below.
 
 To support page breaks, ensure to set the `basePdf` property in the template to `{ width: number, height: number, padding: [number,number,number,number] }`.
 
 ```javascript
-import { table } from '@pdfme/schemas';
-import { Designer } from '@pdfme/ui';
-import { generate } from '@pdfme/generator';
+import { table } from '@pdfweave/schemas';
+import { Designer } from '@pdfweave/ui';
+import { generate } from '@pdfweave/generator';
 
 new Designer({
   domContainer,
@@ -181,17 +181,17 @@ The Body's Alternate Background Color is used to alternate background colors of 
 
 ## Sample Using Table Schema
 
-You can check out a sample using the table schema at [https://playground.pdfme.com/](https://playground.pdfme.com/).
+You can check out a sample using the table schema at [https://idnteq.github.io/pdfweave/](https://idnteq.github.io/pdfweave/).
 
-[![Table schema Playground](/img/table-invoice-template.png)](https://playground.pdfme.com/)
+[![Table schema Playground](/img/table-invoice-template.png)](https://idnteq.github.io/pdfweave/)
 
 Set the Template Preset to Invoice and explore the sample using the Table schema.
 
-The source code for this playground is available [here](https://github.com/pdfme/pdfme/tree/main/playground).
+The source code for this playground is available [here](https://github.com/IDNTEQ/pdfweave/tree/main/playground).
 
 :::info
 
-If you have feedback or suggestions regarding the use of the table schema, please let us know via [GitHub issues](https://github.com/pdfme/pdfme/issues) or [Discord](https://discord.gg/xWPTJbmgNV).  
-Your feedback contributes significantly to the development of pdfme.
+If you have feedback or suggestions regarding the use of the table schema, please let us know via [GitHub issues](https://github.com/IDNTEQ/pdfweave/issues).  
+Your feedback contributes significantly to the development of PDFweave.
 
 :::

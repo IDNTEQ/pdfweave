@@ -1,6 +1,6 @@
 {
   "title": {
-    "message": "pdfme",
+    "message": "PDFweave",
     "description": "The title in the navbar"
   },
   "item.label.Docs": {
@@ -18,17 +18,5 @@
   "item.label.GitHub": {
     "message": "GitHub",
     "description": "Navbar item with label GitHub"
-  },
-  "item.label.Discord": {
-    "message": "Discord",
-    "description": "Navbar item with label Discord"
-  },
-  "item.label.Try pdfme Cloud": {
-    "message": "pdfme Cloudを試す",
-    "description": "Navbar item with label Try pdfme Cloud"
-  },
-  "item.label.Contact": {
-    "message": "お問い合わせ",
-    "description": "Navbar item with label Contact"
   }
 }

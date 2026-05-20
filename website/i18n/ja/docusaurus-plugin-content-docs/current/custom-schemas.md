@@ -1,33 +1,33 @@
 # カスタムスキーマ（プラグイン）
 
-デフォルトでは、pdfmeはテキストスキーマを使用できます。しかし、画像やQRコードのスキーマを利用したいユーザーもいるでしょう。
-これらは`@pdfme/schemas`パッケージからプラグインとして読み込むことができます。
+デフォルトでは、PDFweaveはテキストスキーマを使用できます。しかし、画像やQRコードのスキーマを利用したいユーザーもいるでしょう。
+これらは`@pdfweave/schemas`パッケージからプラグインとして読み込むことができます。
 
 また、独自のスキーマを作成し、同様にプラグインとして読み込むこともできます。
-このページでは、`@pdfme/schemas`からスキーマを使用する方法と、独自のスキーマを作成する方法について説明します。
+このページでは、`@pdfweave/schemas`からスキーマを使用する方法と、独自のスキーマを作成する方法について説明します。
 
 :::note
-`@pdfme/generator` と `@pdfme/ui` が使うデフォルトのプラグインレジストリには、意図的に `text` スキーマだけが含まれています。テンプレートでそれ以外の built-in schema type を使う場合は、`@pdfme/schemas` から対象プラグインを import して `plugins` に渡してください。
+`@pdfweave/generator` と `@pdfweave/ui` が使うデフォルトのプラグインレジストリには、意図的に `text` スキーマだけが含まれています。テンプレートでそれ以外の built-in schema type を使う場合は、`@pdfweave/schemas` から対象プラグインを import して `plugins` に渡してください。
 :::
 
-## @pdfme/schemasからのスキーマの使用 {#using-schemas-from-pdfmeschemas}
+## @pdfweave/schemasからのスキーマの使用 {#using-schemas-from-pdfweaveschemas}
 
-ここでは、`@pdfme/schemas`から画像、署名、QRコードのスキーマをインポートする方法を説明します。
+ここでは、`@pdfweave/schemas`から画像、署名、QRコードのスキーマをインポートする方法を説明します。
 
-まず、`@pdfme/schemas`をインストールします。
+まず、`@pdfweave/schemas`をインストールします。
 
 ```bash
-npm install @pdfme/schemas
+npm install @pdfweave/schemas
 ```
 
-次に、必要なスキーマを`@pdfme/schemas`から`@pdfme/generator`と`@pdfme/ui`にインポートします。
+次に、必要なスキーマを`@pdfweave/schemas`から`@pdfweave/generator`と`@pdfweave/ui`にインポートします。
 
-以下のコードは、`@pdfme/generator`と`@pdfme/ui`からQRコード、署名、画像のスキーマをインポートする例を示しています。
+以下のコードは、`@pdfweave/generator`と`@pdfweave/ui`からQRコード、署名、画像のスキーマをインポートする例を示しています。
 
 ```ts
-import type { Template } from '@pdfme/common';
-import { text, image, signature, barcodes } from '@pdfme/schemas';
-import { generate } from '@pdfme/generator';
+import type { Template } from '@pdfweave/common';
+import { text, image, signature, barcodes } from '@pdfweave/schemas';
+import { generate } from '@pdfweave/generator';
 
 const template: Template = {
   // 省略... テンプレートでtext、image、signature、qrcodeスキーマタイプを使用できます。
@@ -49,12 +49,12 @@ const pdf = await generate({
 });
 ```
 
-この`@pdfme/ui`の例では、Designerを使用していますが、FormとViewerでも同じ方法でプラグインを読み込むことができます。
+この`@pdfweave/ui`の例では、Designerを使用していますが、FormとViewerでも同じ方法でプラグインを読み込むことができます。
 
 ```ts
-import type { Template } from '@pdfme/common';
-import { text, image, signature, barcodes } from '@pdfme/schemas';
-import { Designer } from '@pdfme/ui';
+import type { Template } from '@pdfweave/common';
+import { text, image, signature, barcodes } from '@pdfweave/schemas';
+import { Designer } from '@pdfweave/ui';
 
 const domContainer = document.getElementById('container');
 const template: Template = {
@@ -95,26 +95,26 @@ Designerからプラグインを使用することで、デフォルトのスキ
 ## 独自のスキーマの作成 {#creating-your-own-schemas}
 
 次に、独自のスキーマを作成したい人のための方法を紹介します。  
-スキーマを作成した場合や、アイデアがある場合は、[GitHub Discussions](https://github.com/pdfme/pdfme/discussions/288)で共有してください。  
-pdfmeはオープンソースとして開発されているため、誰もがスキーマを共有し、一緒に開発できるべきだと考えています。
+スキーマを作成した場合や、アイデアがある場合は、[GitHub Discussions](https://github.com/IDNTEQ/pdfweave/discussions/288)で共有してください。  
+PDFweaveはオープンソースとして開発されているため、誰もがスキーマを共有し、一緒に開発できるべきだと考えています。
 
 ### カスタムスキーマ/プラグインの概要
 
 カスタムスキーマは3つの要素で構成されており、これらを総称してプラグインと呼びます。  
-プラグインの型定義は[packages/common/src/types.ts](https://github.com/pdfme/pdfme/blob/main/packages/common/src/types.ts)ファイル内で定義されています。
+プラグインの型定義は[packages/common/src/types.ts](https://github.com/IDNTEQ/pdfweave/blob/main/packages/common/src/types.ts)ファイル内で定義されています。
 
 **プラグイン**の構造と動作方法について説明します。
 
-- **pdf**: `@pdfme/generator`で使用され、スキーマをPDFにレンダリングするためのコードが含まれています。PDFレンダリングプロセスは[pdf-lib](https://pdf-lib.js.org/)によって処理されます。
-- **ui**: `@pdfme/ui`で使用され、スキーマをDOMにレンダリングするためのコードが含まれています。uiには以下のモードがあります：
+- **pdf**: `@pdfweave/generator`で使用され、スキーマをPDFにレンダリングするためのコードが含まれています。PDFレンダリングプロセスは[pdf-lib](https://pdf-lib.js.org/)によって処理されます。
+- **ui**: `@pdfweave/ui`で使用され、スキーマをDOMにレンダリングするためのコードが含まれています。uiには以下のモードがあります：
   - **viewer**: [Viewer](/docs/getting-started#viewer)、[Designer](/docs/getting-started#designer)（フィールドが選択されていない場合）で使用されます。PDFのレンダリングと外観に合わせてプレビューとして機能します。
   - **form**: [Form](/docs/getting-started#form)で使用されます。ユーザーが入力できるフォームとして機能します。
   - **designer**: [Designer](/docs/getting-started#designer)（フィールドがダブルクリックされた場合）で使用されます。基本的にはフォームと同じですが、ユーザーが入力できるWYSIWYGエディタとして機能します。textareaやinput要素の場合、フォーカスが必要です。
-- **propPanel**: `@pdfme/ui`の[Designer](/docs/getting-started#designer)で使用され、フィールドが選択されたときにサイドバーにカスタムプロパティ編集フォームを追加できます。[form-render](https://xrender.fun/form-render)のJSON形式を使用して入力できます（ウィジェット拡張も可能）。
+- **propPanel**: `@pdfweave/ui`の[Designer](/docs/getting-started#designer)で使用され、フィールドが選択されたときにサイドバーにカスタムプロパティ編集フォームを追加できます。[form-render](https://xrender.fun/form-render)のJSON形式を使用して入力できます（ウィジェット拡張も可能）。
 
 :::note
-pdfmeは[pdf-lib](https://pdf-lib.js.org/)と[form-render](https://xrender.fun/form-render)に依存しています。  
-これらのライブラリはプラグインを通じて操作され、pdfme内での機能を実現しています。  
+PDFweaveは[pdf-lib](https://pdf-lib.js.org/)と[form-render](https://xrender.fun/form-render)に依存しています。  
+これらのライブラリはプラグインを通じて操作され、PDFweave内での機能を実現しています。  
 必要に応じて上記のライブラリのドキュメントを参照してください。
 :::
 
@@ -127,14 +127,14 @@ pdfmeは[pdf-lib](https://pdf-lib.js.org/)と[form-render](https://xrender.fun/f
 - **ui(mode: designer), ui(mode: viewer), propPanel**
   ![](/img/plugin-designer.png)
 
-### @pdfme/schemasのコードから学ぶ作成方法
+### @pdfweave/schemasのコードから学ぶ作成方法
 
-独自のスキーマを作成する場合は、`@pdfme/schemas`内の既存のコードを参照することをお勧めします。  
+独自のスキーマを作成する場合は、`@pdfweave/schemas`内の既存のコードを参照することをお勧めします。  
 既存のスキーマのコードは以下のファイルにあります：
 
-- [packages/schemas/src/text/index.ts](https://github.com/pdfme/pdfme/tree/main/packages/schemas/src/text/index.ts): PDFレンダリングの観点から最も複雑なスキーマです。propPanelも[form-renderのWidget](https://xrender.fun/form-render/advanced-widget)を使用してカスタマイズされており、プラグインが複雑なニーズに対応できることを示しています。
-- [packages/schemas/src/graphics/image.ts](https://github.com/pdfme/pdfme/blob/main/packages/schemas/src/graphics/image.ts): PDFレンダリングのシンプルな実装ですが、ui(mode: form)とui(mode: designer)レンダリング中に画像入力にinput type="file"要素を使用しています。全体的にシンプルな実装であり、良い出発点になるかもしれません。
-- [packages/schemas/src/barcodes/index.ts](https://github.com/pdfme/pdfme/tree/main/packages/schemas/src/barcodes/index.ts): uiプレビュー用にバーコードをリアルタイムで生成するのに優れており、そのモジュールをpdfと共有しています。また、10種類以上のバーコードをサポートし、バーコードのタイプに応じてpropPanelのフォームを変更します。プラグインが柔軟かつ効率的であることを示しています。
+- [packages/schemas/src/text/index.ts](https://github.com/IDNTEQ/pdfweave/tree/main/packages/schemas/src/text/index.ts): PDFレンダリングの観点から最も複雑なスキーマです。propPanelも[form-renderのWidget](https://xrender.fun/form-render/advanced-widget)を使用してカスタマイズされており、プラグインが複雑なニーズに対応できることを示しています。
+- [packages/schemas/src/graphics/image.ts](https://github.com/IDNTEQ/pdfweave/blob/main/packages/schemas/src/graphics/image.ts): PDFレンダリングのシンプルな実装ですが、ui(mode: form)とui(mode: designer)レンダリング中に画像入力にinput type="file"要素を使用しています。全体的にシンプルな実装であり、良い出発点になるかもしれません。
+- [packages/schemas/src/barcodes/index.ts](https://github.com/IDNTEQ/pdfweave/tree/main/packages/schemas/src/barcodes/index.ts): uiプレビュー用にバーコードをリアルタイムで生成するのに優れており、そのモジュールをpdfと共有しています。また、10種類以上のバーコードをサポートし、バーコードのタイプに応じてpropPanelのフォームを変更します。プラグインが柔軟かつ効率的であることを示しています。
 
 :::tip
 
@@ -148,37 +148,37 @@ pdfmeは[pdf-lib](https://pdf-lib.js.org/)と[form-render](https://xrender.fun/f
 サンプルシナリオとして、フォームに署名を入力できるプラグインを作成してみましょう。  
 具体的には、[signature_pad](https://github.com/szimek/signature_pad)を使用して署名を入力し、その署名をDOMとPDFの両方で画像としてレンダリングできるようにします。
 
-[![](/img/signature-schema.gif)](https://playground.pdfme.com/)
+[![](/img/signature-schema.gif)](https://idnteq.github.io/pdfweave/)
 
-- デモ: https://playground.pdfme.com/
-- コード: [packages/schemas/src/graphics/signature.ts](https://github.com/pdfme/pdfme/blob/main/packages/schemas/src/graphics/signature.ts)
+- デモ: https://idnteq.github.io/pdfweave/
+- コード: [packages/schemas/src/graphics/signature.ts](https://github.com/IDNTEQ/pdfweave/blob/main/packages/schemas/src/graphics/signature.ts)
 
 
 ### カスタムスキーマ作成時の注意点
 
 #### レンダラースキーマのキャッシング
 
-pdfmeは、メモリやCPUを多く使用するコンテンツのキャッシングをサポートしており、同じレンダリングプロセス内で再利用できます。
+PDFweaveは、メモリやCPUを多く使用するコンテンツのキャッシングをサポートしており、同じレンダリングプロセス内で再利用できます。
 
 最も一般的なユースケースは、同じテンプレートで多数のPDFをレンダリングする場合です。多くの場合、これらの
 入力は同じである可能性があり、スキーマはキャッシングの恩恵を受けることができます。これはオプションですが、カスタムスキーマを他の人に使用してもらうことを意図している場合は検討すべきです。
 
-キャッシングの例は、[image](https://github.com/pdfme/pdfme/blob/main/packages/schemas/src/graphics/image.ts)と[barcode](https://github.com/pdfme/pdfme/blob/main/packages/schemas/src/barcodes/pdfRender.ts)のスキーマレンダリング関数の両方で利用できます。生成されるPDFアーティファクトの一意性を捉えるキャッシュキーを選択する必要があります（サイズや位置などの属性は除外され、通常はレンダリング時にpdf-libによって処理されます）。バーコードスキーマでは、デフォルトの`getCacheKey`関数を使用する画像と比較して、その一意性を記述するためにより多くの属性が必要であることに気付くでしょう。
+キャッシングの例は、[image](https://github.com/IDNTEQ/pdfweave/blob/main/packages/schemas/src/graphics/image.ts)と[barcode](https://github.com/IDNTEQ/pdfweave/blob/main/packages/schemas/src/barcodes/pdfRender.ts)のスキーマレンダリング関数の両方で利用できます。生成されるPDFアーティファクトの一意性を捉えるキャッシュキーを選択する必要があります（サイズや位置などの属性は除外され、通常はレンダリング時にpdf-libによって処理されます）。バーコードスキーマでは、デフォルトの`getCacheKey`関数を使用する画像と比較して、その一意性を記述するためにより多くの属性が必要であることに気付くでしょう。
 
 ## コミュニティの貢献
 
-pdfmeコミュニティは、プロジェクトで役立つさまざまなカスタムプラグインを作成し共有しています。以下はコミュニティによって貢献されたプラグインの一部です：
+PDFweaveコミュニティは、プロジェクトで役立つさまざまなカスタムプラグインを作成し共有しています。以下はコミュニティによって貢献されたプラグインの一部です：
 
 ### 軽量QRコードプラグイン
 
 組み込みのバーコードスキーマで使用される大きな`bwip-js`パッケージの代わりに、`qrcode` npmパッケージを使用する軽量な代替QRコードプラグインです。このプラグインはQRコード機能を提供しながらも、バンドルサイズが大幅に小さくなっています。
 
-- **Gist**: [pdfmeのための軽量qrcodeプラグイン](https://gist.github.com/kyasu1/0def72d6f0826b0a9571b6e13f3c9065)
+- **Gist**: [PDFweaveのための軽量qrcodeプラグイン](https://gist.github.com/kyasu1/0def72d6f0826b0a9571b6e13f3c9065)
 - **作者**: [kyasu1](https://github.com/kyasu1)
 - **特徴**:
   - 組み込みのバーコードスキーマと比較して小さいバンドルサイズ
   - カスタマイズ可能な背景色とバーの色
-  - pdfmeとの簡単な統合
+  - PDFweaveとの簡単な統合
 
 このプラグインを使用するには：
 
@@ -209,7 +209,7 @@ pdfmeコミュニティは、プロジェクトで役立つさまざまなカス
    ```json
    {
      "type": "node-qrCode",
-     "content": "https://pdfme.com/",
+     "content": "https://idnteq.github.io/pdfweave/",
      "position": { "x": 178, "y": 20 },
      "backgroundColor": "#ffffff",
      "barColor": "#000000",
@@ -224,5 +224,5 @@ pdfmeコミュニティは、プロジェクトで役立つさまざまなカス
    ```
 
 :::tip
-pdfmeのために役立つプラグインを作成した場合は、[GitHub Discussions](https://github.com/pdfme/pdfme/discussions/288)で共有して、他の人があなたの成果を活用できるようにしてください！
+PDFweaveのために役立つプラグインを作成した場合は、[GitHub Discussions](https://github.com/IDNTEQ/pdfweave/discussions/288)で共有して、他の人があなたの成果を活用できるようにしてください！
 :::

@@ -1,21 +1,21 @@
 # 動的データを持つテーブル
 
-[![動的テーブルのプレビュー](/img/table.png)](https://playground.pdfme.com/)
+[![動的テーブルのプレビュー](/img/table.png)](https://idnteq.github.io/pdfweave/)
 
-テーブルスキーマは[V4.5.0](https://github.com/pdfme/pdfme/releases/tag/4.5.0)から追加されました。  
+テーブルスキーマは[V4.5.0](https://github.com/IDNTEQ/pdfweave/releases/tag/4.5.0)から追加されました。  
 このスキーマを使用すると、PDFにテーブルを追加し、テーブルデータを動的に変更することができます。
 
 ## テーブルスキーマの使用方法
 
-テーブルスキーマは`@pdfme/schemas`パッケージに含まれており、`table`としてエクスポートされています。  
-以下のコードを使用して、テーブルスキーマを`@pdfme/ui`と`@pdfme/generator`のプラグインとして追加できます。
+テーブルスキーマは`@pdfweave/schemas`パッケージに含まれており、`table`としてエクスポートされています。  
+以下のコードを使用して、テーブルスキーマを`@pdfweave/ui`と`@pdfweave/generator`のプラグインとして追加できます。
 
 ページ区切りをサポートするには、テンプレートの`basePdf`プロパティを`{ width: number, height: number, padding: [number,number,number,number] }`に設定してください。
 
 ```javascript
-import { table } from '@pdfme/schemas';
-import { Designer } from '@pdfme/ui';
-import { generate } from '@pdfme/generator';
+import { table } from '@pdfweave/schemas';
+import { Designer } from '@pdfweave/ui';
+import { generate } from '@pdfweave/generator';
 
 new Designer({
   domContainer,
@@ -181,17 +181,17 @@ PDFを作成する際の実際の行数はデータによって異なります�
 
 ## テーブルスキーマを使用したサンプル
 
-テーブルスキーマを使用したサンプルは[https://playground.pdfme.com/](https://playground.pdfme.com/)で確認できます。
+テーブルスキーマを使用したサンプルは[https://idnteq.github.io/pdfweave/](https://idnteq.github.io/pdfweave/)で確認できます。
 
-[![テーブルスキーマのプレイグラウンド](/img/table-invoice-template.png)](https://playground.pdfme.com/)
+[![テーブルスキーマのプレイグラウンド](/img/table-invoice-template.png)](https://idnteq.github.io/pdfweave/)
 
 テンプレートプリセットを「Invoice」に設定して、テーブルスキーマを使用したサンプルを探索してください。
 
-このプレイグラウンドのソースコードは[こちら](https://github.com/pdfme/pdfme/tree/main/playground)で入手できます。
+このプレイグラウンドのソースコードは[こちら](https://github.com/IDNTEQ/pdfweave/tree/main/playground)で入手できます。
 
 :::info
 
-テーブルスキーマの使用に関するフィードバックや提案がある場合は、[GitHub issues](https://github.com/pdfme/pdfme/issues)または[Discord](https://discord.gg/xWPTJbmgNV)からお知らせください。  
-あなたのフィードバックはpdfmeの開発に大きく貢献します。
+テーブルスキーマの使用に関するフィードバックや提案がある場合は、[GitHub issues](https://github.com/IDNTEQ/pdfweave/issues)からお知らせください。  
+あなたのフィードバックはPDFweaveの開発に大きく貢献します。
 
 :::

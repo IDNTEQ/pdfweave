@@ -6,9 +6,9 @@ This document tracks the breaking changes planned for the next major release and
 
 | Change                            | Affected users                                                 | Required action                        |
 | --------------------------------- | -------------------------------------------------------------- | -------------------------------------- |
-| `ESM-only` packages               | Anyone using `require('@pdfme/...')`                           | Move to `import` / `export` syntax     |
+| `ESM-only` packages               | Anyone using `require('@pdfweave/...')`                           | Move to `import` / `export` syntax     |
 | `Node 20+` minimum runtime        | Node 16 / 18 users                                             | Upgrade to Node 20 LTS or newer        |
-| Internal `dist/*` imports removed | Anyone importing `@pdfme/*/dist/...` or `@pdfme/*/cjs/src/...` | Import only from package root exports  |
+| Internal `dist/*` imports removed | Anyone importing `@pdfweave/*/dist/...` or `@pdfweave/*/cjs/src/...` | Import only from package root exports  |
 | Text-only default plugin registry | Anyone relying on implicit non-text schema support             | Import non-text plugins explicitly     |
 
 ## Support Policy
@@ -26,15 +26,15 @@ This document tracks the breaking changes planned for the next major release and
 Before:
 
 ```js
-const { BLANK_PDF } = require('@pdfme/common');
-const { generate } = require('@pdfme/generator');
+const { BLANK_PDF } = require('@pdfweave/common');
+const { generate } = require('@pdfweave/generator');
 ```
 
 After:
 
 ```ts
-import { BLANK_PDF } from '@pdfme/common';
-import { generate } from '@pdfme/generator';
+import { BLANK_PDF } from '@pdfweave/common';
+import { generate } from '@pdfweave/generator';
 ```
 
 If you write files in Node.js from ESM, replace `__dirname` usage with `fileURLToPath(import.meta.url)`.
@@ -53,15 +53,15 @@ const __dirname = path.dirname(__filename);
 Before:
 
 ```ts
-import { generate } from '@pdfme/generator/cjs/src/index.js';
-import { pdf2img } from '@pdfme/converter/cjs/src/index.node.js';
+import { generate } from '@pdfweave/generator/cjs/src/index.js';
+import { pdf2img } from '@pdfweave/converter/cjs/src/index.node.js';
 ```
 
 After:
 
 ```ts
-import { generate } from '@pdfme/generator';
-import { pdf2img } from '@pdfme/converter';
+import { generate } from '@pdfweave/generator';
+import { pdf2img } from '@pdfweave/converter';
 ```
 
 ### Node 20+
@@ -70,12 +70,12 @@ Update local development and CI to Node 20 LTS or newer before adopting the next
 
 ### Text-only Default Plugin Registry
 
-`@pdfme/generator`, `Designer`, `Form`, and `Viewer` now treat the default built-in plugin registry as text-only. Non-text schema types such as `image`, `signature`, `table`, barcodes, `select`, `radioGroup`, and `checkbox` must be imported from `@pdfme/schemas` and passed through `plugins`.
+`@pdfweave/generator`, `Designer`, `Form`, and `Viewer` now treat the default built-in plugin registry as text-only. Non-text schema types such as `image`, `signature`, `table`, barcodes, `select`, `radioGroup`, and `checkbox` must be imported from `@pdfweave/schemas` and passed through `plugins`.
 
 Before:
 
 ```ts
-import { generate } from '@pdfme/generator';
+import { generate } from '@pdfweave/generator';
 
 await generate({ template, inputs });
 ```
@@ -83,8 +83,8 @@ await generate({ template, inputs });
 After:
 
 ```ts
-import { generate } from '@pdfme/generator';
-import { text, image, signature, table, barcodes } from '@pdfme/schemas';
+import { generate } from '@pdfweave/generator';
+import { text, image, signature, table, barcodes } from '@pdfweave/schemas';
 
 await generate({
   template,

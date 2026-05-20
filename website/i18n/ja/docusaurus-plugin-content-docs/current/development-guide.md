@@ -2,10 +2,10 @@
 
 ## コミュニティの参加とあなたの役割
 
-pdfmeは、熱心なコミュニティによってサポートされ、推進されているオープンソースプロジェクトであることを誇りに思っています。コードベースに飛び込むにしても、ディスカッションで声を上げるにしても、あなたの参加がpdfmeを発展させています。
+PDFweaveは、熱心なコミュニティによってサポートされ、推進されているオープンソースプロジェクトであることを誇りに思っています。コードベースに飛び込むにしても、ディスカッションで声を上げるにしても、あなたの参加がPDFweaveを発展させています。
 
-<a href="https://github.com/pdfme/pdfme/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=pdfme/pdfme" />
+<a href="https://github.com/IDNTEQ/pdfweave/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=IDNTEQ/pdfweave" />
 </a>
 
 <br/>
@@ -17,20 +17,18 @@ pdfmeは、熱心なコミュニティによってサポートされ、推進さ
 
 プログラムやドキュメントに関するバグや提案がある場合は、以下をご覧ください。
 
-すべてのバグ報告とディスカッションは[GitHubリポジトリ](https://github.com/pdfme/pdfme)に記録されています。  
+すべてのバグ報告とディスカッションは[GitHubリポジトリ](https://github.com/IDNTEQ/pdfweave)に記録されています。  
 問題や質問の一部はすでに解決されている可能性があります。
 
-- アプリケーションのバグを報告するには、[GitHub issue](https://github.com/pdfme/pdfme/issues)をご利用ください
-- 質問や提案については、[Discord](https://discord.gg/xWPTJbmgNV)や[GitHub Discussions](https://github.com/pdfme/pdfme/discussions)でお尋ねください。
-- pdfmeのドキュメントやソースコードについてインタラクティブに質問するには、[DeepWiki](https://deepwiki.com/pdfme/pdfme)をご利用いただけます。
+- アプリケーションのバグを報告するには、[GitHub issue](https://github.com/IDNTEQ/pdfweave/issues)をご利用ください
 
 ## コード貢献
 
 基本的に、バグ修正のためのPRを受け付けています。ただし、新機能を追加するコードが含まれている場合、PRを辞退する可能性があります。
-pdfmeはできるだけ小さくシンプルであるように作られていることを覚えておいてください。
-質問や提案がある場合は、お気軽に[GitHub Discussions](https://github.com/pdfme/pdfme/discussions)にお送りください。できるだけ早く返信いたします。
+PDFweaveはできるだけ小さくシンプルであるように作られていることを覚えておいてください。
+質問や提案がある場合は、お気軽に[GitHub Discussions](https://github.com/IDNTEQ/pdfweave/discussions)にお送りください。できるだけ早く返信いたします。
 
-開発に関する洞察：[pdfmeの開発方法](https://github.com/pdfme/pdfme/blob/main/DEVELOPMENT.md)
+開発に関する洞察：[PDFweaveの開発方法](https://github.com/IDNTEQ/pdfweave/blob/main/DEVELOPMENT.md)
 
 ## 今後の破壊的変更
 
@@ -40,13 +38,13 @@ pdfmeはできるだけ小さくシンプルであるように作られている
 
 ## 技術サポートが必要ですか？
 
-技術サポートが必要な場合は、[こちら](https://app.pdfme.com/contact?utm_source=website&utm_content=development-guide)からお問い合わせください。
+技術サポートが必要な場合は、[こちら](https://github.com/IDNTEQ/pdfweave/issues)からお問い合わせください。
 
-## pdfmeのスポンサーになる
+## PDFweaveのスポンサーになる
 
-pdfmeは無料で使用できるオープンソースプロジェクトです。
-しかし、pdfmeの開発と維持は無料ではありません。
-ビジネスでpdfmeを使用している場合は、pdfmeのスポンサーになることをご検討ください。
+PDFweaveは無料で使用できるオープンソースプロジェクトです。
+しかし、PDFweaveの開発と維持は無料ではありません。
+ビジネスでPDFweaveを使用している場合は、PDFweaveのスポンサーになることをご検討ください。
 
-- [Github Sponsors](https://github.com/sponsors/pdfme)
-- [Open Collective](https://opencollective.com/pdfme)
+- [Github Sponsors](https://github.com/sponsors/PDFweave)
+- [Open Collective](https://opencollective.com/PDFweave)

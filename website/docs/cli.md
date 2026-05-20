@@ -1,6 +1,6 @@
 # CLI
 
-`@pdfme/cli` is the command-line interface for JSON-first pdfme workflows.
+`@pdfweave/cli` is the command-line interface for JSON-first PDFweave workflows.
 
 It is intended for:
 
@@ -15,34 +15,34 @@ It is intended for:
 Node.js 20 or later is required.
 
 ```bash
-npm install -D @pdfme/cli
+npm install -D @pdfweave/cli
 ```
 
 You can also run it directly with `npx`:
 
 ```bash
-npx @pdfme/cli generate --help
+npx @pdfweave/cli generate --help
 ```
 
 ## Commands
 
-- `pdfme generate`
+- `pdfweave generate`
   - generate a PDF from a unified job file or from `--template` + `--inputs`
   - optionally render page images
   - optionally overlay grid lines and schema bounds on generated images
-- `pdfme validate`
+- `pdfweave validate`
   - validate a template or unified job before generation
   - return machine-readable inspection data with `--json`
-- `pdfme doctor`
+- `pdfweave doctor`
   - diagnose environment, input, font, `basePdf`, cache, and output-path issues
-- `pdfme pdf2img`
+- `pdfweave pdf2img`
   - convert an existing PDF into page images
-- `pdfme pdf2size`
+- `pdfweave pdf2size`
   - inspect PDF page sizes in millimeters
-- `pdfme examples`
+- `pdfweave examples`
   - list or export official example templates
 
-## `pdfme generate`
+## `pdfweave generate`
 
 Generate a PDF from either:
 
@@ -53,22 +53,22 @@ Examples:
 
 ```bash
 # Unified job file: { template, inputs, options? }
-pdfme generate job.json -o out.pdf
+pdfweave generate job.json -o out.pdf
 
 # Template + inputs as separate files
-pdfme generate -t template.json -i inputs.json -o out.pdf
+pdfweave generate -t template.json -i inputs.json -o out.pdf
 
 # Render page images too
-pdfme generate job.json -o out.pdf --image
+pdfweave generate job.json -o out.pdf --image
 
 # Overlay grid lines and schema bounds on generated images
-pdfme generate job.json -o out.pdf --grid
+pdfweave generate job.json -o out.pdf --grid
 
 # Override basePdf from the command line
-pdfme generate -t template.json -i inputs.json --basePdf invoice.pdf -o out.pdf
+pdfweave generate -t template.json -i inputs.json --basePdf invoice.pdf -o out.pdf
 
 # Structured output for CI or agents
-pdfme generate job.json -o out.pdf --image --json
+pdfweave generate job.json -o out.pdf --image --json
 ```
 
 Main options:
@@ -155,23 +155,23 @@ When `--json` is enabled, stdout is reserved for JSON only:
 }
 ```
 
-## `pdfme validate`
+## `pdfweave validate`
 
 Validate either a template file or a unified job file before generation.
 
 Examples:
 
 ```bash
-pdfme validate template.json
-pdfme validate job.json --json
-cat job.json | pdfme validate - --json
-pdfme validate template.json --strict
-pdfme validate template.json -v --json
+pdfweave validate template.json
+pdfweave validate job.json --json
+cat job.json | pdfweave validate - --json
+pdfweave validate template.json --strict
+pdfweave validate template.json -v --json
 ```
 
 What `validate` checks:
 
-- template structure via pdfme validation
+- template structure via PDFweave validation
 - unknown schema types
 - duplicate field names on the same page
 - repeated field names across pages as warnings
@@ -199,7 +199,7 @@ Useful flags:
 - constrained enum strings for `select`, `checkbox`, and `radioGroup`
 - JSON string objects for `multiVariableText`
 
-## `pdfme doctor`
+## `pdfweave doctor`
 
 Diagnose the environment or a specific template/job before generation.
 
@@ -207,31 +207,31 @@ Examples:
 
 ```bash
 # Environment diagnosis
-pdfme doctor
+pdfweave doctor
 
 # Diagnose a template or job
-pdfme doctor job.json --json
+pdfweave doctor job.json --json
 
 # Diagnose from stdin
-cat job.json | pdfme doctor - --json
+cat job.json | pdfweave doctor - --json
 
 # Font-focused diagnosis
-pdfme doctor fonts job.json --json
+pdfweave doctor fonts job.json --json
 
 # Simulate generate with automatic CJK font resolution disabled
-pdfme doctor job.json --noAutoFont --json
+pdfweave doctor job.json --noAutoFont --json
 
 # Preview runtime output and image targets
-pdfme doctor job.json -o artifacts/out.pdf --image --imageFormat jpeg --json
+pdfweave doctor job.json -o artifacts/out.pdf --image --imageFormat jpeg --json
 ```
 
 Modes:
 
-- `pdfme doctor`
+- `pdfweave doctor`
   - checks Node version, platform, writable directories, and the `NotoSansJP` cache state
-- `pdfme doctor <job-or-template>`
+- `pdfweave doctor <job-or-template>`
   - adds validation, `basePdf`, font, plugin, and runtime output-path diagnosis
-- `pdfme doctor fonts <job-or-template>`
+- `pdfweave doctor fonts <job-or-template>`
   - focuses on explicit and implicit font sources
 
 Important behavior:
@@ -242,18 +242,18 @@ Important behavior:
 - `doctor fonts --json` includes `needsNetwork` for each font source so automation can tell whether a job depends on network access.
 - `validate`-style `inputHints` are also included in JSON mode.
 
-## `pdfme pdf2img`
+## `pdfweave pdf2img`
 
 Convert an existing PDF into page images.
 
 Examples:
 
 ```bash
-pdfme pdf2img invoice.pdf
-pdfme pdf2img invoice.pdf --grid --gridSize 10
-pdfme pdf2img invoice.pdf --pages 1-3
-pdfme pdf2img invoice.pdf -o ./images --imageFormat jpeg
-pdfme pdf2img invoice.pdf -o ./images --json
+pdfweave pdf2img invoice.pdf
+pdfweave pdf2img invoice.pdf --grid --gridSize 10
+pdfweave pdf2img invoice.pdf --pages 1-3
+pdfweave pdf2img invoice.pdf -o ./images --imageFormat jpeg
+pdfweave pdf2img invoice.pdf -o ./images --json
 ```
 
 Behavior:
@@ -264,15 +264,15 @@ Behavior:
 - `--grid` draws a millimeter grid on the rendered page images
 - `--json` returns `pageCount`, `selectedPageCount`, `outputPaths`, and per-page width/height metadata
 
-## `pdfme pdf2size`
+## `pdfweave pdf2size`
 
 Inspect PDF page sizes in millimeters.
 
 Examples:
 
 ```bash
-pdfme pdf2size invoice.pdf
-pdfme pdf2size invoice.pdf --json
+pdfweave pdf2size invoice.pdf
+pdfweave pdf2size invoice.pdf --json
 ```
 
 Human-readable output includes standard size labels such as `A4 portrait` when detected. JSON output returns:
@@ -288,7 +288,7 @@ Human-readable output includes standard size labels such as `A4 portrait` when d
 }
 ```
 
-## `pdfme examples`
+## `pdfweave examples`
 
 List or export official example templates from the playground asset manifest.
 
@@ -296,27 +296,27 @@ Examples:
 
 ```bash
 # List templates
-pdfme examples --list
+pdfweave examples --list
 
 # Listing is also the default when no name is provided
-pdfme examples
+pdfweave examples
 
 # Print a template to stdout
-pdfme examples invoice
+pdfweave examples invoice
 
 # Write a template to a file
-pdfme examples invoice -o template.json
+pdfweave examples invoice -o template.json
 
 # Export a unified job with sample inputs
-pdfme examples invoice --withInputs -o job.json
+pdfweave examples invoice --withInputs -o job.json
 
 # Machine-readable manifest output
-pdfme examples --list --json
+pdfweave examples --list --json
 ```
 
 Behavior:
 
-- the command fetches the manifest and template assets from `https://playground.pdfme.com/template-assets`
+- the command fetches the manifest and template assets from `https://idnteq.github.io/pdfweave/template-assets`
 - you can override that base URL with the `PDFME_EXAMPLES_BASE_URL` environment variable
 - `--withInputs` adds sample inputs and includes `options.font` when the example depends on official hosted fonts
 - `--json` list mode returns manifest metadata such as template names, schema types, font names, and page counts
@@ -367,16 +367,16 @@ Current exit-code categories:
 Start from an official example, diagnose it, then generate images for visual review:
 
 ```bash
-pdfme examples invoice --withInputs -o job.json
-pdfme doctor job.json --json
-pdfme generate job.json -o out.pdf --image --grid
+pdfweave examples invoice --withInputs -o job.json
+pdfweave doctor job.json --json
+pdfweave generate job.json -o out.pdf --image --grid
 ```
 
 For existing-PDF overlay work:
 
 ```bash
-pdfme pdf2img invoice.pdf --grid --gridSize 10
-pdfme pdf2size invoice.pdf --json
-pdfme doctor template.json -o out.pdf --image --json
-pdfme generate -t template.json -i inputs.json -o out.pdf --image --grid
+pdfweave pdf2img invoice.pdf --grid --gridSize 10
+pdfweave pdf2size invoice.pdf --json
+pdfweave doctor template.json -o out.pdf --image --json
+pdfweave generate -t template.json -i inputs.json -o out.pdf --image --grid
 ```

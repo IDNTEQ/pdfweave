@@ -6,7 +6,10 @@ const config = {
   title: 'PDFweave',
   tagline: 'TypeScript PDF template engine with first-class data binding',
   url: 'https://idnteq.github.io',
-  baseUrl: '/pdfweave/',
+  // Docs site is mounted under /pdfweave/docs/ alongside the playground
+  // (which owns /pdfweave/). Override at build time with DOCS_BASE_URL=...
+  // for local serve or alternate hosts.
+  baseUrl: process.env.DOCS_BASE_URL ?? '/pdfweave/docs/',
   onBrokenLinks: 'throw',
   favicon: 'favicon.ico',
   organizationName: 'IDNTEQ',

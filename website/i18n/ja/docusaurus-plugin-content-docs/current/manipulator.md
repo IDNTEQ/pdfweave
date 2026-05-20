@@ -1,11 +1,11 @@
 # マニピュレーター
 
-`@pdfme/manipulator`パッケージはPDFファイルを操作するための強力なユーティリティを提供します。Node.jsとブラウザ環境の両方で使用できます。
+`@pdfweave/manipulator`パッケージはPDFファイルを操作するための強力なユーティリティを提供します。Node.jsとブラウザ環境の両方で使用できます。
 
 ## インストール
 
 ```bash
-npm install @pdfme/manipulator
+npm install @pdfweave/manipulator
 ```
 
 ## 機能
@@ -14,7 +14,7 @@ npm install @pdfme/manipulator
 複数のPDFファイルを1つのPDFに結合します。
 
 ```ts
-import { merge } from '@pdfme/manipulator';
+import { merge } from '@pdfweave/manipulator';
 
 const pdf1 = new ArrayBuffer(...); // 1つ目のPDF
 const pdf2 = new ArrayBuffer(...); // 2つ目のPDF
@@ -25,7 +25,7 @@ const merged = await merge([pdf1, pdf2]);
 PDFをページ範囲に基づいて複数のPDFに分割します。
 
 ```ts
-import { split } from '@pdfme/manipulator';
+import { split } from '@pdfweave/manipulator';
 
 const pdf = new ArrayBuffer(...); // ソースPDF
 const splits = await split(pdf, [
@@ -38,7 +38,7 @@ const splits = await split(pdf, [
 PDFの指定されたページを回転させます。
 
 ```ts
-import { rotate } from '@pdfme/manipulator';
+import { rotate } from '@pdfweave/manipulator';
 
 const pdf = new ArrayBuffer(...); // ソースPDF
 const result = await rotate(pdf, 90); // すべてのページを90度回転
@@ -50,7 +50,7 @@ const result2 = await rotate(pdf, 90, [0, 2]); // 1ページ目と3ページ目�
 指定された位置にPDFページを挿入します。
 
 ```ts
-import { insert } from '@pdfme/manipulator';
+import { insert } from '@pdfweave/manipulator';
 
 const basePdf = new ArrayBuffer(...); // ベースPDF
 const insertPdf = new ArrayBuffer(...); // 挿入するPDF
@@ -63,7 +63,7 @@ const result = await insert(basePdf, [
 PDFから指定されたページを削除します。
 
 ```ts
-import { remove } from '@pdfme/manipulator';
+import { remove } from '@pdfweave/manipulator';
 
 const pdf = new ArrayBuffer(...); // ソースPDF
 const result = await remove(pdf, [1, 3]); // 2ページ目と4ページ目を削除
@@ -73,7 +73,7 @@ const result = await remove(pdf, [1, 3]); // 2ページ目と4ページ目を削
 PDFの中で1つのページを別の位置に移動します。
 
 ```ts
-import { move } from '@pdfme/manipulator';
+import { move } from '@pdfweave/manipulator';
 
 const pdf = new ArrayBuffer(...); // ソースPDF
 const result = await move(pdf, { from: 0, to: 2 }); // 1ページ目を3番目の位置に移動
@@ -83,7 +83,7 @@ const result = await move(pdf, { from: 0, to: 2 }); // 1ページ目を3番目�
 複数のPDF操作を順番に実行します。
 
 ```ts
-import { organize } from '@pdfme/manipulator';
+import { organize } from '@pdfweave/manipulator';
 
 const pdf = new ArrayBuffer(...); // ソースPDF
 const insertPdf = new ArrayBuffer(...); // 挿入するPDF
@@ -98,10 +98,10 @@ const result = await organize(pdf, [
 
 無効なパラメータが提供された場合、すべての関数は説明的なエラーをスローします：
 
-- 無効なページ番号: `[@pdfme/manipulator] Invalid page number`
-- 無効な回転角度: `[@pdfme/manipulator] Rotation degrees must be a multiple of 90`
-- 無効な位置: `[@pdfme/manipulator] Invalid position`
-- 空の入力: `[@pdfme/manipulator] At least one PDF is required`
+- 無効なページ番号: `[@pdfweave/manipulator] Invalid page number`
+- 無効な回転角度: `[@pdfweave/manipulator] Rotation degrees must be a multiple of 90`
+- 無効な位置: `[@pdfweave/manipulator] Invalid position`
+- 空の入力: `[@pdfweave/manipulator] At least one PDF is required`
 
 ## 型定義
 
@@ -128,7 +128,6 @@ type OrganizeAction =
 
 ## お問い合わせ
 
-`@pdfme/manipulator`に関するご質問やご提案がありましたら、以下までご連絡ください：
+`@pdfweave/manipulator`に関するご質問やご提案がありましたら、以下までご連絡ください：
 
-- **Discord**: [https://discord.gg/xWPTJbmgNV](https://discord.gg/xWPTJbmgNV)
-- **GitHub Issues**: [https://github.com/pdfme/pdfme/issues](https://github.com/pdfme/pdfme/issues)
+- **GitHub Issues**: [https://github.com/IDNTEQ/pdfweave/issues](https://github.com/IDNTEQ/pdfweave/issues)

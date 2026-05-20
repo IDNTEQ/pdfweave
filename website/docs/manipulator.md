@@ -1,11 +1,11 @@
 # Manipulator
 
-The `@pdfme/manipulator` package provides powerful utilities for manipulating PDF files. It can be used in both Node.js and browser environments.
+The `@pdfweave/manipulator` package provides powerful utilities for manipulating PDF files. It can be used in both Node.js and browser environments.
 
 ## Installation
 
 ```bash
-npm install @pdfme/manipulator
+npm install @pdfweave/manipulator
 ```
 
 ## Features
@@ -14,7 +14,7 @@ npm install @pdfme/manipulator
 Combines multiple PDF files into a single PDF.
 
 ```ts
-import { merge } from '@pdfme/manipulator';
+import { merge } from '@pdfweave/manipulator';
 
 const pdf1 = new ArrayBuffer(...); // First PDF
 const pdf2 = new ArrayBuffer(...); // Second PDF
@@ -25,7 +25,7 @@ const merged = await merge([pdf1, pdf2]);
 Splits a PDF into multiple PDFs based on page ranges.
 
 ```ts
-import { split } from '@pdfme/manipulator';
+import { split } from '@pdfweave/manipulator';
 
 const pdf = new ArrayBuffer(...); // Source PDF
 const splits = await split(pdf, [
@@ -38,7 +38,7 @@ const splits = await split(pdf, [
 Rotates specified pages in a PDF.
 
 ```ts
-import { rotate } from '@pdfme/manipulator';
+import { rotate } from '@pdfweave/manipulator';
 
 const pdf = new ArrayBuffer(...); // Source PDF
 const result = await rotate(pdf, 90); // Rotate all pages 90 degrees
@@ -50,7 +50,7 @@ const result2 = await rotate(pdf, 90, [0, 2]); // Rotate pages 1 and 3
 Inserts PDF pages at specified positions.
 
 ```ts
-import { insert } from '@pdfme/manipulator';
+import { insert } from '@pdfweave/manipulator';
 
 const basePdf = new ArrayBuffer(...); // Base PDF
 const insertPdf = new ArrayBuffer(...); // PDF to insert
@@ -63,7 +63,7 @@ const result = await insert(basePdf, [
 Removes specified pages from a PDF.
 
 ```ts
-import { remove } from '@pdfme/manipulator';
+import { remove } from '@pdfweave/manipulator';
 
 const pdf = new ArrayBuffer(...); // Source PDF
 const result = await remove(pdf, [1, 3]); // Remove pages 2 and 4
@@ -73,7 +73,7 @@ const result = await remove(pdf, [1, 3]); // Remove pages 2 and 4
 Moves a page from one position to another within the PDF.
 
 ```ts
-import { move } from '@pdfme/manipulator';
+import { move } from '@pdfweave/manipulator';
 
 const pdf = new ArrayBuffer(...); // Source PDF
 const result = await move(pdf, { from: 0, to: 2 }); // Move first page to third position
@@ -83,7 +83,7 @@ const result = await move(pdf, { from: 0, to: 2 }); // Move first page to third 
 Performs multiple PDF operations in sequence.
 
 ```ts
-import { organize } from '@pdfme/manipulator';
+import { organize } from '@pdfweave/manipulator';
 
 const pdf = new ArrayBuffer(...); // Source PDF
 const insertPdf = new ArrayBuffer(...); // PDF to insert
@@ -98,10 +98,10 @@ const result = await organize(pdf, [
 
 All functions throw descriptive errors when invalid parameters are provided:
 
-- Invalid page numbers: `[@pdfme/manipulator] Invalid page number`
-- Invalid rotation degrees: `[@pdfme/manipulator] Rotation degrees must be a multiple of 90`
-- Invalid positions: `[@pdfme/manipulator] Invalid position`
-- Empty inputs: `[@pdfme/manipulator] At least one PDF is required`
+- Invalid page numbers: `[@pdfweave/manipulator] Invalid page number`
+- Invalid rotation degrees: `[@pdfweave/manipulator] Rotation degrees must be a multiple of 90`
+- Invalid positions: `[@pdfweave/manipulator] Invalid position`
+- Empty inputs: `[@pdfweave/manipulator] At least one PDF is required`
 
 ## Types
 
@@ -128,7 +128,6 @@ type OrganizeAction =
 
 ## Contact
 
-If you have any questions or suggestions about `@pdfme/manipulator`, please reach out via:
+If you have any questions or suggestions about `@pdfweave/manipulator`, please reach out via:
 
-- **Discord**: [https://discord.gg/xWPTJbmgNV](https://discord.gg/xWPTJbmgNV)
-- **GitHub Issues**: [https://github.com/pdfme/pdfme/issues](https://github.com/pdfme/pdfme/issues)
+- **GitHub Issues**: [https://github.com/IDNTEQ/pdfweave/issues](https://github.com/IDNTEQ/pdfweave/issues)

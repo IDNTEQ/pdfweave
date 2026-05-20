@@ -2,10 +2,10 @@
 
 ## Community Involvement and Your Role
 
-pdfme is proud to be an open-source project, supported and driven by our enthusiastic community. Whether you're diving into the codebase or raising your voice in our discussions, your involvement is what makes pdfme thrive.
+PDFweave is proud to be an open-source project, supported and driven by our enthusiastic community. Whether you're diving into the codebase or raising your voice in our discussions, your involvement is what makes PDFweave thrive.
 
-<a href="https://github.com/pdfme/pdfme/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=pdfme/pdfme" />
+<a href="https://github.com/IDNTEQ/pdfweave/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=IDNTEQ/pdfweave" />
 </a>
 
 <br/>
@@ -17,20 +17,18 @@ pdfme is proud to be an open-source project, supported and driven by our enthusi
 
 If you have any bugs, or suggestions for the program or documentation, please see below.
 
-All bug reports and discussions are recorded in [GitHub repository](https://github.com/pdfme/pdfme).  
+All bug reports and discussions are recorded in [GitHub repository](https://github.com/IDNTEQ/pdfweave).  
 It is possible that some of the problems or questions have already been solved.
 
-- To report application bugs, please use [GitHub issue](https://github.com/pdfme/pdfme/issues)
-- For questions or suggestions, please ask them in [Discord](https://discord.gg/xWPTJbmgNV), [GitHub Discussions](https://github.com/pdfme/pdfme/discussions).
-- For interactive questions about pdfme's documentation and source code, you can use [DeepWiki](https://deepwiki.com/pdfme/pdfme).
+- To report application bugs, please use [GitHub issue](https://github.com/IDNTEQ/pdfweave/issues)
 
 ## Code Contribution
 
 Basically we accept PRs for bug fixes. However, we might decide to decline your PR if contains code that add new features.
-Please remember that pdfme is created to be small and simple as possible.
-If you have any questions or suggestions, please feel free to send them to [GitHub Discussions](https://github.com/pdfme/pdfme/discussions) and we will reply as soon as possible.
+Please remember that PDFweave is created to be small and simple as possible.
+If you have any questions or suggestions, please feel free to send them to [GitHub Discussions](https://github.com/IDNTEQ/pdfweave/discussions) and we will reply as soon as possible.
 
-For insights on development: [How to develop pdfme](https://github.com/pdfme/pdfme/blob/main/DEVELOPMENT.md)
+For insights on development: [How to develop PDFweave](https://github.com/IDNTEQ/pdfweave/blob/main/DEVELOPMENT.md)
 
 ## Upcoming Breaking Changes
 
@@ -40,13 +38,13 @@ Before changing build, test, or example code, review the [Migration Guide](/docs
 
 ## Need technical support?
 
-If you need technical support, please contact from [here](https://app.pdfme.com/contact?utm_source=website&utm_content=development-guide).
+If you need technical support, please contact from [here](https://github.com/IDNTEQ/pdfweave/issues).
 
-## Become a sponsor to pdfme
+## Become a sponsor to PDFweave
 
-pdfme is an open source project that is free to use.
-However, it is not free to develop and maintain pdfme.
-If you are using pdfme in your business, please consider becoming a sponsor to pdfme.
+PDFweave is an open source project that is free to use.
+However, it is not free to develop and maintain PDFweave.
+If you are using PDFweave in your business, please consider becoming a sponsor to PDFweave.
 
-- [Github Sponsors](https://github.com/sponsors/pdfme)
-- [Open Collective](https://opencollective.com/pdfme)
+- [Github Sponsors](https://github.com/sponsors/PDFweave)
+- [Open Collective](https://opencollective.com/PDFweave)

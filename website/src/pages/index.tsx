@@ -64,7 +64,7 @@ export default function Home() {
             <div className="col col--3" style={{ marginTop: '1rem' }}>
               <a
                 className="button button--lg button--info "
-                href="https://playground.pdfme.com"
+                href="https://idnteq.github.io/pdfweave"
                 target={'_blank'}
               >
                 {translate({
@@ -109,7 +109,7 @@ export default function Home() {
               <p>
                 {translate({
                   id: "homepage.main.description.part1",
-                  message: "pdfme provides PDF generation, forms, and a viewer centered on JSON templates."
+                  message: "PDFweave provides PDF generation, forms, and a viewer centered on JSON templates."
                 })}
                 <br />
                 {translate({
@@ -139,7 +139,7 @@ export default function Home() {
                     }),
                     description: translate({
                       id: 'homepage.cards.template.body.description',
-                      message: 'Templates are at the core of pdfme. In fact a template can be used with the Generator, the Form, and the Viewer.'
+                      message: 'Templates are at the core of PDFweave. In fact a template can be used with the Generator, the Form, and the Viewer.'
                     }),
                   },
                   link: {
@@ -279,7 +279,7 @@ export default function Home() {
               <p>
                 {translate({
                   id: "homepage.opensource.description.part1",
-                  message: "pdfme is an open source project and we love contributions."
+                  message: "PDFweave is an open source project and we love contributions."
                 })}
                 <br />
                 {translate({
@@ -297,8 +297,8 @@ export default function Home() {
                 })}
               </h3>
               <div>
-                <a href="https://github.com/pdfme/pdfme/graphs/contributors">
-                  <img src="https://contrib.rocks/image?repo=pdfme/pdfme" />
+                <a href="https://github.com/IDNTEQ/pdfweave/graphs/contributors">
+                  <img src="https://contrib.rocks/image?repo=IDNTEQ/pdfweave" />
                 </a>
               </div>
             </div>
@@ -307,14 +307,14 @@ export default function Home() {
               <h3>
                 {translate({
                   id: "homepage.support.heading",
-                  message: "Support pdfme"
+                  message: "Support PDFweave"
                 })}
               </h3>
               <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                <a href="https://github.com/sponsors/pdfme" target="_blank" style={{ margin: '20px' }}>
+                <a href="https://github.com/sponsors/PDFweave" target="_blank" style={{ margin: '20px' }}>
                   <img alt="GitHub Sponsors" src="https://img.shields.io/static/v1?label=Sponsor&message=%E2%9D%A4&logo=GitHub&color=%23fe8e86" width={190} />
                 </a>
-                <a href="https://opencollective.com/pdfme/donate" target="_blank" style={{ margin: '20px' }}>
+                <a href="https://opencollective.com/PDFweave/donate" target="_blank" style={{ margin: '20px' }}>
                   <img src="https://opencollective.com/webpack/donate/button@2x.png?color=blue" width={250} />
                 </a>
               </div>
@@ -329,21 +329,21 @@ export default function Home() {
                   <div style={{ display: 'flex', alignItems: 'flex-start', margin: '0.8rem', }}>
                     <a
                       style={{ display: 'flex', alignItems: 'center', fontSize: '10pt', }}
-                      href="https://github.com/pdfme/pdfme"
+                      href="https://github.com/IDNTEQ/pdfweave"
                       target="_blank"
                       rel="noopener noreferrer"
                     >
                       <img src={'/img/github-icon.svg'} alt="github" width={25} />
-                      <span style={{ marginLeft: '0.5rem' }}>https://github.com/pdfme/pdfme</span>
+                      <span style={{ marginLeft: '0.5rem' }}>https://github.com/IDNTEQ/pdfweave</span>
                     </a>
                     <div style={{ display: 'flex', alignItems: 'center', }}                      >
                       <div style={{ marginLeft: '0.5rem' }}>
                         <GitHubButton
-                          href="https://github.com/pdfme/pdfme"
+                          href="https://github.com/IDNTEQ/pdfweave"
                           data-size="large"
                           data-icon="octicon-star"
                           data-show-count={true}
-                          aria-label="Star pdfme on GitHub"
+                          aria-label="Star PDFweave on GitHub"
                         >
                           Star
                         </GitHubButton>

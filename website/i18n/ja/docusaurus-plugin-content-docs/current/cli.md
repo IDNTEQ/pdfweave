@@ -1,6 +1,6 @@
 # CLI
 
-`@pdfme/cli` は、JSON-first な pdfme workflow のためのコマンドラインインターフェースです。
+`@pdfweave/cli` は、JSON-first な PDFweave workflow のためのコマンドラインインターフェースです。
 
 主な用途:
 
@@ -15,34 +15,34 @@
 Node.js 20 以降が必要です。
 
 ```bash
-npm install -D @pdfme/cli
+npm install -D @pdfweave/cli
 ```
 
 `npx` から直接実行することもできます。
 
 ```bash
-npx @pdfme/cli generate --help
+npx @pdfweave/cli generate --help
 ```
 
 ## コマンド一覧
 
-- `pdfme generate`
+- `pdfweave generate`
   - unified job または `--template` + `--inputs` から PDF を生成する
   - 必要に応じてページ画像も出力する
   - 画像にグリッド線と schema 境界を重ねられる
-- `pdfme validate`
+- `pdfweave validate`
   - 生成前に template または unified job を検証する
   - `--json` で machine-readable な inspection を返す
-- `pdfme doctor`
+- `pdfweave doctor`
   - 環境、input、font、`basePdf`、cache、output path を診断する
-- `pdfme pdf2img`
+- `pdfweave pdf2img`
   - 既存 PDF をページ画像へ変換する
-- `pdfme pdf2size`
+- `pdfweave pdf2size`
   - PDF のページサイズをミリメートル単位で確認する
-- `pdfme examples`
+- `pdfweave examples`
   - official example を一覧表示または出力する
 
-## `pdfme generate`
+## `pdfweave generate`
 
 `generate` は次の 2 形式を受け付けます。
 
@@ -53,22 +53,22 @@ npx @pdfme/cli generate --help
 
 ```bash
 # Unified job file: { template, inputs, options? }
-pdfme generate job.json -o out.pdf
+pdfweave generate job.json -o out.pdf
 
 # Template + inputs を別ファイルで指定
-pdfme generate -t template.json -i inputs.json -o out.pdf
+pdfweave generate -t template.json -i inputs.json -o out.pdf
 
 # ページ画像も出力
-pdfme generate job.json -o out.pdf --image
+pdfweave generate job.json -o out.pdf --image
 
 # 画像にグリッド線と schema 境界を重ねる
-pdfme generate job.json -o out.pdf --grid
+pdfweave generate job.json -o out.pdf --grid
 
 # CLI から basePdf を上書き
-pdfme generate -t template.json -i inputs.json --basePdf invoice.pdf -o out.pdf
+pdfweave generate -t template.json -i inputs.json --basePdf invoice.pdf -o out.pdf
 
 # CI / agent 向けの構造化出力
-pdfme generate job.json -o out.pdf --image --json
+pdfweave generate job.json -o out.pdf --image --json
 ```
 
 主なオプション:
@@ -155,23 +155,23 @@ Unified job の例:
 }
 ```
 
-## `pdfme validate`
+## `pdfweave validate`
 
 `validate` は template file または unified job file を、生成前に検証します。
 
 使用例:
 
 ```bash
-pdfme validate template.json
-pdfme validate job.json --json
-cat job.json | pdfme validate - --json
-pdfme validate template.json --strict
-pdfme validate template.json -v --json
+pdfweave validate template.json
+pdfweave validate job.json --json
+cat job.json | pdfweave validate - --json
+pdfweave validate template.json --strict
+pdfweave validate template.json -v --json
 ```
 
 主な検証内容:
 
-- pdfme の template validation による構造チェック
+- PDFweave の template validation による構造チェック
 - 未知の schema type
 - 同一ページ内の重複 field name
 - ページをまたいだ同名 field の warning
@@ -199,7 +199,7 @@ pdfme validate template.json -v --json
 - `select` / `checkbox` / `radioGroup` の constrained enum string
 - `multiVariableText` 向けの JSON string object
 
-## `pdfme doctor`
+## `pdfweave doctor`
 
 `doctor` は実行環境や特定の template/job を、生成前に診断します。
 
@@ -207,36 +207,36 @@ pdfme validate template.json -v --json
 
 ```bash
 # 環境診断
-pdfme doctor
+pdfweave doctor
 
 # Template または job の診断
-pdfme doctor job.json --json
+pdfweave doctor job.json --json
 
 # stdin から診断
-cat job.json | pdfme doctor - --json
+cat job.json | pdfweave doctor - --json
 
 # Font に絞った診断
-pdfme doctor fonts job.json --json
+pdfweave doctor fonts job.json --json
 
 # 自動 CJK font 解決を無効化した条件で診断
-pdfme doctor job.json --noAutoFont --json
+pdfweave doctor job.json --noAutoFont --json
 
 # generate と同じ output path / image output 条件で事前診断
-pdfme doctor job.json -o artifacts/out.pdf --image --imageFormat jpeg --json
+pdfweave doctor job.json -o artifacts/out.pdf --image --imageFormat jpeg --json
 ```
 
-## `pdfme pdf2img`
+## `pdfweave pdf2img`
 
 既存 PDF をページ画像に変換します。
 
 使用例:
 
 ```bash
-pdfme pdf2img invoice.pdf
-pdfme pdf2img invoice.pdf --grid --gridSize 10
-pdfme pdf2img invoice.pdf --pages 1-3
-pdfme pdf2img invoice.pdf -o ./images --imageFormat jpeg
-pdfme pdf2img invoice.pdf -o ./images --json
+pdfweave pdf2img invoice.pdf
+pdfweave pdf2img invoice.pdf --grid --gridSize 10
+pdfweave pdf2img invoice.pdf --pages 1-3
+pdfweave pdf2img invoice.pdf -o ./images --imageFormat jpeg
+pdfweave pdf2img invoice.pdf -o ./images --json
 ```
 
 挙動:
@@ -247,15 +247,15 @@ pdfme pdf2img invoice.pdf -o ./images --json
 - `--grid` はレンダリングされたページ画像にミリメートルグリッドを描画します
 - `--json` では `pageCount`, `selectedPageCount`, `outputPaths`, 各ページの width/height を返します
 
-## `pdfme pdf2size`
+## `pdfweave pdf2size`
 
 PDF のページサイズをミリメートル単位で確認します。
 
 使用例:
 
 ```bash
-pdfme pdf2size invoice.pdf
-pdfme pdf2size invoice.pdf --json
+pdfweave pdf2size invoice.pdf
+pdfweave pdf2size invoice.pdf --json
 ```
 
 標準サイズを検出できる場合、人間向け出力には `A4 portrait` のようなラベルも付きます。JSON 出力の例:
@@ -271,7 +271,7 @@ pdfme pdf2size invoice.pdf --json
 }
 ```
 
-## `pdfme examples`
+## `pdfweave examples`
 
 playground の asset manifest から official example を一覧表示または出力します。
 
@@ -279,27 +279,27 @@ playground の asset manifest から official example を一覧表示または�
 
 ```bash
 # 一覧表示
-pdfme examples --list
+pdfweave examples --list
 
 # name 未指定でも一覧表示
-pdfme examples
+pdfweave examples
 
 # Template を stdout に出力
-pdfme examples invoice
+pdfweave examples invoice
 
 # Template をファイルに保存
-pdfme examples invoice -o template.json
+pdfweave examples invoice -o template.json
 
 # サンプル入力付き unified job を出力
-pdfme examples invoice --withInputs -o job.json
+pdfweave examples invoice --withInputs -o job.json
 
 # Manifest metadata を JSON で取得
-pdfme examples --list --json
+pdfweave examples --list --json
 ```
 
 挙動:
 
-- manifest と template asset は `https://playground.pdfme.com/template-assets` から取得されます
+- manifest と template asset は `https://idnteq.github.io/pdfweave/template-assets` から取得されます
 - `PDFME_EXAMPLES_BASE_URL` 環境変数で base URL を上書きできます
 - `--withInputs` では sample inputs に加えて、official hosted font が必要な例では `options.font` も同梱されます
 - `--json` の list mode では template name、schema type、font name、page count などの metadata を返します
@@ -350,16 +350,16 @@ CJK 向けの自動 `NotoSansJP` 解決は、明示的な font source がない�
 official example から job を作成して、まず診断し、画像で確認してから PDF を作成します。
 
 ```bash
-pdfme examples invoice --withInputs -o job.json
-pdfme doctor job.json --json
-pdfme generate job.json -o out.pdf --image --grid
+pdfweave examples invoice --withInputs -o job.json
+pdfweave doctor job.json --json
+pdfweave generate job.json -o out.pdf --image --grid
 ```
 
 既存 PDF を basePdf として使う overlay workflow:
 
 ```bash
-pdfme pdf2img invoice.pdf --grid --gridSize 10
-pdfme pdf2size invoice.pdf --json
-pdfme doctor template.json -o out.pdf --image --json
-pdfme generate -t template.json -i inputs.json -o out.pdf --image --grid
+pdfweave pdf2img invoice.pdf --grid --gridSize 10
+pdfweave pdf2size invoice.pdf --json
+pdfweave doctor template.json -o out.pdf --image --json
+pdfweave generate -t template.json -i inputs.json -o out.pdf --image --grid
 ```

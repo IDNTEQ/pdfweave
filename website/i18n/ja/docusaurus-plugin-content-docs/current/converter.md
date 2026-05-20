@@ -1,14 +1,14 @@
 # コンバーター
 
-`@pdfme/converter` は Node.js とブラウザの両方で使用できます。
+`@pdfweave/converter` は Node.js とブラウザの両方で使用できます。
 
 その主な目的は、PDFを他の形式（画像など）に変換したり、様々なデータ形式（Markdownなど）をPDFに変換することです。
 
 まだ開発中ですが、すでに以下の機能を使用することができます：
 
-- **PDFを画像に変換**: [pdf2img](https://github.com/pdfme/pdfme/blob/main/packages/converter/src/pdf2img.ts)
-- **各ページの幅と高さを取得**: [pdf2size](https://github.com/pdfme/pdfme/blob/main/packages/converter/src/pdf2size.ts)
-- **画像をPDFに変換**: [img2pdf](https://github.com/pdfme/pdfme/blob/main/packages/converter/src/img2pdf.ts)
+- **PDFを画像に変換**: [pdf2img](https://github.com/IDNTEQ/pdfweave/blob/main/packages/converter/src/pdf2img.ts)
+- **各ページの幅と高さを取得**: [pdf2size](https://github.com/IDNTEQ/pdfweave/blob/main/packages/converter/src/pdf2size.ts)
+- **画像をPDFに変換**: [img2pdf](https://github.com/IDNTEQ/pdfweave/blob/main/packages/converter/src/img2pdf.ts)
 
 計画されている変換機能には以下が含まれます：
 - **MarkdownからPDF**: `md2pdf`
@@ -17,10 +17,10 @@
 ## インストール
 
 ```bash
-npm install @pdfme/converter
+npm install @pdfweave/converter
 ```
 
-Node.js で `pdf2img` を使うために追加の install は不要です。`@pdfme/converter` には必要な Node 向け canvas 実装として `@napi-rs/canvas` がすでに含まれています。
+Node.js で `pdf2img` を使うために追加の install は不要です。`@pdfweave/converter` には必要な Node 向け canvas 実装として `@napi-rs/canvas` がすでに含まれています。
 
 ## 機能
 
@@ -28,7 +28,7 @@ Node.js で `pdf2img` を使うために追加の install は不要です。`@pd
 PDFページを画像（JPEGまたはPNG形式）に変換します。
 
 ```ts
-import { pdf2img } from '@pdfme/converter';
+import { pdf2img } from '@pdfweave/converter';
 
 const pdf = new ArrayBuffer(...); // ソースPDF
 const images = await pdf2img(pdf, {
@@ -42,7 +42,7 @@ const images = await pdf2img(pdf, {
 PDFの各ページの幅と高さを取得します。
 
 ```ts
-import { pdf2size } from '@pdfme/converter';
+import { pdf2size } from '@pdfweave/converter';
 
 const pdf = new ArrayBuffer(...); // ソースPDF
 const sizes = await pdf2size(pdf, {
@@ -55,7 +55,7 @@ const sizes = await pdf2size(pdf, {
 1つまたは複数の画像（JPEGまたはPNG）を1つのPDFファイルに変換します。
 
 ```ts
-import { img2pdf } from '@pdfme/converter';
+import { img2pdf } from '@pdfweave/converter';
 
 const image1 = new ArrayBuffer(...); // 1枚目の画像
 const image2 = new ArrayBuffer(...); // 2枚目の画像
@@ -71,11 +71,11 @@ const pdf = await img2pdf([image1, image2], {
 
 無効なパラメータが提供された場合、すべての関数は説明的なエラーをスローします：
 
-- 無効なPDF: `[@pdfme/converter] Invalid PDF`
-- 空のPDF: `[@pdfme/converter] The PDF file is empty`
-- 無効なページ範囲: `[@pdfme/converter] Invalid page range`
-- 空の画像配列: `[@pdfme/converter] Input must be a non-empty array of image buffers`
-- 無効な画像: `[@pdfme/converter] Failed to process image`
+- 無効なPDF: `[@pdfweave/converter] Invalid PDF`
+- 空のPDF: `[@pdfweave/converter] The PDF file is empty`
+- 無効なページ範囲: `[@pdfweave/converter] Invalid page range`
+- 空の画像配列: `[@pdfweave/converter] Input must be a non-empty array of image buffers`
+- 無効な画像: `[@pdfweave/converter] Failed to process image`
 
 ## 型定義
 
@@ -107,7 +107,6 @@ interface Img2PdfOptions {
 
 ## お問い合わせ
 
-`@pdfme/converter`に関するご質問やご提案がありましたら、以下までご連絡ください：
+`@pdfweave/converter`に関するご質問やご提案がありましたら、以下までご連絡ください：
 
-- **Discord**: [https://discord.gg/xWPTJbmgNV](https://discord.gg/xWPTJbmgNV)
-- **GitHub Issues**: [https://github.com/pdfme/pdfme/issues](https://github.com/pdfme/pdfme/issues)
+- **GitHub Issues**: [https://github.com/IDNTEQ/pdfweave/issues](https://github.com/IDNTEQ/pdfweave/issues)

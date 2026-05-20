@@ -1,6 +1,6 @@
 # サポートされている機能
 
-pdfmeでは、以下の要素をレンダリングすることができます。  
+PDFweaveでは、以下の要素をレンダリングすることができます。  
 サポートされていない要素については、[プラグインメカニズム](/docs/custom-schemas)を使用して独自のレンダリングプロセスを追加できます。
 
 ## 現在サポートされている機能
@@ -8,7 +8,7 @@ pdfmeでは、以下の要素をレンダリングすることができます。
 :::info
 
 テキストスキーマ以外のスキーマを使用する場合は、以下のドキュメントを参照してください。  
-[@pdfme/schemasからのスキーマの使用](/docs/custom-schemas#using-schemas-from-pdfmeschemas)
+[@pdfweave/schemasからのスキーマの使用](/docs/custom-schemas#using-schemas-from-pdfweaveschemas)
 
 :::
 
@@ -83,7 +83,7 @@ pdfmeでは、以下の要素をレンダリングすることができます。
   - バーの色
   - 背景色
   - テキスト色
-  - [テキスト表示オプション（計画中のサポート）](https://github.com/pdfme/pdfme/issues/23)
+  - [テキスト表示オプション（計画中のサポート）](https://github.com/IDNTEQ/pdfweave/issues/23)
 
 ### テーブル (table){#table}
 
@@ -139,10 +139,10 @@ pdfmeでは、以下の要素をレンダリングすることができます。
 
 ## 計画中のサポート
 
-- [ハイパーリンク](https://github.com/pdfme/pdfme/issues/319)
+- [ハイパーリンク](https://github.com/IDNTEQ/pdfweave/issues/319)
 
 ## カスタム機能リクエスト
 
-pdfmeはMITライセンスの下でリリースされているオープンソースプロジェクトですが、有料でのカスタム機能追加を検討することも可能です。  
+PDFweaveはMITライセンスの下でリリースされているオープンソースプロジェクトですが、有料でのカスタム機能追加を検討することも可能です。  
 **お支払いいただける場合は、ご要望の機能を評価し実装することができます。**  
-なお、追加された機能はすべてオープンソースとしてリリースされます。このアプローチがご希望に合う場合は、[お問い合わせ](https://app.pdfme.com/contact)ください。
+なお、追加された機能はすべてオープンソースとしてリリースされます。このアプローチがご希望に合う場合は、[お問い合わせ](https://github.com/IDNTEQ/pdfweave/issues)ください。

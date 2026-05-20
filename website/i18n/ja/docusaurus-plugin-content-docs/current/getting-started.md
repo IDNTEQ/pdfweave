@@ -1,12 +1,11 @@
 # はじめに
 
 :::tip インタラクティブなドキュメント
-[DeepWiki](https://deepwiki.com/pdfme/pdfme)を使用すると、pdfmeのドキュメントやソースコードについてインタラクティブに質問できます。コードの使い方や機能について疑問がある場合に便利です。
 :::
 
 ## イントロダクション
 
-pdfmeはPDFのデザインと生成プロセスを簡素化するために作成されました。特に以下のようなユースケースに役立ちます：
+PDFweaveはPDFのデザインと生成プロセスを簡素化するために作成されました。特に以下のようなユースケースに役立ちます：
 
 - 短いコードでデザインされたPDFを作成する必要がある場合
 - アプリケーションにPDFエディタ機能を統合する必要がある場合
@@ -15,35 +14,35 @@ pdfmeはPDFのデザインと生成プロセスを簡素化するために作成
 ## インストール
 
 動作要件はnode環境 `>=16` です。  
-pdfmeには、generatorとUIの2つのパッケージがあります。
+PDFweaveには、generatorとUIの2つのパッケージがあります。
 
 PDFを生成するためのパッケージは、以下のコマンドでインストールできます。
 
 ```
-npm i @pdfme/generator @pdfme/common
+npm i @pdfweave/generator @pdfweave/common
 ```
 
 PDFデザイナー、フォーム、ビューワーを使用するためのパッケージは、以下のコマンドでインストールできます。
 
 ```
-npm i @pdfme/ui @pdfme/common
+npm i @pdfweave/ui @pdfweave/common
 ```
 
-`@pdfme/ui` は standalone bundle として配布されるため、Designer / Form / Viewer を使うためだけに `react` や `react-dom` を別途インストールする必要はありません。
+`@pdfweave/ui` は standalone bundle として配布されるため、Designer / Form / Viewer を使うためだけに `react` や `react-dom` を別途インストールする必要はありません。
 
-\*どのパッケージを使用する場合でも、`@pdfme/common`をインストールする必要があります。
+\*どのパッケージを使用する場合でも、`@pdfweave/common`をインストールする必要があります。
 
-pdfmeでは以下の型、関数、クラスが利用可能です。
+PDFweaveでは以下の型、関数、クラスが利用可能です。
 
-`@pdfme/common`
+`@pdfweave/common`
 
 - [Template](/docs/getting-started#template)
 
-`@pdfme/generator`
+`@pdfweave/generator`
 
 - [generate](/docs/getting-started#generator)
 
-`@pdfme/ui`
+`@pdfweave/ui`
 
 - [Designer](/docs/getting-started#designer)
 - [Form](/docs/getting-started#form)
@@ -52,21 +51,21 @@ pdfmeでは以下の型、関数、クラスが利用可能です。
 環境がwebpackを使用している場合は、以下のように必要なアイテムをインポートします。
 
 ```ts
-import type { Template } from '@pdfme/common';
-import { generate } from '@pdfme/generator';
+import type { Template } from '@pdfweave/common';
+import { generate } from '@pdfweave/generator';
 ```
 
 ```ts
-import type { Template } from '@pdfme/common';
-import { Designer, Form, Viewer } from '@pdfme/ui';
+import type { Template } from '@pdfweave/common';
+import { Designer, Form, Viewer } from '@pdfweave/ui';
 ```
 
 **すべてのオブジェクトは`Template`を使用しており、これについては次のセクションで簡単に説明します。**
 
 ## テンプレート {#template}
 
-pdfmeライブラリの中核はテンプレートです。  
-テンプレート型は`@pdfme/generator`または`@pdfme/ui`の両方からインポートできます。テンプレートはあらゆる場所で使用されます。
+PDFweaveライブラリの中核はテンプレートです。  
+テンプレート型は`@pdfweave/generator`または`@pdfweave/ui`の両方からインポートできます。テンプレートはあらゆる場所で使用されます。
 
 テンプレートは、固定部分と可変部分の2つに分けることができます。  
 これらをbasePdfとschemaと呼びます。
@@ -85,7 +84,7 @@ basePdf: { "width": 210, "height": 297, "padding": [10, 10, 10, 10] }
 
 
 **schemas**はデフォルトではテキストのみ使用できます。`generate`、`Designer`、`Form`、`Viewer` が使うデフォルトのプラグインレジストリには、意図的に `text` スキーマだけが含まれています。  
-画像、署名、テーブル、QRコードなどのバーコード、その他のスキーマタイプを使う場合は、`@pdfme/schemas` から対象プラグインを明示的に import し、`plugins` オプションで渡してください。  
+画像、署名、テーブル、QRコードなどのバーコード、その他のスキーマタイプを使う場合は、`@pdfweave/schemas` から対象プラグインを明示的に import し、`plugins` オプションで渡してください。  
 さらに、独自のスキーマを作成することで、上記以外の種類をレンダリングすることも可能です。詳細は[カスタムスキーマ](/docs/custom-schemas)と、既存コードを更新する場合の [v6 migration guide](/docs/migration-v6) をご覧ください。
 
 具体的なデータを見てみましょう。  
@@ -94,7 +93,7 @@ basePdf: { "width": 210, "height": 297, "padding": [10, 10, 10, 10] }
 ### 最小限のテンプレート {#minimal-template}
 
 ```ts
-import { Template, BLANK_PDF } from '@pdfme/common';
+import { Template, BLANK_PDF } from '@pdfweave/common';
 
 const template: Template = {
   basePdf: BLANK_PDF,
@@ -130,14 +129,14 @@ const template: Template = {
 
 ### プラグインの使用
 
-デフォルトでは、例は多くの場合`text`スキーマタイプの使用を示しています。ただし、他の組み込みスキーマタイプを使用したり、`@pdfme/schemas`パッケージで独自のカスタムスキーマを作成したりすることもできます。
+デフォルトでは、例は多くの場合`text`スキーマタイプの使用を示しています。ただし、他の組み込みスキーマタイプを使用したり、`@pdfweave/schemas`パッケージで独自のカスタムスキーマを作成したりすることもできます。
 
-#### ステップ1: `@pdfme/schemas`のインストール
+#### ステップ1: `@pdfweave/schemas`のインストール
 
 追加のスキーマタイプにアクセスするために必要なパッケージをインストールします。
 
 ```bash
-npm install @pdfme/schemas
+npm install @pdfweave/schemas
 ```
 
 #### ステップ2: 組み込みおよびカスタムスキーマタイプの使用
@@ -145,8 +144,8 @@ npm install @pdfme/schemas
 以下は、組み込みとカスタムの両方のスキーマタイプを使用したテンプレートの例です：
 
 ```ts
-import { Template, BLANK_PDF } from '@pdfme/common';
-import { text, barcodes, image } from '@pdfme/schemas';
+import { Template, BLANK_PDF } from '@pdfweave/common';
+import { text, barcodes, image } from '@pdfweave/schemas';
 import myCustomPlugin from './custom-plugins';
 
 const template: Template = {
@@ -189,7 +188,7 @@ const inputs = [
   {
     example_text: 'Hello, World!',
     example_image: 'data:image/png;base64,iVBORw0KG....',
-    example_qr_code: 'https://pdfme.com/',
+    example_qr_code: 'https://idnteq.github.io/pdfweave/',
   },
 ];
 
@@ -213,8 +212,8 @@ PDF生成関数`generate`は、PDFを生成するために`template`と`inputs`�
 [上記で作成したテンプレート](/docs/getting-started#minimal-template)を使用してPDFファイルを生成するコードを以下に示します。
 
 ```ts
-import type { Template } from '@pdfme/common';
-import { generate } from '@pdfme/generator';
+import type { Template } from '@pdfweave/common';
+import { generate } from '@pdfweave/generator';
 
 const template: Template = {
   // 省略...　テンプレートセクションを確認してください。
@@ -252,8 +251,8 @@ UIは[デザイナー](/docs/getting-started#designer)、[フォーム](/docs/ge
 上記で作成したテンプレートをデフォルトテンプレートとして使用し、デザイナーを統合してみましょう。
 
 ```ts
-import type { Template } from '@pdfme/common';
-import { Designer } from '@pdfme/ui';
+import type { Template } from '@pdfweave/common';
+import { Designer } from '@pdfweave/ui';
 
 const domContainer = document.getElementById('container');
 const template: Template = {
@@ -298,8 +297,8 @@ const designer = new Designer({ domContainer, template, options });
 [こちら](/template-design?ui=form-viewer&template=invoice)から請求書テンプレートを使用したフォームを試すことができます。
 
 ```ts
-import type { Template } from '@pdfme/common';
-import { Form } from '@pdfme/ui';
+import type { Template } from '@pdfweave/common';
+import { Form } from '@pdfweave/ui';
 
 const domContainer = document.getElementById('container');
 const template: Template = {
@@ -333,8 +332,8 @@ generate({ template, inputs: form.getInputs() }).then((pdf) => {
 ビューワーの使用は基本的にフォームの使用と同じですが、ユーザーが編集できない点が異なります。
 
 ```ts
-import type { Template } from '@pdfme/common';
-import { Viewer } from '@pdfme/ui';
+import type { Template } from '@pdfweave/common';
+import { Viewer } from '@pdfweave/ui';
 
 const domContainer = document.getElementById('container');
 const template: Template = {
@@ -359,22 +358,8 @@ const viewer = new Viewer({ domContainer, template, inputs });
 - [dnd-kit](https://github.com/clauderic/dnd-kit): デザイナーUIに使用。
 - [Lucide](https://lucide.dev/) デザイナーUIとスキーマのアイコンに使用。
 
-これらのライブラリなしではpdfmeを作成することはできませんでした。これらのライブラリの開発者に感謝します。
+これらのライブラリなしではPDFweaveを作成することはできませんでした。これらのライブラリの開発者に感謝します。
 
-pdfmeに貢献したい場合は、[開発ガイド](/docs/development-guide)ページをご確認ください。  
+PDFweaveに貢献したい場合は、[開発ガイド](/docs/development-guide)ページをご確認ください。  
 あなたの貢献をお待ちしています！
 
-## クラウドサービスオプション
-
-pdfmeは強力なオープンソースライブラリですが、一部のユーザーはマネージドソリューションを好む場合があることを理解しています。セットアップやメンテナンスの必要なく、すぐに使える、スケーラブルなPDF生成サービスを探している方には、pdfme Cloudを提供しています。
-
-**[pdfme Cloudを試す - 手間のかからないPDF生成](https://app.pdfme.com?utm_source=website&utm_content=getting-started)**
-
-pdfme Cloudはオープンソースライブラリのすべての機能に加えて、以下を提供します：
-
-- インフラ管理なしでスケーラブルなPDF生成
-- ホスト型WYSIWYGテンプレートデザイナー
-- シンプルなAPI統合
-- 自動更新とメンテナンス
-
-\*pdfmeは今後もオープンソースであり続けます。クラウドサービスはマネージドソリューションを好む方向けのオプションサービスです。

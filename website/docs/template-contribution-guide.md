@@ -1,9 +1,9 @@
 # Template Contribution Guide ❤️
 
-Add your template to pdfme's Example Templates!  
-**The [Template List page](/templates) is one of the most important pages on pdfme.com, created to help new users find templates that match their requirements and save time.**
+Add your template to PDFweave's Example Templates!  
+**The [Template List page](/templates) is one of the most important pages on idnteq.github.io/pdfweave, created to help new users find templates that match their requirements and save time.**
 
-By adding your template, you can contribute to the pdfme community.  
+By adding your template, you can contribute to the PDFweave community.  
 We use GitHub pull requests for template additions - no builds or code changes required.  
 
 Even if you're new to OSS contributions, you can easily contribute by following this guide.
@@ -15,13 +15,13 @@ Design your template in the [Template Designer](/template-design), then download
 
 ### 2. Prepare Repository
 1. **[Create Fork]**  
-   Click the `Fork` button at the top-right of [pdfme repository](https://github.com/pdfme/pdfme) to copy to your GitHub account
+   Click the `Fork` button at the top-right of [PDFweave repository](https://github.com/IDNTEQ/pdfweave) to copy to your GitHub account
    
 2. **[Clone Locally]**  
    Run in terminal (replace `YOUR-GITHUB-USERNAME` with your GitHub username):
    ```bash
-   git clone git@github.com:YOUR-GITHUB-USERNAME/pdfme.git
-   cd pdfme
+   git clone git@github.com:YOUR-GITHUB-USERNAME/pdfweave.git
+   cd pdfweave
    ```
 
 3. **[Create Branch]**  
@@ -48,7 +48,7 @@ Design your template in the [Template Designer](/template-design), then download
    }
    ```
 
-Reference: https://github.com/pdfme/pdfme/tree/main/playground/public/template-assets/invoice
+Reference: https://github.com/IDNTEQ/pdfweave/tree/main/playground/public/template-assets/invoice
 
 ### 4. Commit Changes
 1. **[Record Changes]**  
@@ -69,8 +69,8 @@ Reference: https://github.com/pdfme/pdfme/tree/main/playground/public/template-a
    Go to your repository page → `Pull requests` → `New pull request`
 
 2. **Select Branches**  
-   - `base repository`: pdfme/pdfme (main branch)
-   - `head repository`: YOUR-GITHUB-USERNAME/pdfme (add-my-new-template branch)
+   - `base repository`: IDNTEQ/pdfweave (main branch)
+   - `head repository`: YOUR-GITHUB-USERNAME/pdfweave (add-my-new-template branch)
 
 3. **Enter Information**  
    - Title: `Add [My New Template] template`
@@ -83,8 +83,7 @@ Reference: https://github.com/pdfme/pdfme/tree/main/playground/public/template-a
 After maintainer review, your template will be merged and listed officially 🎉  
 (If modifications needed, you'll receive comments on GitHub)
 
-**Thank you! Your contribution makes a big impact on pdfme's community 🚀**
+**Thank you! Your contribution makes a big impact on PDFweave's community 🚀**
 
 ## Need Help?
 
-If you have questions, ask with screenshots in [Discord #template-contribution](https://discord.gg/awct6DMZSf) for smooth support!

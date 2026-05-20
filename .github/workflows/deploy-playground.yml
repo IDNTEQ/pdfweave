@@ -1,4 +1,4 @@
-name: Deploy playground to GitHub Pages
+name: Deploy Pages (playground + docs)
 
 on:
   push:
@@ -6,6 +6,7 @@ on:
     paths:
       - 'packages/**'
       - 'playground/**'
+      - 'website/**'
       - '.github/workflows/deploy-playground.yml'
   workflow_dispatch:
 
@@ -33,6 +34,7 @@ jobs:
           cache-dependency-path: |
             package-lock.json
             playground/package-lock.json
+            website/package-lock.json
 
       - name: Install root workspaces
         run: npm ci
@@ -40,20 +42,34 @@ jobs:
       - name: Build packages
         run: npm run build
 
+      # --- Playground (served at /pdfweave/) -----------------------------
       - name: Install playground dependencies
         run: npm ci --prefix playground
 
       - name: Build playground
         run: npm --prefix playground run build
 
-      - name: Stage SPA fallback
-        # GitHub Pages doesn't honour vercel.json. Copy index.html → 404.html
-        # so client-side routes resolve on deep-link reload.
-        run: cp playground/dist/index.html playground/dist/404.html
+      # --- Docs site (served at /pdfweave/docs/) -------------------------
+      - name: Install website dependencies
+        run: npm ci --prefix website
+
+      - name: Build docs
+        run: npm --prefix website run build
+
+      # --- Assemble single Pages artifact --------------------------------
+      - name: Assemble Pages artifact
+        run: |
+          mkdir -p pages-artifact
+          cp -r playground/dist/. pages-artifact/
+          mkdir -p pages-artifact/docs
+          cp -r website/build/. pages-artifact/docs/
+          # SPA fallback so the playground's client-side routes resolve on
+          # deep-link reload. (Docusaurus emits its own per-page HTML.)
+          cp pages-artifact/index.html pages-artifact/404.html
 
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: playground/dist
+          path: pages-artifact
 
   deploy:
     needs: build

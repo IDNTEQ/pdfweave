@@ -3,7 +3,7 @@
 Expressions are a feature that evaluates expressions enclosed in `{}`.   
 The simplest example is `{1+1}`, which evaluates to `2`.
 
-In pdfme, expressions can be used not only for simple calculations but also by utilizing user input.
+In PDFweave, expressions can be used not only for simple calculations but also by utilizing user input.
 
 For example, consider the following template:
 
@@ -92,7 +92,7 @@ In other words, fields where expressions are used cannot be edited by the user.
   - encodeURI
   - encodeURIComponent
 
-For detailed specifications, refer to [this implementation](https://github.com/pdfme/pdfme/blob/main/packages/common/src/expression.ts).
+For detailed specifications, refer to [this implementation](https://github.com/IDNTEQ/pdfweave/blob/main/packages/common/src/expression.ts).
 
 ### Variables That Can Be Used Within Expressions
 

@@ -1,6 +1,6 @@
 # カスタムフォント
 
-pdfmeはデフォルトで[Roboto Regular 400](https://fonts.google.com/specimen/Roboto)フォントを使用していますが、お好きなフォントを使用することができます。
+PDFweaveはデフォルトで[Roboto Regular 400](https://fonts.google.com/specimen/Roboto)フォントを使用していますが、お好きなフォントを使用することができます。
 
 デザインを優先する場合は、お気に入りのフォントを使用できます。また、日本語や中国語などのデフォルトのRobotoフォントに含まれていない文字を使用している場合、PDFでは[豆腐（Tofu）](https://fonts.google.com/knowledge/glossary/tofu)として表示されます。
 
@@ -8,10 +8,10 @@ pdfmeはデフォルトで[Roboto Regular 400](https://fonts.google.com/specimen
 
 ## フォントタイプについて
 
-以下のように`@pdfme/common`からインポートできます。
+以下のように`@pdfweave/common`からインポートできます。
 
 ```ts
-import type { Font } from '@pdfme/common';
+import type { Font } from '@pdfweave/common';
 ```
 
 フォントの型は以下の通りです。
@@ -50,8 +50,8 @@ const font: Font = {
 [generate](/docs/getting-started#generator)関数のオプションとしてフォントを設定します。
 
 ```ts
-import { Template, BLANK_PDF, Font } from '@pdfme/common';
-import { generate } from '@pdfme/generator';
+import { Template, BLANK_PDF, Font } from '@pdfweave/common';
+import { generate } from '@pdfweave/generator';
 
 const font: Font = {
   serif: {
@@ -115,7 +115,7 @@ UIでフォントを設定する方法は2つあります。インスタンス�
 #### インスタンス初期化時にフォントを設定
 
 ```ts
-import { Designer } from '@pdfme/ui';
+import { Designer } from '@pdfweave/ui';
 
 const domContainer = document.getElementById('container');
 const template = {

@@ -1,12 +1,11 @@
 # Getting Started
 
 :::tip Interactive Documentation
-You can interactively ask questions about pdfme's documentation and source code using [DeepWiki](https://deepwiki.com/pdfme/pdfme). This is helpful when you have questions about code usage or functionality.
 :::
 
 ## Introduction
 
-pdfme was created to simplify the design and generation process of a PDF. It is especially useful for the following use cases:
+PDFweave was created to simplify the design and generation process of a PDF. It is especially useful for the following use cases:
 
 - Need to create a designed PDF with short code.
 - Need to integrate PDF editor features into an application.
@@ -15,35 +14,35 @@ pdfme was created to simplify the design and generation process of a PDF. It is 
 ## Installation
 
 The operating requirements should be the node environment `>=16`.  
-There are two packages in pdfme, generator and UI.
+There are two packages in PDFweave, generator and UI.
 
 The package for generating PDF can be installed with the following command.
 
 ```
-npm i @pdfme/generator @pdfme/common
+npm i @pdfweave/generator @pdfweave/common
 ```
 
 The packages for using PDF designer, forms and viewers can be installed with the following commands.
 
 ```
-npm i @pdfme/ui @pdfme/common
+npm i @pdfweave/ui @pdfweave/common
 ```
 
-`@pdfme/ui` ships as a standalone bundle, so you do not need to install `react` or `react-dom` separately just to use Designer, Form, or Viewer.
+`@pdfweave/ui` ships as a standalone bundle, so you do not need to install `react` or `react-dom` separately just to use Designer, Form, or Viewer.
 
-\*You must install `@pdfme/common` regardless of which package you use.
+\*You must install `@pdfweave/common` regardless of which package you use.
 
-The following type, function and classes are available in pdfme.
+The following type, function and classes are available in PDFweave.
 
-`@pdfme/common`
+`@pdfweave/common`
 
 - [Template](/docs/getting-started#template)
 
-`@pdfme/generator`
+`@pdfweave/generator`
 
 - [generate](/docs/getting-started#generator)
 
-`@pdfme/ui`
+`@pdfweave/ui`
 
 - [Designer](/docs/getting-started#designer)
 - [Form](/docs/getting-started#form)
@@ -52,21 +51,21 @@ The following type, function and classes are available in pdfme.
 If your environment uses webpack, import the necessary items as shown below.
 
 ```ts
-import type { Template } from '@pdfme/common';
-import { generate } from '@pdfme/generator';
+import type { Template } from '@pdfweave/common';
+import { generate } from '@pdfweave/generator';
 ```
 
 ```ts
-import type { Template } from '@pdfme/common';
-import { Designer, Form, Viewer } from '@pdfme/ui';
+import type { Template } from '@pdfweave/common';
+import { Designer, Form, Viewer } from '@pdfweave/ui';
 ```
 
 **All objects use `Template`, which will be briefly explained in the next section.**
 
 ## Template
 
-The core of pdfme library are Templates.  
-Template Type can be imported by both `@pdfme/generator` or `@pdfme/ui`. Templates are used everywhere.
+The core of PDFweave library are Templates.  
+Template Type can be imported by both `@pdfweave/generator` or `@pdfweave/ui`. Templates are used everywhere.
 
 A template can be divided into two parts: a fixed part and a variable part.  
 We call them basePdf and schema.
@@ -85,7 +84,7 @@ basePdf: { "width": 210, "height": 297, "padding": [10, 10, 10, 10] }
 
 
 **schemas** can only utilize text by default. The default plugin registry used by `generate`, `Designer`, `Form`, and `Viewer` intentionally includes only the `text` schema.  
-For images, signatures, tables, barcodes such as QR codes, or any other schema type, import those plugins explicitly from the `@pdfme/schemas` package and pass them through the `plugins` option.  
+For images, signatures, tables, barcodes such as QR codes, or any other schema type, import those plugins explicitly from the `@pdfweave/schemas` package and pass them through the `plugins` option.  
 Additionally, you can create your own schemas, allowing you to render types other than the ones mentioned above. Check detail about [Custom Schemas](/docs/custom-schemas) and the [v6 migration guide](/docs/migration-v6#text-only-default-plugin-registry) if you are upgrading existing code.
 
 Let's take a look at some specific data.  
@@ -94,7 +93,7 @@ Let's take a look at some specific data.
 ### Minimal Template
 
 ```ts
-import { Template, BLANK_PDF } from '@pdfme/common';
+import { Template, BLANK_PDF } from '@pdfweave/common';
 
 const template: Template = {
   basePdf: BLANK_PDF,
@@ -130,14 +129,14 @@ You can create a template from [Template Design page](/template-design?ui=design
 
 ### Using Plugins
 
-By default, examples often demonstrate the use of the `text` schema type. However, you can use other built-in schema types or even create your own custom schemas with the `@pdfme/schemas` package.
+By default, examples often demonstrate the use of the `text` schema type. However, you can use other built-in schema types or even create your own custom schemas with the `@pdfweave/schemas` package.
 
-#### Step 1: Install `@pdfme/schemas`
+#### Step 1: Install `@pdfweave/schemas`
 
 Install the necessary package to access additional schema types.
 
 ```bash
-npm install @pdfme/schemas
+npm install @pdfweave/schemas
 ```
 
 #### Step 2: Use Built-in and Custom Schema Types
@@ -145,8 +144,8 @@ npm install @pdfme/schemas
 Here’s an example of a template using both built-in and custom schema types:
 
 ```ts
-import { Template, BLANK_PDF } from '@pdfme/common';
-import { text, barcodes, image } from '@pdfme/schemas';
+import { Template, BLANK_PDF } from '@pdfweave/common';
+import { text, barcodes, image } from '@pdfweave/schemas';
 import myCustomPlugin from './custom-plugins';
 
 const template: Template = {
@@ -189,7 +188,7 @@ const inputs = [
   {
     example_text: 'Hello, World!',
     example_image: 'data:image/png;base64,iVBORw0KG....',
-    example_qr_code: 'https://pdfme.com/',
+    example_qr_code: 'https://idnteq.github.io/pdfweave/',
   },
 ];
 
@@ -213,8 +212,8 @@ The PDF generator function, `generate`, takes 2 arguments of `template` and `inp
 The code to generate a PDF file using the [template created above](/docs/getting-started#minimal-template) is shown below.
 
 ```ts
-import type { Template } from '@pdfme/common';
-import { generate } from '@pdfme/generator';
+import type { Template } from '@pdfweave/common';
+import { generate } from '@pdfweave/generator';
 
 const template: Template = {
   // skip...　Check the Template section.
@@ -252,8 +251,8 @@ You can design your own template from [Template Design page](/template-design?ui
 Let's integrate the designer using the template created above as the default template.
 
 ```ts
-import type { Template } from '@pdfme/common';
-import { Designer } from '@pdfme/ui';
+import type { Template } from '@pdfweave/common';
+import { Designer } from '@pdfweave/ui';
 
 const domContainer = document.getElementById('container');
 const template: Template = {
@@ -292,8 +291,8 @@ The Form creates a UI for the user to enter schemas based on the template.
 You can try out the form that uses the invoice template from [here](/template-design?ui=form-viewer&template=invoice).
 
 ```ts
-import type { Template } from '@pdfme/common';
-import { Form } from '@pdfme/ui';
+import type { Template } from '@pdfweave/common';
+import { Form } from '@pdfweave/ui';
 
 const domContainer = document.getElementById('container');
 const template: Template = {
@@ -327,8 +326,8 @@ The Viewer is a byproduct of the Form development process, but it allows you to 
 Using the Viewer is basically the same as using the Form, except that user cannot edit it.
 
 ```ts
-import type { Template } from '@pdfme/common';
-import { Viewer } from '@pdfme/ui';
+import type { Template } from '@pdfweave/common';
+import { Viewer } from '@pdfweave/ui';
 
 const domContainer = document.getElementById('container');
 const template: Template = {
@@ -353,22 +352,8 @@ const viewer = new Viewer({ domContainer, template, inputs });
 - [dnd-kit](https://github.com/clauderic/dnd-kit): Used in Designer UI.
 - [Lucide](https://lucide.dev/) Used in Designer UI and Schema's icon.
 
-I definitely could not have created pdfme without these libraries. I am grateful to the developers of these libraries.
+I definitely could not have created PDFweave without these libraries. I am grateful to the developers of these libraries.
 
-If you want to contribute to pdfme, please check the [Development Guide](/docs/development-guide) page.  
+If you want to contribute to PDFweave, please check the [Development Guide](/docs/development-guide) page.  
 We look forward to your contribution!
 
-## Cloud Service Option
-
-While pdfme is a powerful open-source library, we understand that some users might prefer a managed solution. For those looking for a ready-to-use, scalable PDF generation service without the need for setup and maintenance, we offer pdfme Cloud.
-
-**[Try pdfme Cloud - Hassle-free PDF Generation](https://app.pdfme.com?utm_source=website&utm_content=getting-started)**
-
-pdfme Cloud provides all the features of the open-source library, plus:
-
-- PDF generation at scale without infrastructure management
-- Hosted WYSIWYG template designer
-- Simple API integration
-- Automatic updates and maintenance
-
-\*pdfme is and will always remain open-source. The cloud service is an optional offering for those who prefer a managed solution.

@@ -3,7 +3,7 @@
 式は`{}`で囲まれた表現を評価する機能です。  
 最も単純な例は`{1+1}`で、これは`2`と評価されます。
 
-pdfmeでは、式は単純な計算だけでなく、ユーザー入力を活用することもできます。
+PDFweaveでは、式は単純な計算だけでなく、ユーザー入力を活用することもできます。
 
 例えば、以下のようなテンプレートを考えてみましょう：
 
@@ -92,7 +92,7 @@ pdfmeでは、式は単純な計算だけでなく、ユーザー入力を活用
   - encodeURI
   - encodeURIComponent
 
-詳細な仕様については、[この実装](https://github.com/pdfme/pdfme/blob/main/packages/common/src/expression.ts)を参照してください。
+詳細な仕様については、[この実装](https://github.com/IDNTEQ/pdfweave/blob/main/packages/common/src/expression.ts)を参照してください。
 
 ### 式内で使用できる変数
 
