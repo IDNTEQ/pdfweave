@@ -9,32 +9,72 @@ While PDFweave is pre-1.0, breaking changes may land on minor releases
 
 ---
 
-## [Unreleased] — Independence sweep
+## [Unreleased]
+
+_No unreleased changes yet._
+
+---
+
+## [0.3.0] — 2026-05-20
+
+Independence sweep + anchor-resolution rewrite. The biggest behavioural
+shift is the new runtime anchor resolution system (RFC-0001), which
+unifies how anchored layouts and dynamic content coexist. There are two
+small BREAKING changes in the UI layer (CSS class prefix + DOM data
+attribute rename); other API surfaces are backward-compatible.
 
 ### Changed (BREAKING)
 
-- CSS class prefixes renamed from `pdfme-*` to `pdfweave-*`. Any
+- **CSS class prefixes** renamed from `pdfme-*` to `pdfweave-*`. Any
   downstream stylesheet targeting `.pdfme-designer-*`, `.pdfme-ui-*`,
   `.pdfme-moveable*`, or `.pdfme-selecto*` must be updated.
-- DOM data attributes `data-pdfme-render-ready` and
-  `data-pdfme-plugin-error` renamed to `data-pdfweave-render-ready`
-  and `data-pdfweave-plugin-error`. E2E tests selecting on these
+- **DOM data attributes** `data-pdfme-render-ready` and
+  `data-pdfme-plugin-error` renamed to `data-pdfweave-render-ready` and
+  `data-pdfweave-plugin-error`. E2E tests selecting on these
   attributes must be updated.
+
+### Added
+
+- **Runtime anchor resolution (RFC-0001).** Anchored layouts are now
+  resolved at render time via a topologically-sorted single-pass walk,
+  coexisting cleanly with the dynamic-layout engine. Phases 1–4 of the
+  RFC landed: same-Y group fix backported from pdfme#1489, public
+  `topoSortByAnchorDeps`, runtime re-resolution via topo walk,
+  cross-page anchor support, and the delete-engine flow + migration
+  script that retires the legacy resolver.
+- **`pdfweaveVersion` stored-template field.** Old `pdfmeVersion`
+  field is still accepted on read for backward compatibility; new
+  templates write only `pdfweaveVersion`.
+- **`PDFWEAVE_VERSION` public export.** The old `PDFME_VERSION` export
+  is preserved as a deprecated alias and will be removed in a future
+  major version.
 
 ### Changed (non-breaking)
 
-- New stored-template field `pdfweaveVersion`. The old `pdfmeVersion`
-  field is still accepted on read for backward compatibility; new
-  templates write only `pdfweaveVersion`.
-- New public export `PDFWEAVE_VERSION`. The old `PDFME_VERSION` export
-  is preserved as a deprecated alias and will be removed in a future
-  major version.
+- `repairAnchorsAfterRemove` and related helpers moved to
+  `anchorGeometry` for a cleaner module boundary.
+- Quality-push Phase 4 lint configuration fixes — false-positive
+  patterns silenced so real findings surface.
+
+### Fixed
+
+- Playground build restored after the `@pdfme/*` → `@pdfweave/*`
+  package-name rename swept stale imports.
 
 ### Documentation
 
 - README and GOALS.md no longer defer to upstream pdfme; PDFweave is
   positioned as a standalone library. A dignified attribution footer
   remains for the MIT-licensed foundation pdfme provided.
+- RFC-0001 published and amended to single-system layout (Option C).
+
+### CI / Release
+
+- Release workflow's `RELEASE_PACKAGES` list now includes `manipulator`
+  and `converter`, so all eight workspaces publish together on a
+  `v*.*.*` tag push. (Previously they were silently skipped — that's
+  why `@pdfweave/manipulator` and `@pdfweave/converter` remained on
+  `0.1.0` after the 0.2.0 release. They jump straight to 0.3.0 here.)
 
 ---
 

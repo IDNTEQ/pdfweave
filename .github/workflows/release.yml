@@ -91,7 +91,7 @@ jobs:
 
       - name: Set release versions from tag
         env:
-          RELEASE_PACKAGES: common pdf-lib schemas generator ui cli
+          RELEASE_PACKAGES: common pdf-lib schemas generator ui cli manipulator converter
         run: |
           VERSION="${GITHUB_REF#refs/tags/v}"
           export VERSION
