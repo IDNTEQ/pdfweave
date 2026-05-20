@@ -1,14 +1,14 @@
 # サポートされている機能
 
 PDFweaveでは、以下の要素をレンダリングすることができます。  
-サポートされていない要素については、[プラグインメカニズム](/docs/custom-schemas)を使用して独自のレンダリングプロセスを追加できます。
+サポートされていない要素については、[プラグインメカニズム](/custom-schemas)を使用して独自のレンダリングプロセスを追加できます。
 
 ## 現在サポートされている機能
 
 :::info
 
 テキストスキーマ以外のスキーマを使用する場合は、以下のドキュメントを参照してください。  
-[@pdfweave/schemasからのスキーマの使用](/docs/custom-schemas#using-schemas-from-pdfweaveschemas)
+[@pdfweave/schemasからのスキーマの使用]/custom-schemas#using-schemas-from-pdfweaveschemas)
 
 :::
 
@@ -87,7 +87,7 @@ PDFweaveでは、以下の要素をレンダリングすることができます
 
 ### テーブル (table){#table}
 
-詳細: [動的データを持つテーブル](/docs/tables)
+詳細: [動的データを持つテーブル](/tables)
 
 - スタイル関連
   - テーブル

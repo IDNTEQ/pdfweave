@@ -47,7 +47,7 @@ Let's check out how to set font in the generator and ui packages.
 
 ### Generator
 
-Set font as option in [generate](/docs/getting-started#generator) function
+Set font as option in [generate]/getting-started#generator) function
 
 ```ts
 import { Template, BLANK_PDF, Font } from '@pdfweave/common';
@@ -110,7 +110,7 @@ generate({ template, inputs, options: { font } }).then((pdf) => {
 ### UI
 
 There are two ways to set fonts in the UI. instance initialization and through method.  
-The sample code is for [Designer](/docs/getting-started#designer), but the same way can be used for [Form](/docs/getting-started#form) and [Viewer](/docs/getting-started#viewer).
+The sample code is for [Designer]/getting-started#designer), but the same way can be used for [Form]/getting-started#form) and [Viewer]/getting-started#viewer).
 
 #### Setting font at instance initialization
 

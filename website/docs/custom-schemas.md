@@ -107,10 +107,10 @@ We will explain how the **Plugin** is structured and how it operates.
 
 - **pdf**: Used in `@pdfweave/generator`, it includes code for rendering schemas into PDFs. The PDF rendering process is handled by [pdf-lib](https://pdf-lib.js.org/).
 - **ui**: Used in `@pdfweave/ui`, it includes code for rendering schemas into the DOM. The ui has the following modes:
-  - **viewer**: Utilized in [Viewer](/docs/getting-started#viewer), [Designer](/docs/getting-started#designer) (when no field is selected). Functions as a preview by matching the rendering and appearance of the PDF.
-  - **form**: Utilized in [Form](/docs/getting-started#form). Functions as a form that users can input into.
-  - **designer**: Utilized in [Designer](/docs/getting-started#designer) (when a field is double-clicked). Basically the same as the form but serves as a WYSIWYG editor where users can input. For textarea and input elements, focusing is required.
-- **propPanel**: Used in `@pdfweave/ui`'s [Designer](/docs/getting-started#designer), it allows you to add custom property editing forms to the sidebar when a field is selected. You can fill it out using [form-render](https://xrender.fun/form-render)'s JSON format (widget extensions are also possible).
+  - **viewer**: Utilized in [Viewer]/getting-started#viewer), [Designer]/getting-started#designer) (when no field is selected). Functions as a preview by matching the rendering and appearance of the PDF.
+  - **form**: Utilized in [Form]/getting-started#form). Functions as a form that users can input into.
+  - **designer**: Utilized in [Designer]/getting-started#designer) (when a field is double-clicked). Basically the same as the form but serves as a WYSIWYG editor where users can input. For textarea and input elements, focusing is required.
+- **propPanel**: Used in `@pdfweave/ui`'s [Designer]/getting-started#designer), it allows you to add custom property editing forms to the sidebar when a field is selected. You can fill it out using [form-render](https://xrender.fun/form-render)'s JSON format (widget extensions are also possible).
 
 :::note
 PDFweave relies on [pdf-lib](https://pdf-lib.js.org/) and [form-render](https://xrender.fun/form-render).  

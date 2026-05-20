@@ -36,17 +36,17 @@ PDFweaveでは以下の型、関数、クラスが利用可能です。
 
 `@pdfweave/common`
 
-- [Template](/docs/getting-started#template)
+- [Template]/getting-started#template)
 
 `@pdfweave/generator`
 
-- [generate](/docs/getting-started#generator)
+- [generate]/getting-started#generator)
 
 `@pdfweave/ui`
 
-- [Designer](/docs/getting-started#designer)
-- [Form](/docs/getting-started#form)
-- [Viewer](/docs/getting-started#viewer)
+- [Designer]/getting-started#designer)
+- [Form]/getting-started#form)
+- [Viewer]/getting-started#viewer)
 
 環境がwebpackを使用している場合は、以下のように必要なアイテムをインポートします。
 
@@ -85,7 +85,7 @@ basePdf: { "width": 210, "height": 297, "padding": [10, 10, 10, 10] }
 
 **schemas**はデフォルトではテキストのみ使用できます。`generate`、`Designer`、`Form`、`Viewer` が使うデフォルトのプラグインレジストリには、意図的に `text` スキーマだけが含まれています。  
 画像、署名、テーブル、QRコードなどのバーコード、その他のスキーマタイプを使う場合は、`@pdfweave/schemas` から対象プラグインを明示的に import し、`plugins` オプションで渡してください。  
-さらに、独自のスキーマを作成することで、上記以外の種類をレンダリングすることも可能です。詳細は[カスタムスキーマ](/docs/custom-schemas)と、既存コードを更新する場合の [v6 migration guide](/docs/migration-v6) をご覧ください。
+さらに、独自のスキーマを作成することで、上記以外の種類をレンダリングすることも可能です。詳細は[カスタムスキーマ](/custom-schemas)と、既存コードを更新する場合の [v6 migration guide](/migration-v6) をご覧ください。
 
 具体的なデータを見てみましょう。  
 （TypeScriptを使用している場合は、Template型をインポートできます。）
@@ -125,7 +125,7 @@ const template: Template = {
 };
 ```
 
-[テンプレートデザインページ](/template-design?ui=designer&template=a4-blank)からテンプレートを作成できます。または、テンプレート作成機能をアプリケーションに統合したい場合は、[デザイナーセクション](/docs/getting-started#designer)をご覧ください。
+[テンプレートデザインページ](/template-design?ui=designer&template=a4-blank)からテンプレートを作成できます。または、テンプレート作成機能をアプリケーションに統合したい場合は、[デザイナーセクション]/getting-started#designer)をご覧ください。
 
 ### プラグインの使用
 
@@ -199,17 +199,17 @@ generate({ template, inputs, plugins }).then((pdf) => {
 
 #### 組み込みスキーマタイプの探索
 
-サポートされているすべての組み込みスキーマタイプを表示するには、[サポートされている機能のドキュメント](/docs/supported-features)を参照してください。
+サポートされているすべての組み込みスキーマタイプを表示するには、[サポートされている機能のドキュメント](/supported-features)を参照してください。
 
 #### カスタムスキーマタイプの作成 {#creating-your-own-schemas}
 
-組み込みではないスキーマタイプが必要な場合は、独自のものを定義できます。詳細な手順については、[カスタムスキーマガイド](/docs/custom-schemas#creating-your-own-schemas)をご覧ください。
+組み込みではないスキーマタイプが必要な場合は、独自のものを定義できます。詳細な手順については、[カスタムスキーマガイド]/custom-schemas#creating-your-own-schemas)をご覧ください。
 
 ## ジェネレーター {#generator}
 
 PDF生成関数`generate`は、PDFを生成するために`template`と`inputs`の2つの引数を取ります。これはNode.jsとブラウザの両方で動作します。
 
-[上記で作成したテンプレート](/docs/getting-started#minimal-template)を使用してPDFファイルを生成するコードを以下に示します。
+[上記で作成したテンプレート]/getting-started#minimal-template)を使用してPDFファイルを生成するコードを以下に示します。
 
 ```ts
 import type { Template } from '@pdfweave/common';
@@ -240,7 +240,7 @@ generate({ template, inputs }).then((pdf) => {
 
 ## UI
 
-UIは[デザイナー](/docs/getting-started#designer)、[フォーム](/docs/getting-started#form)、[ビューワー](/docs/getting-started#viewer)クラスで構成されています。
+UIは[デザイナー]/getting-started#designer)、[フォーム]/getting-started#form)、[ビューワー]/getting-started#viewer)クラスで構成されています。
 
 ### デザイナー {#designer}
 
@@ -360,6 +360,6 @@ const viewer = new Viewer({ domContainer, template, inputs });
 
 これらのライブラリなしではPDFweaveを作成することはできませんでした。これらのライブラリの開発者に感謝します。
 
-PDFweaveに貢献したい場合は、[開発ガイド](/docs/development-guide)ページをご確認ください。  
+PDFweaveに貢献したい場合は、[開発ガイド](/development-guide)ページをご確認ください。  
 あなたの貢献をお待ちしています！
 

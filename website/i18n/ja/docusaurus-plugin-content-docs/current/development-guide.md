@@ -34,7 +34,7 @@ PDFweaveはできるだけ小さくシンプルであるように作られてい
 
 次のメジャーアップデートでは、`ESM-only`、`Node 20+`、UIパッケージでの `React 18+`、および内部 `dist/*` import の廃止が入る想定です。
 
-ビルド、テスト、サンプルコードを変更する前に、[Migration Guide](/docs/migration-v6) を確認してください。
+ビルド、テスト、サンプルコードを変更する前に、[Migration Guide](/migration-v6) を確認してください。
 
 ## 技術サポートが必要ですか？
 

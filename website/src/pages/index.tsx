@@ -54,7 +54,7 @@ export default function Home() {
           </div>
           <div className="row row--no-gutters" style={{ alignItems: 'center' }}>
             <div className="col col--3" style={{ marginTop: '1rem' }}>
-              <Link className="button button--lg button--success " to="/docs/getting-started">
+              <Link className="button button--lg button--success " to="/getting-started">
                 {translate({
                   id: "homepage.buttons.documentation",
                   message: "Documentation"
@@ -143,7 +143,7 @@ export default function Home() {
                     }),
                   },
                   link: {
-                    to: '/docs/getting-started#template',
+                    to: '/getting-started#template',
                     text: translate({
                       id: 'homepage.cards.template.link.text',
                       message: 'Learn more about PDF Generation Templates'
@@ -173,7 +173,7 @@ export default function Home() {
                     })
                   },
                   link: {
-                    to: '/docs/getting-started#designer',
+                    to: '/getting-started#designer',
                     text: translate({
                       id: 'homepage.cards.designer.link.text',
                       message: 'Learn more about the Designer'
@@ -203,7 +203,7 @@ export default function Home() {
                     }),
                   },
                   link: {
-                    to: '/docs/getting-started#generator',
+                    to: '/getting-started#generator',
                     text: translate({
                       id: 'homepage.cards.generate.link.text',
                       message: 'Learn more about PDF Generation'
@@ -233,7 +233,7 @@ export default function Home() {
                     })
                   },
                   link: {
-                    to: '/docs/getting-started#form',
+                    to: '/getting-started#form',
                     text: translate({
                       id: 'homepage.cards.form.link.text',
                       message: 'Learn more about Form'

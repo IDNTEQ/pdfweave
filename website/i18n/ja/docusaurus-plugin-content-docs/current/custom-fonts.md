@@ -47,7 +47,7 @@ const font: Font = {
 
 ### ジェネレーター
 
-[generate](/docs/getting-started#generator)関数のオプションとしてフォントを設定します。
+[generate]/getting-started#generator)関数のオプションとしてフォントを設定します。
 
 ```ts
 import { Template, BLANK_PDF, Font } from '@pdfweave/common';
@@ -110,7 +110,7 @@ generate({ template, inputs, options: { font } }).then((pdf) => {
 ### UI
 
 UIでフォントを設定する方法は2つあります。インスタンス初期化時と、メソッドを通じての設定です。  
-サンプルコードは[デザイナー](/docs/getting-started#designer)用ですが、同じ方法で[フォーム](/docs/getting-started#form)と[ビューワー](/docs/getting-started#viewer)にも使用できます。
+サンプルコードは[デザイナー]/getting-started#designer)用ですが、同じ方法で[フォーム]/getting-started#form)と[ビューワー]/getting-started#viewer)にも使用できます。
 
 #### インスタンス初期化時にフォントを設定
 

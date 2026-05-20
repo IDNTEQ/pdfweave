@@ -36,17 +36,17 @@ The following type, function and classes are available in PDFweave.
 
 `@pdfweave/common`
 
-- [Template](/docs/getting-started#template)
+- [Template]/getting-started#template)
 
 `@pdfweave/generator`
 
-- [generate](/docs/getting-started#generator)
+- [generate]/getting-started#generator)
 
 `@pdfweave/ui`
 
-- [Designer](/docs/getting-started#designer)
-- [Form](/docs/getting-started#form)
-- [Viewer](/docs/getting-started#viewer)
+- [Designer]/getting-started#designer)
+- [Form]/getting-started#form)
+- [Viewer]/getting-started#viewer)
 
 If your environment uses webpack, import the necessary items as shown below.
 
@@ -85,7 +85,7 @@ basePdf: { "width": 210, "height": 297, "padding": [10, 10, 10, 10] }
 
 **schemas** can only utilize text by default. The default plugin registry used by `generate`, `Designer`, `Form`, and `Viewer` intentionally includes only the `text` schema.  
 For images, signatures, tables, barcodes such as QR codes, or any other schema type, import those plugins explicitly from the `@pdfweave/schemas` package and pass them through the `plugins` option.  
-Additionally, you can create your own schemas, allowing you to render types other than the ones mentioned above. Check detail about [Custom Schemas](/docs/custom-schemas) and the [v6 migration guide](/docs/migration-v6#text-only-default-plugin-registry) if you are upgrading existing code.
+Additionally, you can create your own schemas, allowing you to render types other than the ones mentioned above. Check detail about [Custom Schemas](/custom-schemas) and the [v6 migration guide]/migration-v6#text-only-default-plugin-registry) if you are upgrading existing code.
 
 Let's take a look at some specific data.  
 (If you are using TypeScript, you can import the Template type.)
@@ -125,7 +125,7 @@ const template: Template = {
 };
 ```
 
-You can create a template from [Template Design page](/template-design?ui=designer&template=a4-blank). Or, if you want to integrate the template creation feature into your application, check out the [Designer section](/docs/getting-started#designer).
+You can create a template from [Template Design page](/template-design?ui=designer&template=a4-blank). Or, if you want to integrate the template creation feature into your application, check out the [Designer section]/getting-started#designer).
 
 ### Using Plugins
 
@@ -199,17 +199,17 @@ generate({ template, inputs, plugins }).then((pdf) => {
 
 #### Explore Built-in Schema Types
 
-To view all supported built-in schema types, refer to the [Supported Features Documentation](/docs/supported-features).
+To view all supported built-in schema types, refer to the [Supported Features Documentation](/supported-features).
 
 #### Creating Custom Schema Types
 
-If you need a schema type that isn’t built-in, you can define your own. Check out the [Custom Schemas Guide](/docs/custom-schemas#creating-your-own-schemas) for detailed instructions.
+If you need a schema type that isn’t built-in, you can define your own. Check out the [Custom Schemas Guide]/custom-schemas#creating-your-own-schemas) for detailed instructions.
 
 ## Generator
 
 The PDF generator function, `generate`, takes 2 arguments of `template` and `inputs` for generate a PDF. It works both in Node.js and in the browser.
 
-The code to generate a PDF file using the [template created above](/docs/getting-started#minimal-template) is shown below.
+The code to generate a PDF file using the [template created above]/getting-started#minimal-template) is shown below.
 
 ```ts
 import type { Template } from '@pdfweave/common';
@@ -240,7 +240,7 @@ Also, each element in the inputs array corresponds to a page in the PDF, you can
 
 ## UI
 
-The UI is composed of the [Designer](/docs/getting-started#designer), [Form](/docs/getting-started#form), and [Viewer](/docs/getting-started#viewer) classes.
+The UI is composed of the [Designer]/getting-started#designer), [Form]/getting-started#form), and [Viewer]/getting-started#viewer) classes.
 
 ### Designer
 
@@ -354,6 +354,6 @@ const viewer = new Viewer({ domContainer, template, inputs });
 
 I definitely could not have created PDFweave without these libraries. I am grateful to the developers of these libraries.
 
-If you want to contribute to PDFweave, please check the [Development Guide](/docs/development-guide) page.  
+If you want to contribute to PDFweave, please check the [Development Guide](/development-guide) page.  
 We look forward to your contribution!
 

@@ -1,14 +1,14 @@
 # Supported Features
 
 In PDFweave, the following elements can be rendered.  
-For elements that are not supported, you can add your own rendering process using the [plugin mechanism](/docs/custom-schemas).
+For elements that are not supported, you can add your own rendering process using the [plugin mechanism](/custom-schemas).
 
 ## Currently Supported
 
 :::info
 
 For using schemas other than the Text schema, please refer to the following documentation.  
-[Using Schemas from @pdfweave/schemas](/docs/custom-schemas#using-schemas-from-pdfweaveschemas)
+[Using Schemas from @pdfweave/schemas]/custom-schemas#using-schemas-from-pdfweaveschemas)
 
 :::
 
@@ -87,7 +87,7 @@ For using schemas other than the Text schema, please refer to the following docu
 
 ### Table (table){#table}
 
-Details: [Tables with Dynamic Data](/docs/tables)
+Details: [Tables with Dynamic Data](/tables)
 
 - Style-related
   - Table

@@ -107,10 +107,10 @@ PDFweaveはオープンソースとして開発されているため、誰もが
 
 - **pdf**: `@pdfweave/generator`で使用され、スキーマをPDFにレンダリングするためのコードが含まれています。PDFレンダリングプロセスは[pdf-lib](https://pdf-lib.js.org/)によって処理されます。
 - **ui**: `@pdfweave/ui`で使用され、スキーマをDOMにレンダリングするためのコードが含まれています。uiには以下のモードがあります：
-  - **viewer**: [Viewer](/docs/getting-started#viewer)、[Designer](/docs/getting-started#designer)（フィールドが選択されていない場合）で使用されます。PDFのレンダリングと外観に合わせてプレビューとして機能します。
-  - **form**: [Form](/docs/getting-started#form)で使用されます。ユーザーが入力できるフォームとして機能します。
-  - **designer**: [Designer](/docs/getting-started#designer)（フィールドがダブルクリックされた場合）で使用されます。基本的にはフォームと同じですが、ユーザーが入力できるWYSIWYGエディタとして機能します。textareaやinput要素の場合、フォーカスが必要です。
-- **propPanel**: `@pdfweave/ui`の[Designer](/docs/getting-started#designer)で使用され、フィールドが選択されたときにサイドバーにカスタムプロパティ編集フォームを追加できます。[form-render](https://xrender.fun/form-render)のJSON形式を使用して入力できます（ウィジェット拡張も可能）。
+  - **viewer**: [Viewer]/getting-started#viewer)、[Designer]/getting-started#designer)（フィールドが選択されていない場合）で使用されます。PDFのレンダリングと外観に合わせてプレビューとして機能します。
+  - **form**: [Form]/getting-started#form)で使用されます。ユーザーが入力できるフォームとして機能します。
+  - **designer**: [Designer]/getting-started#designer)（フィールドがダブルクリックされた場合）で使用されます。基本的にはフォームと同じですが、ユーザーが入力できるWYSIWYGエディタとして機能します。textareaやinput要素の場合、フォーカスが必要です。
+- **propPanel**: `@pdfweave/ui`の[Designer]/getting-started#designer)で使用され、フィールドが選択されたときにサイドバーにカスタムプロパティ編集フォームを追加できます。[form-render](https://xrender.fun/form-render)のJSON形式を使用して入力できます（ウィジェット拡張も可能）。
 
 :::note
 PDFweaveは[pdf-lib](https://pdf-lib.js.org/)と[form-render](https://xrender.fun/form-render)に依存しています。  

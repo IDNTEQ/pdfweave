@@ -34,7 +34,7 @@ For insights on development: [How to develop PDFweave](https://github.com/IDNTEQ
 
 The next major packaging update is expected to include `ESM-only`, `Node 20+`, `React 18+` for UI packages, and removal of internal `dist/*` imports.
 
-Before changing build, test, or example code, review the [Migration Guide](/docs/migration-v6).
+Before changing build, test, or example code, review the [Migration Guide](/migration-v6).
 
 ## Need technical support?
 

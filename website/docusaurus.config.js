@@ -43,6 +43,10 @@ const config = {
         docs: {
           sidebarPath: require.resolve('./sidebars.js'),
           editUrl: 'https://github.com/IDNTEQ/pdfweave/tree/main/website/',
+          // Mount docs at the docusaurus root so its baseUrl ('/pdfweave/docs/')
+          // is the only path prefix — otherwise URLs would be double-prefixed
+          // /pdfweave/docs/docs/<page>.
+          routeBasePath: '/',
         },
         theme: {
           customCss: require.resolve('./src/css/custom.css'),
@@ -58,16 +62,12 @@ const config = {
       {
         redirects: [
           {
-            to: '/docs/tables',
+            to: '/tables',
             from: '/docs/guides/tables',
           },
           {
-            to: '/docs/custom-fonts',
+            to: '/custom-fonts',
             from: '/docs/guides/custom-fonts',
-          },
-          {
-            to: '/docs/development-guide',
-            from: '/development-guide',
           },
           {
             to: '/templates',
@@ -141,11 +141,11 @@ const config = {
           items: [
             {
               label: 'Getting Started',
-              to: '/docs/getting-started',
+              to: '/getting-started',
             },
             {
               label: 'Supported Features',
-              to: '/docs/supported-features',
+              to: '/supported-features',
             },
           ],
         },

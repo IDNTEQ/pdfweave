@@ -3,7 +3,7 @@
 `@pdfweave/ui` allows customization of themes and labels through options.  
 This page explains how to customize these elements.
 
-_Sample code uses the [Designer](/docs/getting-started#designer), but [Form](/docs/getting-started#form) and [Viewer](/docs/getting-started#viewer) can be customized in the same way._
+_Sample code uses the [Designer]/getting-started#designer), but [Form]/getting-started#form) and [Viewer]/getting-started#viewer) can be customized in the same way._
 
 ## UI Theme
 

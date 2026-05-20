@@ -44,7 +44,7 @@ The following use cases can be considered:
 
 ### Displaying Date or Page Numbers in Footer and Header
 
-For example, you might want to display the creation date of the PDF in the header or display page numbers in the footer. Although headers and footers are explained in detail [here](/docs/headers-and-footers), expressions can also be used in the `staticSchema` used for headers and footers.
+For example, you might want to display the creation date of the PDF in the header or display page numbers in the footer. Although headers and footers are explained in detail [here](/headers-and-footers), expressions can also be used in the `staticSchema` used for headers and footers.
 
 ### Reusing User Input for Display
 
@@ -97,7 +97,7 @@ For detailed specifications, refer to [this implementation](https://github.com/I
 ### Variables That Can Be Used Within Expressions
 
 - **User Input Values**
-  - Values entered in [Multivariable Text](/docs/supported-features#multivariable-text) or [Table](/docs/supported-features#table) that can be parsed as JSON can be used after parsing.
+  - Values entered in [Multivariable Text]/supported-features#multivariable-text) or [Table]/supported-features#table) that can be parsed as JSON can be used after parsing.
 - **Values of Other `readOnly` Fields**
   - If an expression is used in the value of another `readOnly` field, the value after the expression is evaluated is used.
 - **Embedded Variables**

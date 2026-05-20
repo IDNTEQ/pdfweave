@@ -3,7 +3,7 @@
 `@pdfweave/ui`はオプションを通じてテーマとラベルのカスタマイズが可能です。  
 このページではこれらの要素をカスタマイズする方法を説明します。
 
-_サンプルコードは[デザイナー](/docs/getting-started#designer)を使用していますが、[フォーム](/docs/getting-started#form)と[ビューワー](/docs/getting-started#viewer)も同じ方法でカスタマイズできます。_
+_サンプルコードは[デザイナー]/getting-started#designer)を使用していますが、[フォーム]/getting-started#form)と[ビューワー]/getting-started#viewer)も同じ方法でカスタマイズできます。_
 
 ## UIテーマ
 

@@ -2,7 +2,7 @@
 
 You can place elements like headers and footers that are displayed on every page and are not affected by page breaks.
 
-Specifically, in cases where page breaks occur—such as with [dynamic tables](/docs/tables)—you can use this feature to place elements that are not pushed down by data.
+Specifically, in cases where page breaks occur—such as with [dynamic tables](/tables)—you can use this feature to place elements that are not pushed down by data.
 
 For simplicity, we've described these as headers and footers. In reality, by adding a property called `staticSchema` to `basePdf`, you can place elements that are displayed on every page and are not affected by page breaks.
 
@@ -92,7 +92,7 @@ Let's explain using the footer section of an invoice template as an example.
 
 Notably, you can specify variables like `{info.InvoiceNo}` and `{totalInput}` in the `content` of each schema. These values are obtained from the data specified in `input`. In other words, within `staticSchema`, you can refer to the data specified in `input`.
 
-For information about usable variables, please refer to the Expression documentation [here](/docs/expression#variables-that-can-be-used-within-expressions).
+For information about usable variables, please refer to the Expression documentation [here]/expression#variables-that-can-be-used-within-expressions).
 
 ![footer](/img/footer.png)
 
