@@ -5,6 +5,8 @@ import {
   getDynamicTemplate,
   getDynamicHeights,
   PAGE_BREAK_SCHEMA_TYPE,
+  sanitizeHeight,
+  sanitizeHeights,
 } from '../src/dynamicTemplate.js';
 import { Template, Schema, Font, Plugin, BasePdf } from '../src/index.js';
 
@@ -1298,6 +1300,24 @@ describe('Runtime anchor re-resolution (Phase 2 — RFC 0001)', () => {
     // B.y = C.position.y (30) + C.actualHeight (40) + offset (8) = 78
     expect(b?.position.x).toBe(75);
     expect(b?.position.y).toBe(78);
+  });
+});
+
+describe('sanitizeHeight / sanitizeHeights (defensive guards)', () => {
+  it('passes through valid positive heights', () => {
+    expect(sanitizeHeight(42.5, 10)).toBe(42.5);
+    expect(sanitizeHeights([10, 20.1, 0], 5)).toEqual([10, 20.1, 0]);
+  });
+
+  it('rejects NaN, negative, and Infinity and falls back to declared height', () => {
+    expect(sanitizeHeight(NaN, 15)).toBe(15);
+    expect(sanitizeHeight(-5, 15)).toBe(15);
+    expect(sanitizeHeight(Infinity, 15)).toBe(15);
+    expect(sanitizeHeights([NaN, -3, Infinity], 12)).toEqual([12, 12, 12]);
+  });
+
+  it('never returns negative fallback', () => {
+    expect(sanitizeHeight(NaN, -7)).toBe(0);
   });
 });
 
