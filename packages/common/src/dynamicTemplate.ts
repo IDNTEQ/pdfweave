@@ -66,8 +66,7 @@ export function sanitizeHeights(heights: number[], declaredFallback: number): nu
  */
 export const PAGE_BREAK_SCHEMA_TYPE = 'pageBreak';
 
-const isPageBreakSchema = (schema: Schema): boolean =>
-  schema.type === PAGE_BREAK_SCHEMA_TYPE;
+const isPageBreakSchema = (schema: Schema): boolean => schema.type === PAGE_BREAK_SCHEMA_TYPE;
 
 interface ModifyTemplateForDynamicTableArg {
   template: Template;
@@ -149,7 +148,7 @@ function getDynamicHeightsFromLayoutResult(schema: Schema, result: LayoutMeasure
   if (result.fragments && result.fragments.length > 0) {
     return sanitizeHeights(
       result.fragments.map((f) => f.height),
-      declared
+      declared,
     );
   }
 
@@ -181,7 +180,7 @@ function getLayoutFragmentsFromLayoutResult(
   if (result.fragments && result.fragments.length > 0) {
     const safeHeights = sanitizeHeights(
       result.fragments.map((f) => f.height),
-      declared
+      declared,
     );
     return result.fragments.map((fragment, i) => ({
       ...fragment,
@@ -355,8 +354,11 @@ const getContentHeight = (basePdf: BlankPdf | StationeryPdf): number =>
   getEffectiveContentBounds(basePdf).contentHeight;
 
 /** Get the input value for a schema */
-const getSchemaValue = (schema: Schema, input: Record<string, string>, pageSchemas: Schema[]): string =>
-  resolveSchemaValue({ schema, input, schemas: [pageSchemas] });
+const getSchemaValue = (
+  schema: Schema,
+  input: Record<string, string>,
+  pageSchemas: Schema[],
+): string => resolveSchemaValue({ schema, input, schemas: [pageSchemas] });
 
 /**
  * Normalize schemas within a single page into layout items.
@@ -555,14 +557,7 @@ function placeAbsoluteItems(
   const pages: Schema[][] = [];
   for (const item of items) {
     if (isPageBreakSchema(item.schema)) continue;
-    placeRowsOnPages(
-      item.schema,
-      item.fragments,
-      item.baseY,
-      contentHeight,
-      paddingTop,
-      pages,
-    );
+    placeRowsOnPages(item.schema, item.fragments, item.baseY, contentHeight, paddingTop, pages);
   }
   sortPagesByOrder(pages, orderMap);
   removeTrailingEmptyPages(pages);
@@ -605,10 +600,7 @@ async function measurePageItem(
   }
   if (ctx.getDynamicHeights) {
     const heights = await ctx.getDynamicHeights(value, measureArgs);
-    return layoutFragmentsFromHeights(
-      heights.length === 0 ? [0] : heights,
-      'dynamicHeights',
-    );
+    return layoutFragmentsFromHeights(heights.length === 0 ? [0] : heights, 'dynamicHeights');
   }
   return layoutFragmentsFromHeights([item.schema.height], 'height');
 }
@@ -801,12 +793,7 @@ async function processAnchoredPage(ctx: PageReflowContext): Promise<Schema[][]> 
     if (Math.abs(a.baseY - b.baseY) > EPSILON) return a.baseY - b.baseY;
     return (orderMap.get(a.schema.name) ?? 0) - (orderMap.get(b.schema.name) ?? 0);
   });
-  const processedPages = placeAbsoluteItems(
-    absoluteItems,
-    orderMap,
-    contentHeight,
-    paddingTop,
-  );
+  const processedPages = placeAbsoluteItems(absoluteItems, orderMap, contentHeight, paddingTop);
 
   // Pass 3: sync absolute items' final geometry, then re-resolve and
   // place each anchored item, syncing its own placed geometry back

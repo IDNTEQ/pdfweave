@@ -45,7 +45,8 @@ import CtlBar from '../CtlBar.js';
 
 export type PageOverflowInfo = { pageIndex: number; overflowingSchemaCount: number };
 
-const hasOwn = (value: object, key: string): boolean => Object.prototype.hasOwnProperty.call(value, key);
+const hasOwn = (value: object, key: string): boolean =>
+  Object.prototype.hasOwnProperty.call(value, key);
 
 /**
  * When the canvas scales there is a displacement of the starting position of the dragged schema.
@@ -97,7 +98,9 @@ const TemplateEditor = ({
 
     const templateSampleData = (template as Template & { sampleData?: unknown }).sampleData;
     const existingSchema =
-      options.designData && typeof options.designData === 'object' && hasOwn(options.designData, 'schema')
+      options.designData &&
+      typeof options.designData === 'object' &&
+      hasOwn(options.designData, 'schema')
         ? options.designData.schema
         : undefined;
 
@@ -222,7 +225,7 @@ const TemplateEditor = ({
         // eslint-disable-next-line no-console
         console.error(
           '[PDFweave Designer] Refusing to commit change that would create a circular anchor:',
-          cycle.map((s) => s.name || s.id).join(' → ')
+          cycle.map((s) => s.name || s.id).join(' → '),
         );
         return; // do not commit the bad state
       }

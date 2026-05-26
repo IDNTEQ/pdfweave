@@ -253,8 +253,10 @@ export {
   reverseAnchorOffsetY,
   topoSortByAnchorDeps,
 } from './anchorGeometry.js';
-export type {
-  AnchoredLayoutRule,
-  AnchoredSchema,
-  SchemaIndex,
-} from './anchorGeometry.js';
+export type { AnchoredLayoutRule, AnchoredSchema, SchemaIndex } from './anchorGeometry.js';
+
+// Layout engine defensive utilities (added as part of the 2026-05
+// correctness work). These are intentionally exported so custom plugin
+// authors and advanced consumers can use the same sanitization rules
+// the core engine applies.
+export { sanitizeHeight, sanitizeHeights } from './dynamicTemplate.js';

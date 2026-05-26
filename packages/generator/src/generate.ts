@@ -48,9 +48,7 @@ export type GenerateHooks = {
   postprocessing?: PostprocessingHook;
 };
 
-const generate = async (
-  props: GenerateProps & GenerateHooks,
-): Promise<Uint8Array<ArrayBuffer>> => {
+const generate = async (props: GenerateProps & GenerateHooks): Promise<Uint8Array<ArrayBuffer>> => {
   // The runtime check is over the zod-validated subset; pull the hooks out
   // first so the .strict() schema doesn't reject them as unknown keys.
   const { preprocessing: preHook, postprocessing: postHook, ...validatableProps } = props;
@@ -73,7 +71,7 @@ const generate = async (
     if (cycle) {
       const path = cycle.map((s) => s.name || '<unnamed>').join(' → ');
       throw new Error(
-        `[@pdfweave/generator] Circular anchor detected in template (strictAnchorValidation=true): ${path}`
+        `[@pdfweave/generator] Circular anchor detected in template (strictAnchorValidation=true): ${path}`,
       );
     }
   }
