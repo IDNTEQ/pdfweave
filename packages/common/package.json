@@ -1,7 +1,6 @@
 {
   "name": "@pdfweave/common",
   "version": "0.1.0",
-  // === Shared metadata (see docs/monorepo.md) ===
   "description": "TypeScript base PDF generator and React base UI. Open source, developed by the community, and completely free to use under the MIT license!",
   "keywords": [
     "pdfweave",
@@ -42,7 +41,6 @@
   "publishConfig": {
     "access": "public"
   },
-  // === End shared metadata ===
   "scripts": {
     "dev": "vite build --watch",
     "build": "vite build && tsc -p tsconfig.build.json",

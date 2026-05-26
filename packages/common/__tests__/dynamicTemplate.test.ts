@@ -730,7 +730,14 @@ describe('Same Y position scenarios (horizontal layout) — pdfme#1489', () => {
       schemas: [
         [
           { name: 'a', content: 'a', type: 'a', position: { x: 10, y: 10 }, width: 80, height: 10 },
-          { name: 'b', content: 'b', type: 'b', position: { x: 100, y: 10 }, width: 80, height: 10 },
+          {
+            name: 'b',
+            content: 'b',
+            type: 'b',
+            position: { x: 100, y: 10 },
+            width: 80,
+            height: 10,
+          },
         ],
       ],
     };
@@ -782,7 +789,11 @@ describe('Same Y position scenarios (horizontal layout) — pdfme#1489', () => {
             position: { x: 10, y: 10 },
             width: 80,
             height: 10,
-            layout: { mode: 'anchored', x: { mode: 'pageLeft', offsetMm: 10 }, y: { mode: 'pageTop', offsetMm: 10 } },
+            layout: {
+              mode: 'anchored',
+              x: { mode: 'pageLeft', offsetMm: 10 },
+              y: { mode: 'pageTop', offsetMm: 10 },
+            },
           } as Schema,
           {
             name: 'b',
@@ -791,7 +802,11 @@ describe('Same Y position scenarios (horizontal layout) — pdfme#1489', () => {
             position: { x: 100, y: 10 },
             width: 80,
             height: 10,
-            layout: { mode: 'anchored', x: { mode: 'pageLeft', offsetMm: 100 }, y: { mode: 'pageTop', offsetMm: 10 } },
+            layout: {
+              mode: 'anchored',
+              x: { mode: 'pageLeft', offsetMm: 100 },
+              y: { mode: 'pageTop', offsetMm: 10 },
+            },
           } as Schema,
         ],
       ],
@@ -884,7 +899,7 @@ describe('Runtime anchor re-resolution (Phase 2 — RFC 0001)', () => {
 
   const phase2BasePdf: BasePdf = { width: 200, height: 400, padding: [10, 10, 10, 10] };
 
-  test('anchored chain: B re-resolves below A using A\'s actual height', async () => {
+  test("anchored chain: B re-resolves below A using A's actual height", async () => {
     const template: Template = {
       basePdf: phase2BasePdf,
       schemas: [
@@ -992,7 +1007,7 @@ describe('Runtime anchor re-resolution (Phase 2 — RFC 0001)', () => {
     expect(b?.height).toBe(10);
   });
 
-  test('mixed mode: B anchored to absolute A; uses A\'s actual height', async () => {
+  test("mixed mode: B anchored to absolute A; uses A's actual height", async () => {
     const template: Template = {
       basePdf: phase2BasePdf,
       schemas: [
@@ -1167,7 +1182,7 @@ describe('Runtime anchor re-resolution (Phase 2 — RFC 0001)', () => {
     expect(b?.position.y).toBe(45);
   });
 
-  test('anchored chain where upstream target paginates: B uses A\'s last-fragment bottom', async () => {
+  test("anchored chain where upstream target paginates: B uses A's last-fragment bottom", async () => {
     // Regression for CodeRabbit feedback on PR #46:
     // anchored-to-anchored chain where the upstream target spans
     // pages. B targets A's bottom; A's actual content overflows page 1
