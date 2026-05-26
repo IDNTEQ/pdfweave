@@ -838,6 +838,21 @@ async function processAnchoredPage(ctx: PageReflowContext): Promise<Schema[][]> 
     syncLastFragmentGeometry(schema.name, processedPages, contentHeight, originalBySchemaName);
   }
 
+  // === D1 mitigation skeleton (more correct path) ===
+  // At this point all final fragment geometry has been synced via
+  // syncLastFragmentGeometry. Any anchored schema whose y-target may have
+  // split across pages measured in Pass 1 with stale heights.
+  //
+  // The correct next step (D1) is to walk anchored items that have a y-anchor
+  // whose target has multiple fragments, re-invoke measurePageItem with the
+  // now-final position, and re-place if the height changed materially.
+  //
+  // This closes the main source of "wrong split because measurement saw
+  // tentative y" bugs without requiring a full fragment-aware anchor model.
+  //
+  // TODO (D1): Implement the re-measure + re-place pass here for y-sensitive
+  // dependents of split targets. Start with tables + expandable text.
+
   // Anchored items were appended; resort each page by the original
   // template order, and trim trailing empties.
   sortPagesByOrder(processedPages, orderMap);
