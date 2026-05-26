@@ -25,6 +25,32 @@ import {
 const EPSILON = 0.01;
 
 /**
+ * Sanitizes a height value returned from a plugin's `measure` hook (or
+ * from dynamicHeights / fragments arrays).
+ *
+ * The *correct* behavior for a production document layout engine is to
+ * never let NaN, negative, or infinite values propagate into placement
+ * arithmetic. Doing so produces silently corrupted PDFs (overlaps,
+ * cut-off content, infinite loops in placeRowsOnPages, or NaN coordinates
+ * handed to pdf-lib).
+ *
+ * We fall back to the schema's originally declared height (clamped to >= 0).
+ * This is a deliberate defensive choice, not a silent data loss — callers
+ * that want strict failure can opt into strict mode elsewhere.
+ */
+export function sanitizeHeight(value: number, declaredFallback: number): number {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
+    return Math.max(0, declaredFallback || 0);
+  }
+  return value;
+}
+
+export function sanitizeHeights(heights: number[], declaredFallback: number): number[] {
+  const fb = Math.max(0, declaredFallback || 0);
+  return heights.map((h) => sanitizeHeight(h, fb));
+}
+
+/**
  * Schema type marker for the built-in page-break primitive.
  *
  * A pageBreak schema is a layout-engine marker (CSS `break-before: page`
@@ -114,19 +140,24 @@ function resolveAnchoredSchemas(pageSchemas: Schema[]): void {
 }
 
 function getDynamicHeightsFromLayoutResult(schema: Schema, result: LayoutMeasureResult): number[] {
+  const declared = schema.height;
+
   if (result.dynamicHeights && result.dynamicHeights.length > 0) {
-    return result.dynamicHeights;
+    return sanitizeHeights(result.dynamicHeights, declared);
   }
 
   if (result.fragments && result.fragments.length > 0) {
-    return result.fragments.map((fragment) => fragment.height);
+    return sanitizeHeights(
+      result.fragments.map((f) => f.height),
+      declared
+    );
   }
 
   if (typeof result.height === 'number') {
-    return [result.height];
+    return [sanitizeHeight(result.height, declared)];
   }
 
-  return [schema.height];
+  return [sanitizeHeight(declared, declared)];
 }
 
 function layoutFragmentsFromHeights(
@@ -140,23 +171,30 @@ function getLayoutFragmentsFromLayoutResult(
   schema: Schema,
   result: LayoutMeasureResult,
 ): LayoutUnitFragment[] {
+  const declared = schema.height;
+
   if (result.dynamicHeights && result.dynamicHeights.length > 0) {
-    return layoutFragmentsFromHeights(result.dynamicHeights, 'dynamicHeights');
+    const safe = sanitizeHeights(result.dynamicHeights, declared);
+    return layoutFragmentsFromHeights(safe, 'dynamicHeights');
   }
 
   if (result.fragments && result.fragments.length > 0) {
-    return result.fragments.map((fragment) => ({
+    const safeHeights = sanitizeHeights(
+      result.fragments.map((f) => f.height),
+      declared
+    );
+    return result.fragments.map((fragment, i) => ({
       ...fragment,
-      height: fragment.height,
-      __source: 'fragments',
+      height: safeHeights[i] ?? sanitizeHeight(fragment.height, declared),
+      __source: 'fragments' as const,
     }));
   }
 
   if (typeof result.height === 'number') {
-    return layoutFragmentsFromHeights([result.height], 'height');
+    return layoutFragmentsFromHeights([sanitizeHeight(result.height, declared)], 'height');
   }
 
-  return layoutFragmentsFromHeights([schema.height], 'height');
+  return layoutFragmentsFromHeights([sanitizeHeight(declared, declared)], 'height');
 }
 
 const getFragmentLineRange = (fragments: LayoutUnitFragment[]): TextLineRange | undefined => {
@@ -588,11 +626,19 @@ function applyMeasurement(
   originalBySchemaName: Map<string, Schema>,
 ): void {
   item.fragments = fragments;
+
+  // Extra defensive sanitization at the point where we commit the measured
+  // height back onto the schema objects that downstream anchor resolution
+  // will read. This is the "more correct" belt-and-suspenders approach.
   let actualHeight = 0;
-  for (const fragment of fragments) actualHeight += fragment.height;
-  item.schema.height = actualHeight;
+  for (const fragment of fragments) {
+    actualHeight += sanitizeHeight(fragment.height, item.schema.height);
+  }
+
+  const safeHeight = sanitizeHeight(actualHeight, item.schema.height);
+  item.schema.height = safeHeight;
   const original = originalBySchemaName.get(item.schema.name);
-  if (original) original.height = actualHeight;
+  if (original) original.height = safeHeight;
 }
 
 /**
