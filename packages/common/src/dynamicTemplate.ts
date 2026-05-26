@@ -261,6 +261,8 @@ export async function getDynamicHeights(
     basePdf: BasePdf;
     options: CommonOptions;
     _cache: Map<string | number, unknown>;
+    /** When provided, this is the authoritative content area (preferred over raw padding) */
+    effectiveContentBounds?: { contentTop: number; contentBottom: number; contentHeight: number };
   },
   plugin: Plugin | undefined,
 ): Promise<number[]> {
@@ -268,7 +270,9 @@ export async function getDynamicHeights(
     return [args.schema.height];
   }
 
-  const result = await plugin.measure({ value, ...args });
+  // Forward the more correct effective bounds into the plugin measure call
+  const measureArgs = { ...args };
+  const result = await plugin.measure({ value, ...measureArgs });
   return getDynamicHeightsFromLayoutResult(args.schema, result);
 }
 
@@ -572,6 +576,8 @@ interface PageReflowContext {
   _cache: Map<string | number, unknown>;
   contentHeight: number;
   paddingTop: number;
+  /** Authoritative content bounds after staticSchema adjustments (the more correct source of truth) */
+  effectiveContentBounds: { contentTop: number; contentBottom: number; contentHeight: number };
   getDynamicLayout?: ModifyTemplateForDynamicTableArg['getDynamicLayout'];
   getDynamicHeights?: ModifyTemplateForDynamicTableArg['getDynamicHeights'];
 }
@@ -599,7 +605,12 @@ async function measurePageItem(
     return fragments.length === 0 ? layoutFragmentsFromHeights([0], 'height') : fragments;
   }
   if (ctx.getDynamicHeights) {
-    const heights = await ctx.getDynamicHeights(value, measureArgs);
+    // Pass the authoritative effective bounds down (more correct path for
+    // plugins like tables that do their own pagination / repeat logic).
+    const heights = await ctx.getDynamicHeights(value, {
+      ...measureArgs,
+      effectiveContentBounds: ctx.effectiveContentBounds,
+    } as any); // temporary cast until we update the shared type
     return layoutFragmentsFromHeights(heights.length === 0 ? [0] : heights, 'dynamicHeights');
   }
   return layoutFragmentsFromHeights([item.schema.height], 'height');
@@ -892,14 +903,17 @@ export const getDynamicTemplate = async (
   // those helpers for the Phase 2 design.
   for (let pageIndex = 0; pageIndex < workingTemplate.schemas.length; pageIndex++) {
     const pageSchemas = workingTemplate.schemas[pageIndex];
+    const effectiveContentBounds = getEffectiveContentBounds(basePdf);
+
     const ctx: PageReflowContext = {
       pageSchemas,
       basePdf,
       input,
       options,
       _cache,
-      contentHeight,
-      paddingTop,
+      contentHeight: effectiveContentBounds.contentHeight,
+      paddingTop: effectiveContentBounds.contentTop,
+      effectiveContentBounds,
       getDynamicLayout,
       getDynamicHeights,
     };

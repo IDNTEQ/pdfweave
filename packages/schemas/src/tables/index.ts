@@ -10,12 +10,13 @@ import { createSvgStr } from '../utils.js';
 const tableSchema: Plugin<TableSchema> = {
   pdf: pdfRender,
   ui: uiRender,
-  measure: async ({ value, schema, basePdf, options, _cache }) => {
+  measure: async ({ value, schema, basePdf, options, _cache, effectiveContentBounds }) => {
     const dynamicHeights = await getDynamicHeightsForTable(value, {
       schema,
       basePdf,
       options,
       _cache,
+      effectiveContentBounds,
     });
     const height = dynamicHeights.reduce((sum, rowHeight) => sum + rowHeight, 0);
 
