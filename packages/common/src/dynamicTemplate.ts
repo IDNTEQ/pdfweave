@@ -80,6 +80,7 @@ interface ModifyTemplateForDynamicTableArg {
       basePdf: BasePdf;
       options: CommonOptions;
       _cache: Map<string | number, unknown>;
+      effectiveContentBounds?: { contentTop: number; contentBottom: number; contentHeight: number };
     },
   ) => Promise<LayoutMeasureResult>;
   getDynamicHeights?: (
@@ -89,6 +90,7 @@ interface ModifyTemplateForDynamicTableArg {
       basePdf: BasePdf;
       options: CommonOptions;
       _cache: Map<string | number, unknown>;
+      effectiveContentBounds?: { contentTop: number; contentBottom: number; contentHeight: number };
     },
   ) => Promise<number[]>;
 }
