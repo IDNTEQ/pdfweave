@@ -8,6 +8,7 @@ import {
   resolveSchemaValue,
   pt2mm,
   cloneDeep,
+  detectAnchorCycle,
 } from '@pdfweave/common';
 import {
   insertPage,
@@ -59,8 +60,23 @@ const generate = async (
     template: _template,
     options = {},
     plugins: userPlugins = {},
+    strictAnchorValidation,
   } = validatableProps;
   const template = cloneDeep(_template);
+
+  // More correct early validation (when opted in). Failing fast here is
+  // dramatically better for production batch jobs than discovering a
+  // broken anchor graph deep inside the expensive multi-pass reflow.
+  if (strictAnchorValidation) {
+    const allSchemas = (template.schemas ?? []).flat();
+    const cycle = detectAnchorCycle(allSchemas);
+    if (cycle) {
+      const path = cycle.map((s) => s.name || '<unnamed>').join(' → ');
+      throw new Error(
+        `[@pdfweave/generator] Circular anchor detected in template (strictAnchorValidation=true): ${path}`
+      );
+    }
+  }
 
   const basePdf = template.basePdf;
 

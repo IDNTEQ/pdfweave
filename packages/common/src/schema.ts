@@ -294,6 +294,10 @@ export const GeneratorOptions = CommonOptions.extend({
 export const GenerateProps = CommonProps.extend({
   inputs: Inputs,
   options: GeneratorOptions.optional(),
+  // More correct: allow callers (especially production print services) to
+  // opt into early, loud rejection of broken anchor graphs instead of
+  // silent degradation or late failure during layout.
+  strictAnchorValidation: z.boolean().optional(),
 }).strict();
 
 // ---------------------ui------------------------

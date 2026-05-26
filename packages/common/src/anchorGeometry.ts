@@ -145,7 +145,11 @@ export const resolveAnchorX = <S extends Schema>(
 
   // alignRightEdge — schema's right edge sits on target's right edge, with
   // an optional offset (offsetMm is `?` in the type, so default to 0).
-  return targetRight - schema.width + (rule.offsetMm ?? 0);
+  const x = targetRight - schema.width + (rule.offsetMm ?? 0);
+
+  // More correct defensive guard: never return NaN/Infinity from resolution.
+  // Caller (dynamicTemplate) will leave the schema's existing position.
+  return Number.isFinite(x) ? x : null;
 };
 
 /**
@@ -167,7 +171,10 @@ export const resolveAnchorY = <S extends Schema>(
   const target = index.get(rule.ref.schemaId);
   if (!target) return null;
 
-  return target.position.y + target.height + rule.offsetMm;
+  const y = target.position.y + target.height + rule.offsetMm;
+
+  // More correct defensive guard: never return NaN/Infinity from resolution.
+  return Number.isFinite(y) ? y : null;
 };
 
 /**

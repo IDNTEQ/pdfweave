@@ -29,15 +29,17 @@ bar; this document tracks the actual work.
 - [ ] **Phase 4** *(ongoing)* — walk packages flipping lint warns to
       errors as code is cleaned.
 
-### Backports from upstream pdfme
+### Upstream / fork relationship
 
-- [ ] **#1290** — *(track upstream)*
-- [ ] **#1250** — *(track upstream)*
-- [ ] **#1159** — barcode controls (QR version/mask/qzone, PDF417, ITF,
-      SVG output) by lsadehaan
-- [ ] **#1055** — *(track upstream)*
-- [x] **#1467** — dynamic text height (merged upstream 2026-05-06,
-      inherit on next sync)
+PDFweave is a **hard fork**. We evaluate and may selectively port useful
+changes from the upstream pdfme repository on a case-by-case basis when
+they do not conflict with our data-binding, anchor layout, smart tables,
+or stationery PDF contracts.
+
+We do **not** maintain a standing backport queue or treat the listed
+historical PR numbers as active targets. See GOALS.md ("Non-goals" and
+"Mission") for the explicit decision to own our own feature scope and
+quality bar rather than mirroring upstream.
 
 ## Next
 
