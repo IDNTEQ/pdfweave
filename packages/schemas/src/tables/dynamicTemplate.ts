@@ -17,6 +17,16 @@ export const getDynamicHeightsForTable = async (
     basePdf: BasePdf;
     options: CommonOptions;
     _cache: Map<string | number, unknown>;
+    /**
+     * When provided by the main layout engine (the more correct path),
+     * this is the authoritative content area after staticSchema adjustments.
+     * If absent, we fall back to raw padding (current behavior).
+     */
+    effectiveContentBounds?: {
+      contentTop: number;
+      contentBottom: number;
+      contentHeight: number;
+    };
   },
 ): Promise<number[]> => {
   if (args.schema.type !== 'table') return Promise.resolve([args.schema.height]);
@@ -45,9 +55,21 @@ export const getDynamicHeightsForTable = async (
   }
 
   const basePdf = args.basePdf as BlankPdf | StationeryPdf;
-  const [paddingTop, , paddingBottom] = basePdf.padding;
-  const pageContentHeight = basePdf.height - paddingTop - paddingBottom;
-  const getPageStartY = (pageIndex: number) => pageIndex * pageContentHeight + paddingTop;
+
+  // More correct path: use effective bounds (after staticSchema) when the
+  // main engine provides them. This makes repeatHead tables respect
+  // stationery/static headers and footers properly.
+  const effective = args.effectiveContentBounds;
+  const [paddingTop] = basePdf.padding;
+
+  const pageContentHeight = effective
+    ? effective.contentHeight
+    : basePdf.height - paddingTop - (basePdf.padding[2] ?? 0);
+
+  const getPageStartY = (pageIndex: number) =>
+    effective
+      ? effective.contentTop + pageIndex * effective.contentHeight
+      : pageIndex * pageContentHeight + paddingTop;
 
   const initialPageIndex = Math.max(
     0,
