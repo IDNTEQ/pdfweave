@@ -207,6 +207,7 @@ export type LayoutMeasureProps<T extends Schema> = {
   basePdf: BasePdf;
   options: CommonOptions;
   _cache: Map<string | number, unknown>;
+  effectiveContentBounds?: { contentTop: number; contentBottom: number; contentHeight: number };
 };
 
 /**
