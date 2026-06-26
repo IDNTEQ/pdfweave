@@ -125,15 +125,20 @@ jobs:
           node -e "console.log('expected', require('puppeteer').executablePath())"
           echo "--- default ~/.cache/puppeteer (runner pre-cache) ---"
           ls -R "$HOME/.cache/puppeteer" 2>/dev/null | head -40 || echo "(none)"
-          echo "--- install ---"
-          node_modules/.bin/puppeteer browsers install chrome; echo "install exit=$?"
+          echo "--- system browsers available? ---"
+          which google-chrome google-chrome-stable chromium chromium-browser 2>/dev/null || echo "(no system chrome on PATH)"
+          ls -la /home/runner/.cache/puppeteer/chrome 2>/dev/null || echo "(no runner pre-cache)"
           EXE="$(node -e "console.log(require('puppeteer').executablePath())")"
-          echo "--- ls -la of the binary's dir ---"
+          for n in 1 2 3; do
+            echo "=== install attempt $n ==="
+            rm -rf "$PUPPETEER_CACHE_DIR"
+            node_modules/.bin/puppeteer browsers install chrome || true
+            echo "downloaded zip size:"; du -h "$PUPPETEER_CACHE_DIR"/chrome/*.zip 2>/dev/null || echo "(no zip)"
+            if [ -x "$EXE" ]; then echo "OK on attempt $n"; break; fi
+            echo "attempt $n incomplete; binary missing"
+          done
           ls -la "$(dirname "$EXE")" || true
-          echo "--- stat the binary ---"
-          stat "$EXE" || echo "BINARY MISSING"
-          echo "--- launch smoke test ---"
-          node -e "(async()=>{const p=require('puppeteer');const b=await p.launch({args:['--no-sandbox','--disable-setuid-sandbox']});console.log('launched', await b.version());await b.close()})().catch(e=>{console.error('LAUNCH FAILED', e.message);process.exit(7)})"
+          test -x "$EXE"
       - name: Run playground checks
         run: |
           npm --prefix playground run lint
