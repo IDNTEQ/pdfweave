@@ -94,6 +94,11 @@ jobs:
 
   playground-test:
     runs-on: ubuntu-latest
+    env:
+      # Pin a fresh, workspace-local browser cache shared by the install and
+      # test steps. Avoids the runner image's pre-populated ~/.cache/puppeteer
+      # (a different Chrome build) masking/short-circuiting the install.
+      PUPPETEER_CACHE_DIR: ${{ github.workspace }}/.puppeteer-cache
     steps:
       - uses: actions/checkout@v6
       - name: Use Node.js 24
@@ -112,7 +117,27 @@ jobs:
         run: |
           npm ci --prefix playground
       - name: Install Puppeteer Chrome
-        run: npm --prefix playground exec -- puppeteer browsers install chrome
+        working-directory: playground
+        run: |
+          # puppeteer's installer downloads the correct (~176 MB) Chrome zip
+          # but its Node-based unzip silently extracts only empty directories
+          # on the runner's Node 24 — the actual binary never lands, so the
+          # E2E suite dies in beforeAll with "Could not find Chrome". Download
+          # via puppeteer, then if the binary is missing extract the zip with
+          # the system `unzip` (robust), preserving the EXACT pinned Chrome
+          # version the screenshot snapshots are generated against.
+          node_modules/.bin/puppeteer browsers install chrome || true
+          EXE="$(node -e "console.log(require('puppeteer').executablePath())")"
+          if [ ! -x "$EXE" ]; then
+            ZIP="$(ls "$PUPPETEER_CACHE_DIR"/chrome/*.zip | head -1)"
+            DEST="$(dirname "$(dirname "$EXE")")"
+            echo "puppeteer extraction incomplete — unzipping $ZIP -> $DEST"
+            unzip -q -o "$ZIP" -d "$DEST"
+            chmod +x "$EXE"
+          fi
+          # Hard guard: the exact executable launch() resolves must exist, so
+          # a silent install/extract failure fails here instead of mid-suite.
+          test -x "$EXE"
       - name: Run playground checks
         run: |
           npm --prefix playground run lint
