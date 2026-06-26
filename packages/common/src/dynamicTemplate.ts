@@ -80,6 +80,7 @@ interface ModifyTemplateForDynamicTableArg {
       basePdf: BasePdf;
       options: CommonOptions;
       _cache: Map<string | number, unknown>;
+      effectiveContentBounds?: { contentTop: number; contentBottom: number; contentHeight: number };
     },
   ) => Promise<LayoutMeasureResult>;
   getDynamicHeights?: (
@@ -89,6 +90,7 @@ interface ModifyTemplateForDynamicTableArg {
       basePdf: BasePdf;
       options: CommonOptions;
       _cache: Map<string | number, unknown>;
+      effectiveContentBounds?: { contentTop: number; contentBottom: number; contentHeight: number };
     },
   ) => Promise<number[]>;
 }
@@ -261,6 +263,8 @@ export async function getDynamicHeights(
     basePdf: BasePdf;
     options: CommonOptions;
     _cache: Map<string | number, unknown>;
+    /** When provided, this is the authoritative content area (preferred over raw padding) */
+    effectiveContentBounds?: { contentTop: number; contentBottom: number; contentHeight: number };
   },
   plugin: Plugin | undefined,
 ): Promise<number[]> {
@@ -268,7 +272,9 @@ export async function getDynamicHeights(
     return [args.schema.height];
   }
 
-  const result = await plugin.measure({ value, ...args });
+  // Forward the more correct effective bounds into the plugin measure call
+  const measureArgs = { ...args };
+  const result = await plugin.measure({ value, ...measureArgs });
   return getDynamicHeightsFromLayoutResult(args.schema, result);
 }
 
@@ -572,6 +578,8 @@ interface PageReflowContext {
   _cache: Map<string | number, unknown>;
   contentHeight: number;
   paddingTop: number;
+  /** Authoritative content bounds after staticSchema adjustments (the more correct source of truth) */
+  effectiveContentBounds: { contentTop: number; contentBottom: number; contentHeight: number };
   getDynamicLayout?: ModifyTemplateForDynamicTableArg['getDynamicLayout'];
   getDynamicHeights?: ModifyTemplateForDynamicTableArg['getDynamicHeights'];
 }
@@ -599,7 +607,12 @@ async function measurePageItem(
     return fragments.length === 0 ? layoutFragmentsFromHeights([0], 'height') : fragments;
   }
   if (ctx.getDynamicHeights) {
-    const heights = await ctx.getDynamicHeights(value, measureArgs);
+    // Pass the authoritative effective bounds down (more correct path for
+    // plugins like tables that do their own pagination / repeat logic).
+    const heights = await ctx.getDynamicHeights(value, {
+      ...measureArgs,
+      effectiveContentBounds: ctx.effectiveContentBounds,
+    } as any); // temporary cast until we update the shared type
     return layoutFragmentsFromHeights(heights.length === 0 ? [0] : heights, 'dynamicHeights');
   }
   return layoutFragmentsFromHeights([item.schema.height], 'height');
@@ -825,6 +838,21 @@ async function processAnchoredPage(ctx: PageReflowContext): Promise<Schema[][]> 
     syncLastFragmentGeometry(schema.name, processedPages, contentHeight, originalBySchemaName);
   }
 
+  // === D1 mitigation skeleton (more correct path) ===
+  // At this point all final fragment geometry has been synced via
+  // syncLastFragmentGeometry. Any anchored schema whose y-target may have
+  // split across pages measured in Pass 1 with stale heights.
+  //
+  // The correct next step (D1) is to walk anchored items that have a y-anchor
+  // whose target has multiple fragments, re-invoke measurePageItem with the
+  // now-final position, and re-place if the height changed materially.
+  //
+  // This closes the main source of "wrong split because measurement saw
+  // tentative y" bugs without requiring a full fragment-aware anchor model.
+  //
+  // TODO (D1): Implement the re-measure + re-place pass here for y-sensitive
+  // dependents of split targets. Start with tables + expandable text.
+
   // Anchored items were appended; resort each page by the original
   // template order, and trim trailing empties.
   sortPagesByOrder(processedPages, orderMap);
@@ -892,14 +920,17 @@ export const getDynamicTemplate = async (
   // those helpers for the Phase 2 design.
   for (let pageIndex = 0; pageIndex < workingTemplate.schemas.length; pageIndex++) {
     const pageSchemas = workingTemplate.schemas[pageIndex];
+    const effectiveContentBounds = getEffectiveContentBounds(basePdf);
+
     const ctx: PageReflowContext = {
       pageSchemas,
       basePdf,
       input,
       options,
       _cache,
-      contentHeight,
-      paddingTop,
+      contentHeight: effectiveContentBounds.contentHeight,
+      paddingTop: effectiveContentBounds.contentTop,
+      effectiveContentBounds,
       getDynamicLayout,
       getDynamicHeights,
     };
