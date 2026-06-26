@@ -23,7 +23,7 @@ jobs:
       contents: read
       id-token: write  # Required for OIDC authentication
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -84,7 +84,7 @@ jobs:
       # Shared, fresh browser cache for the install and test steps.
       PUPPETEER_CACHE_DIR: ${{ github.workspace }}/.puppeteer-cache
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-node@v6
         with:

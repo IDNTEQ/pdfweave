@@ -25,7 +25,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           # Fetch tags so packages/common/set-version.js can stamp the
           # latest release version into the bundle (otherwise PDFWEAVE_VERSION
