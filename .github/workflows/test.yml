@@ -114,11 +114,15 @@ jobs:
       - name: Install Puppeteer Chrome
         working-directory: playground
         run: |
-          npx puppeteer browsers install chrome
-          # Fail loudly if the install was a no-op — otherwise the missing
-          # browser only surfaces later as a confusing launch() error in the
-          # E2E suite. (`npm --prefix … exec` silently no-ops under npm 11.)
-          npx puppeteer browsers list | grep -q '^chrome@'
+          # Use playground's OWN puppeteer binary directly. `npm exec`/`npx`
+          # can resolve a different puppeteer on the runner (the image
+          # pre-caches a Chrome for its own puppeteer), which then no-ops
+          # without installing the version playground's puppeteer pins.
+          node_modules/.bin/puppeteer browsers install chrome
+          # Verify the EXACT executable launch() will resolve actually
+          # exists — a generic "some chrome is cached" check passes on the
+          # runner's pre-cached (wrong-version) Chrome and hides the problem.
+          test -x "$(node -e "console.log(require('puppeteer').executablePath())")"
       - name: Run playground checks
         run: |
           npm --prefix playground run lint
