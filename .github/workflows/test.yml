@@ -119,25 +119,24 @@ jobs:
       - name: Install Puppeteer Chrome
         working-directory: playground
         run: |
-          set -x
-          echo "HOME=$HOME PUPPETEER_CACHE_DIR=$PUPPETEER_CACHE_DIR"
-          node -e "console.log('puppeteer', require('puppeteer/package.json').version)"
-          node -e "console.log('expected', require('puppeteer').executablePath())"
-          echo "--- default ~/.cache/puppeteer (runner pre-cache) ---"
-          ls -R "$HOME/.cache/puppeteer" 2>/dev/null | head -40 || echo "(none)"
-          echo "--- system browsers available? ---"
-          which google-chrome google-chrome-stable chromium chromium-browser 2>/dev/null || echo "(no system chrome on PATH)"
-          ls -la /home/runner/.cache/puppeteer/chrome 2>/dev/null || echo "(no runner pre-cache)"
+          # puppeteer's installer downloads the correct (~176 MB) Chrome zip
+          # but its Node-based unzip silently extracts only empty directories
+          # on the runner's Node 24 — the actual binary never lands, so the
+          # E2E suite dies in beforeAll with "Could not find Chrome". Download
+          # via puppeteer, then if the binary is missing extract the zip with
+          # the system `unzip` (robust), preserving the EXACT pinned Chrome
+          # version the screenshot snapshots are generated against.
+          node_modules/.bin/puppeteer browsers install chrome || true
           EXE="$(node -e "console.log(require('puppeteer').executablePath())")"
-          for n in 1 2 3; do
-            echo "=== install attempt $n ==="
-            rm -rf "$PUPPETEER_CACHE_DIR"
-            node_modules/.bin/puppeteer browsers install chrome || true
-            echo "downloaded zip size:"; du -h "$PUPPETEER_CACHE_DIR"/chrome/*.zip 2>/dev/null || echo "(no zip)"
-            if [ -x "$EXE" ]; then echo "OK on attempt $n"; break; fi
-            echo "attempt $n incomplete; binary missing"
-          done
-          ls -la "$(dirname "$EXE")" || true
+          if [ ! -x "$EXE" ]; then
+            ZIP="$(ls "$PUPPETEER_CACHE_DIR"/chrome/*.zip | head -1)"
+            DEST="$(dirname "$(dirname "$EXE")")"
+            echo "puppeteer extraction incomplete — unzipping $ZIP -> $DEST"
+            unzip -q -o "$ZIP" -d "$DEST"
+            chmod +x "$EXE"
+          fi
+          # Hard guard: the exact executable launch() resolves must exist, so
+          # a silent install/extract failure fails here instead of mid-suite.
           test -x "$EXE"
       - name: Run playground checks
         run: |

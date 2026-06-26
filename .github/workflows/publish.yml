@@ -80,6 +80,9 @@ jobs:
 
   playground-test:
     runs-on: ubuntu-latest
+    env:
+      # Shared, fresh browser cache for the install and test steps.
+      PUPPETEER_CACHE_DIR: ${{ github.workspace }}/.puppeteer-cache
     steps:
       - uses: actions/checkout@v6
 
@@ -103,15 +106,22 @@ jobs:
       - name: Install Puppeteer Chrome
         working-directory: playground
         run: |
-          # Use playground's OWN puppeteer binary directly. `npm exec`/`npx`
-          # can resolve a different puppeteer on the runner (the image
-          # pre-caches a Chrome for its own puppeteer), which then no-ops
-          # without installing the version playground's puppeteer pins.
-          node_modules/.bin/puppeteer browsers install chrome
-          # Verify the EXACT executable launch() will resolve actually
-          # exists — a generic "some chrome is cached" check passes on the
-          # runner's pre-cached (wrong-version) Chrome and hides the problem.
-          test -x "$(node -e "console.log(require('puppeteer').executablePath())")"
+          # puppeteer's installer downloads the correct (~176 MB) Chrome zip
+          # but its Node-based unzip silently extracts only empty directories
+          # on the runner's Node 24 — the actual binary never lands. Download
+          # via puppeteer, then if the binary is missing extract the zip with
+          # the system `unzip` (robust), preserving the EXACT pinned Chrome
+          # version the screenshot snapshots are generated against.
+          node_modules/.bin/puppeteer browsers install chrome || true
+          EXE="$(node -e "console.log(require('puppeteer').executablePath())")"
+          if [ ! -x "$EXE" ]; then
+            ZIP="$(ls "$PUPPETEER_CACHE_DIR"/chrome/*.zip | head -1)"
+            DEST="$(dirname "$(dirname "$EXE")")"
+            echo "puppeteer extraction incomplete — unzipping $ZIP -> $DEST"
+            unzip -q -o "$ZIP" -d "$DEST"
+            chmod +x "$EXE"
+          fi
+          test -x "$EXE"
 
       - name: Run playground checks
         run: |
