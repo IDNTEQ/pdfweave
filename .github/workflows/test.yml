@@ -94,6 +94,11 @@ jobs:
 
   playground-test:
     runs-on: ubuntu-latest
+    env:
+      # Pin a fresh, workspace-local browser cache shared by the install and
+      # test steps. Avoids the runner image's pre-populated ~/.cache/puppeteer
+      # (a different Chrome build) masking/short-circuiting the install.
+      PUPPETEER_CACHE_DIR: ${{ github.workspace }}/.puppeteer-cache
     steps:
       - uses: actions/checkout@v6
       - name: Use Node.js 24
@@ -114,14 +119,16 @@ jobs:
       - name: Install Puppeteer Chrome
         working-directory: playground
         run: |
-          # Use playground's OWN puppeteer binary directly. `npm exec`/`npx`
-          # can resolve a different puppeteer on the runner (the image
-          # pre-caches a Chrome for its own puppeteer), which then no-ops
-          # without installing the version playground's puppeteer pins.
-          node_modules/.bin/puppeteer browsers install chrome
-          # Verify the EXACT executable launch() will resolve actually
-          # exists — a generic "some chrome is cached" check passes on the
-          # runner's pre-cached (wrong-version) Chrome and hides the problem.
+          set -x
+          echo "HOME=$HOME PUPPETEER_CACHE_DIR=$PUPPETEER_CACHE_DIR"
+          node -e "console.log('puppeteer', require('puppeteer/package.json').version)"
+          node -e "console.log('expected', require('puppeteer').executablePath())"
+          echo "--- default ~/.cache/puppeteer (runner pre-cache) ---"
+          ls -R "$HOME/.cache/puppeteer" 2>/dev/null | head -40 || echo "(none)"
+          echo "--- install ---"
+          node_modules/.bin/puppeteer browsers install chrome; echo "install exit=$?"
+          echo "--- target cache after install ---"
+          ls -R "$PUPPETEER_CACHE_DIR" 2>/dev/null | head -40 || echo "(none)"
           test -x "$(node -e "console.log(require('puppeteer').executablePath())")"
       - name: Run playground checks
         run: |
