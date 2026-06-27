@@ -1,415 +1,185 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working
-with code in this repository.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
 
 PDFweave is an open-source TypeScript PDF template engine with
 first-class data binding, anchor layouts, smart tables, and stationery
-PDFs. It targets production document workflows that need to bind to
-real data, reflow correctly across pages, and ship branded stationery.
+PDFs. It is a hard fork of [pdfme](https://github.com/pdfme/pdfme) (MIT).
 
-See [GOALS.md](GOALS.md) for the mission and quality bar, and
-[ROADMAP.md](ROADMAP.md) for the live punch list.
+The four differentiators over upstream — data binding, anchor layouts,
+smart tables, stationery PDFs — are the contracts the codebase exists to
+protect. See [GOALS.md](GOALS.md) for the mission and quality bar and
+[ROADMAP.md](ROADMAP.md) for the live punch list. `AGENTS.md` is a symlink
+to this file.
 
-PDFweave is a hard fork of [pdfme](https://github.com/pdfme/pdfme),
-released under the MIT licence. See the Acknowledgement section in
-GOALS.md for attribution detail.
+## Toolchain
 
-## Automated PR review
+The task runner is **`vp`** (vite-plus / `vite-plus` package, binary at
+`node_modules/.bin/vp`), not raw npm or turbo. Root npm scripts wrap `vp`,
+which fans work out across the `@pdfweave/*` workspaces. Package manager is
+**npm 11** (`packageManager` is pinned); use npm, not pnpm/yarn, despite
+the README's `pnpm add` install example for consumers.
 
-Every PR against `IDNTEQ/pdfweave` is automatically reviewed by:
+Per-package scripts call `vite build` + `tsc` (build), `vp lint`/`vp fmt`
+(oxlint/oxfmt), and `vitest run --config ../../vitest.config.ts` (test).
 
-- **Greptile** (`greptile-apps[bot]`) — config in `.greptile/settings.yaml`
-- **CodeRabbit** (`coderabbitai`) — config in `.coderabbit.yaml`
+## Common Commands
 
-Wait for both to comment before merging; address findings or push back
-in the PR thread with reasoning. There is no `@claude` GitHub Action
-in this repo and one is not planned — the agent that wrote most of the
-code (this Claude session) already operates on the repo directly via
-`gh` and puppeteer, so an additional summon-on-demand bot would be
-redundant.
+Run from the repo root unless noted.
 
-## Environment Requirements
-
-### Node.js and Package Manager
-- **Node.js**: Version 16 or higher (recommended: 18+ or 20+ for better performance)
-- **npm**: Compatible with Node.js version (npm 8+ recommended)
-- **Memory**: Minimum 4GB RAM, 8GB+ recommended for large PDF operations
-
-### Required Development Tools
-- **TypeScript**: For type checking and compilation
-- **Vite+ (`vp`)**: Unified task runner used for install/run/lint/fmt
-- **Oxlint/Oxfmt**: Native linting and formatting through `vp`
-- **Vitest**: Testing framework with image snapshot support
-
-### OS-Specific Considerations
-- **Windows**: Use Git Bash or WSL for shell commands
-- **macOS/Linux**: Standard terminal works fine
-- **Memory limits**: Increase Node.js heap size for large PDFs: `node --max-old-space-size=8192`
-
-## Common Development Commands
-
-### Initial Setup and Build
 ```bash
-npm install          # Install all dependencies
-npm run build        # Build all packages in correct order
+npm install            # install all workspaces
+npm run build          # clean + build all packages in dependency order
+npm run test           # vitest across all @pdfweave/* packages
+npm run typecheck      # tsc -b (project references)
+npm run lint           # oxlint (fast gate) across packages + playground
+npm run lint:strict    # ESLint flat config (deep, type-aware — the CI gate)
+npm run fmt            # oxfmt write across packages, playground, meta files
+npm run fmt:check      # oxfmt verify (no writes)
+npm run coverage       # per-package v8 coverage + aggregate
+npm run coverage:check # coverage + CRAP gate (scripts/crap.mjs)
+npm run check          # full local gate: fmt:check + lint + lint:strict +
+                       # typecheck + test + coverage:check + playground test
+npm run ci             # check + build + playground build (what CI runs)
+npm run size           # size-limit bundle budgets (.size-limit.json)
 ```
 
-### Development Workflow
-To work on packages with live reloading:
-1. Run development mode in the packages you're working on:
-   ```bash
-   cd packages/[package-name] && npm run dev
-   ```
-2. Run the playground to test changes:
-   ```bash
-   cd playground && npm run dev  # Opens at localhost:5173
-   ```
+### Running a single package or test
 
-### Testing
 ```bash
-npm run test                      # Run all tests
-npm run test -w packages/ui -- -u # Update UI snapshot tests
-# Run tests in specific package:
-cd packages/[package-name] && npm run test
+# One package's whole suite (cwd selects the workspace via vitest.config.ts):
+cd packages/common && npx vitest run --config ../../vitest.config.ts
+
+# One file or one test name:
+cd packages/common && npx vitest run --config ../../vitest.config.ts \
+  __tests__/anchorGeometry.test.ts -t "resolves right edge"
+
+# Watch mode while iterating:
+cd packages/generator && npx vitest --config ../../vitest.config.ts
 ```
 
-### Code Quality
-```bash
-npm run lint  # Run vp native lint
-npm run fmt   # Format code with vp native fmt
-```
-
-### Building Individual Packages
-```bash
-npm run build -w packages/common    # Build @pdfweave/common
-npm run build -w packages/schemas   # Build @pdfweave/schemas
-npm run build -w packages/generator # Build @pdfweave/generator
-npm run build -w packages/ui        # Build @pdfweave/ui
-```
-
-## Architecture and Code Structure
-
-### Monorepo Structure
-- **packages/common**: Core types, utilities, and shared logic
-- **packages/pdf-lib**: Forked pdf-lib with custom modifications
-- **packages/schemas**: Built-in field types (text, image, table, barcode, etc.)
-- **packages/generator**: PDF generation from templates
-- **packages/ui**: React components (Designer, Form, Viewer)
-- **packages/manipulator**: PDF operations (merge, split, rotate)
-- **packages/converter**: Format conversion utilities
-- **playground**: Interactive development and testing environment
-- **website**: Documentation site (Docusaurus)
-
-### Key Architectural Patterns
-
-#### 1. Plugin-Based Field System
-Each field type (text, image, table, etc.) is a plugin with three components:
-- `pdf`: Renders in the PDF using pdf-lib
-- `ui`: Renders interactively in the browser
-- `propPanel`: Configuration UI for the Designer
-
-Location: `packages/schemas/src/[field-type]/index.ts`
-
-#### 2. Template Structure
-Templates consist of:
-- `basePdf`: Either blank PDF with dimensions or custom PDF file
-- `schemas`: 2D array where each sub-array represents a page
-- `staticSchemas`: Optional fields that appear on every page
-
-Type definitions: `packages/common/src/types.ts`
-
-#### 3. Dynamic Layout Engine
-Handles:
-- Dynamic height calculation for expandable fields
-- Automatic page breaking
-- Layout tree management
-
-Key function: `packages/generator/src/dynamicTemplate.ts:getDynamicTemplate`
-
-#### 4. UI Component Hierarchy
-All UI components extend `BaseUIClass` and support three modes:
-- `viewer`: Read-only display
-- `form`: Interactive input
-- `designer`: Template creation
-
-Base class: `packages/ui/src/class.ts`
-
-#### 5. Expression System
-Secure JavaScript expression evaluator for dynamic content:
-- Uses Acorn for parsing
-- AST validation for security
-- Cached compilation
-
-Implementation: `packages/common/src/expression.ts`
-
-### Important Implementation Details
-
-1. **Build Order**: Due to dependencies, packages must be built in order:
-   pdf-lib → common → converter → schemas → parallel(generator, ui, manipulator)
-
-2. **Font Management**: Custom fonts are loaded and cached in the UI components and embedded with subsetting in PDFs
-
-3. **Validation**: Uses Zod schemas for runtime validation throughout the codebase
-
-4. **Caching**: Multiple caching layers for expressions, parsed data, and render-time optimization
-
-5. **Cross-Platform**: Works in both Node.js and browser environments with different implementations
-
-### Development Tips
-
-1. **Testing Changes**: Always test in the playground after making changes
-2. **Type Safety**: Leverage TypeScript - check type definitions in `packages/common/src/types.ts`
-3. **Plugin Development**: Follow existing schema patterns in `packages/schemas/src/`
-4. **UI Changes**: May take 5-10 seconds to reflect in playground due to build process
-5. **Snapshot Tests**: Update snapshots when UI changes are intentional
-6. **Hot Reload Setup**: Run `npm run dev` in multiple packages simultaneously for efficient development
-7. **Playground Testing**: Use `cd playground && npm run dev` to test changes in real-time
-8. **Memory Management**: Monitor memory usage when working with large PDFs or multiple templates
-
-## Contribution Guidelines
-
-### Pull Request Workflow
-1. **Branch Naming**: Use format `feature/description` or `fix/description`
-2. **Base Branch**: Always create PRs against `main` branch
-3. **Testing Requirements**: 
-   - Run `npm run test` and ensure all tests pass
-   - Run `npm run lint` and fix any linting issues
-   - Update snapshots if UI changes are intentional: `npm run test -w packages/ui -- -u`
-
-### Code Standards
-- **TypeScript**: All new code must be written in TypeScript
-- **Lint**: Follow the shared `vp lint` / `.oxlintrc.json` setup
-- **Format**: Format code using `npm run fmt`
-- **Type Safety**: Ensure proper type definitions and avoid `any` types
-
-### Commit Message Standards
-- Use conventional commit format: `type(scope): description`
-- Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
-- Examples:
-  - `feat(generator): add support for dynamic page breaks`
-  - `fix(ui): resolve Designer canvas rendering issue`
-  - `docs(readme): update installation instructions`
-
-### Code Review Process
-- All PRs require review before merging
-- Address reviewer feedback promptly
-- Ensure CI checks pass before requesting review
-- Keep PRs focused and reasonably sized
-
-## Performance Optimization
-
-### Memory Management for Large PDFs
-- **Heap Size**: Increase Node.js heap size for large operations:
-  ```bash
-  node --max-old-space-size=8192 your-script.js
-  ```
-- **Streaming**: Use streaming approaches for very large PDFs when possible
-- **Cleanup**: Properly dispose of PDF documents and clear caches
-
-### Rendering Optimization
-- **Lazy Loading**: Implement lazy loading for large template lists
-- **Caching**: Leverage built-in caching for expressions and parsed data
-- **Batch Operations**: Process multiple PDFs in batches rather than individually
-- **Font Subsetting**: Use font subsetting to reduce PDF file sizes
-
-### Bundle Size Optimization
-- **Tree Shaking**: Ensure proper tree shaking in webpack configurations
-- **Dynamic Imports**: Use dynamic imports for large dependencies
-- **Package Analysis**: Regularly analyze bundle sizes with tools like webpack-bundle-analyzer
-
-### Browser vs Node.js Performance
-- **Browser**: Limited by available memory and processing power
-- **Node.js**: Can handle larger operations but watch for memory leaks
-- **Worker Threads**: Consider worker threads for CPU-intensive operations in Node.js
-
-## Troubleshooting
-
-### Build Errors
-
-#### TypeScript Compilation Issues
-```bash
-# Clear TypeScript cache
-rm -rf packages/*/dist packages/*/.tsbuildinfo
-npm run build
-```
-
-#### Webpack/Bundling Problems
-```bash
-# Clear node_modules and reinstall
-rm -rf node_modules packages/*/node_modules
-npm install
-npm run build
-```
-
-#### Dependency Resolution Issues
-```bash
-# Check for version conflicts
-npm ls
-# Fix peer dependency warnings
-npm install --legacy-peer-deps
-```
-
-### Type Errors
-
-#### Missing Type Definitions
-- Check `packages/common/src/types.ts` for core type definitions
-- Ensure proper imports: `import type { Template } from '@pdfweave/common'`
-- Update type definitions when adding new features
-
-#### Import Resolution Problems
-```bash
-# Rebuild packages in correct order
-npm run build -w packages/common
-npm run build -w packages/schemas
-npm run build -w packages/generator
-npm run build -w packages/ui
-```
-
-### Environment Issues
-
-#### Node Version Conflicts
-```bash
-# Check Node version
-node --version
-# Use nvm to switch versions
-nvm use 18
-```
-
-#### Package Manager Issues
-```bash
-# Clear npm cache
-npm cache clean --force
-# Remove package-lock.json and reinstall
-rm package-lock.json
-npm install
-```
-
-### Memory Issues
-
-#### Large PDF Processing
-```bash
-# Increase heap size
-export NODE_OPTIONS="--max-old-space-size=8192"
-npm run dev
-```
-
-#### Memory Leaks in Development
-- Restart development servers regularly
-- Monitor memory usage in browser dev tools
-- Clear caches periodically
-
-### Font Issues
-
-#### Font Loading Failures
-- Ensure fonts are properly embedded in PDFs
-- Check font file paths and accessibility
-- Verify font format compatibility (TTF, OTF)
-
-#### CJK Font Problems
-- Use the forked `@pdfweave/pdf-lib` which includes CJK support
-- Ensure proper font subsetting for large character sets
-- Test with actual CJK content
-
-### Dependency Conflicts
-
-#### Package Version Mismatches
-```bash
-# Check for outdated packages
-npm outdated
-# Update specific packages
-npm update @pdfweave/common @pdfweave/generator
-```
-
-#### Peer Dependency Issues
-```bash
-# Install with legacy peer deps
-npm install --legacy-peer-deps
-# Or fix peer dependencies manually
-npm install <missing-peer-dependency>
-```
-
-## Common Error Patterns
-
-### Font-Related Errors
-- **Error**: `Font not found` or `Invalid font`
-- **Solution**: Verify font file exists and is accessible, check font embedding settings
-- **Prevention**: Test with standard fonts first, then add custom fonts
-
-### Memory Allocation Errors
-- **Error**: `JavaScript heap out of memory`
-- **Solution**: Increase heap size with `--max-old-space-size=8192`
-- **Prevention**: Process large PDFs in smaller chunks, implement proper cleanup
-
-### Import/Export Resolution Issues
-- **Error**: `Module not found` or `Cannot resolve module`
-- **Solution**: Check build order, ensure packages are built before importing
-- **Prevention**: Follow proper build sequence, use TypeScript path mapping
-
-### Plugin Development Pitfalls
-- **Error**: Plugin not rendering correctly
-- **Solution**: Ensure plugin exports `{ ui, pdf, propPanel }` correctly
-- **Prevention**: Follow existing plugin patterns in `packages/schemas/src/`
-
-### Playground Connection Issues
-- **Error**: Changes not reflecting in playground
-- **Solution**: Restart development servers, check if packages are in dev mode
-- **Prevention**: Ensure proper hot reload setup across packages
-
-## Enhanced Development Workflow
-
-### Hot Reload Setup
-1. **Start package development servers**:
-   ```bash
-   # Terminal 1
-   cd packages/common && npm run dev
-   
-   # Terminal 2  
-   cd packages/schemas && npm run dev
-   
-   # Terminal 3
-   cd packages/generator && npm run dev
-   
-   # Terminal 4
-   cd packages/ui && npm run dev
-   ```
-
-2. **Start playground**:
-   ```bash
-   # Terminal 5
-   cd playground && npm run dev
-   ```
-
-### E2E Testing Procedures
-```bash
-# Run full test suite
-npm run test
-
-# Run playground E2E tests
-cd playground && npm run test
-
-# Update UI snapshots after intentional changes
-npm run test -w packages/ui -- -u
-```
-
-### Debugging with Playground
-- Use playground for rapid prototyping and testing
-- Add console.log statements for debugging
-- Test with various template configurations
-- Verify changes across different browsers
-
-### CI/CD Integration
-- All PRs automatically run tests via GitHub Actions
-- Ensure local tests pass before pushing
-- Monitor CI status and address failures promptly
-- Use Claude Code integration for assistance with CI issues
-
-### Key Files to Understand
-
-- `packages/common/src/types.ts`: Core type definitions
-- `packages/generator/src/generate.ts`: Main PDF generation logic
-- `packages/ui/src/components/Designer/index.tsx`: Designer implementation
-- `packages/schemas/src/text/index.ts`: Example of a complete plugin
-- `playground/public/template-assets/`: Template examples and definitions
+Tests live in each package's `__tests__/` directory. A **single root
+`vitest.config.ts`** holds per-workspace settings (include globs, jsdom for
+`ui`, timeouts, image-snapshot setup) keyed by the workspace path — so tests
+must be invoked with that shared config and the package as the cwd.
+
+The generator and ui suites use **image snapshots**; after intentional
+rendering changes update them with `npm run test:update-snapshots` inside
+the package (or `npm run test -w packages/ui -- -u`).
+
+## Two-layer lint + the quality gate
+
+Linting is deliberately layered (see ROADMAP Phase 1–4):
+
+- **oxlint** (`npm run lint`, config `.oxlintrc.json`) — fast, runs locally
+  and per-package. The everyday gate.
+- **ESLint flat config** (`npm run lint:strict`, `eslint.config.mjs`) —
+  `@typescript-eslint/strict-type-checked` + sonarjs (cognitive-complexity
+  ≤ 15) + import boundaries + security + jsdoc-on-public-API. This is the
+  authoritative CI gate. Phase 4 is an ongoing walk flipping warnings to
+  errors per file, so new code should land clean under `lint:strict`, not
+  just oxlint.
+
+The **CRAP** gate (`scripts/crap.mjs`, `.crap-allowlist.json`) joins
+coverage with cognitive complexity and fails any function over CRAP 30.
+Coverage floor is ≥80% line / ≥70% branch per package. When touching a
+hot-path function, keep it covered or it will trip the gate.
+
+## Architecture
+
+### Monorepo build order
+
+Builds are ordered by dependency (`npm run build`):
+`pdf-lib → common → converter → schemas → parallel(generator, ui,
+manipulator) → cli`. If you hit "module not found" between packages,
+the cause is almost always a stale/missing upstream `dist` — rebuild in
+this order.
+
+Packages:
+- **packages/common** — core types, the dynamic layout engine, and *all
+  the fork's defining logic* (see below). Most other packages depend on it.
+- **packages/pdf-lib** — forked pdf-lib with CJK + custom modifications.
+- **packages/converter** — format conversion utilities.
+- **packages/schemas** — built-in field-type plugins.
+- **packages/generator** — PDF generation from a template + inputs.
+- **packages/ui** — React Designer / Form / Viewer.
+- **packages/manipulator** — PDF merge/split/rotate.
+- **packages/cli** — `citty`-based CLI wrapping generator + schemas.
+- **playground** — Vite app for interactive testing (`cd playground && vp dev`).
+- **website** — Docusaurus docs.
+
+### The fork lives in `packages/common`
+
+Upstream pdfme had absolute-position schemas. PDFweave's value-add modules
+all sit in `packages/common/src/` and are what you must not break:
+
+- `dynamicTemplate.ts` — **the dynamic layout engine** (`getDynamicTemplate`).
+  Dynamic height calculation, automatic page breaking, layout-tree
+  management, stationery (`basePdf`) stamping across reflowed pages. The
+  current branch's work is here. (Note: older docs placed this in
+  `generator` — it is in `common`.)
+- `anchorLayout.ts` + `anchorGeometry.ts` — relative positioning
+  (`alignRightEdge`, `belowBottomEdge`, `afterRightEdge`, `pageLeft`,
+  `pageTop`, …) that survives sibling height changes and reflow.
+- `dataBinding.ts` + `tableBinding.ts` — schemas reference JSON paths with
+  format hints (currency/number/date) instead of carrying copied data;
+  per-row/column table binding.
+- `expression.ts` — secure JS expression evaluator (Acorn parse → AST
+  validation → cached compilation) for dynamic content.
+- `types.ts` — core type definitions; start here for any data shape.
+- `migrate.ts`, `pluginRegistry.ts`, `schema.ts` — versioned template
+  migration, plugin registration, Zod validation.
+
+### Plugin-based field system
+
+Each field type is a plugin exporting `{ pdf, ui, propPanel }`:
+- `pdf` — renders in the PDF via pdf-lib
+- `ui` — renders interactively in the browser
+- `propPanel` — Designer configuration UI
+
+Location: `packages/schemas/src/<field-type>/index.ts` (text is the
+canonical complete example). Plugins are passed into `generate()` /
+Designer explicitly — they are not auto-registered.
+
+### Template structure
+
+- `basePdf` — blank `{ width, height, padding }` **or** a single-page PDF
+  used as stamped stationery.
+- `schemas` — 2D array; each sub-array is one page.
+- `staticSchemas` — optional fields repeated on every page.
+
+### UI component model
+
+All UI components extend `BaseUIClass` (`packages/ui/src/class.ts`) and run
+in three modes: `viewer` (read-only), `form` (input), `designer` (authoring).
+Designer entry: `packages/ui/src/components/Designer/index.tsx`.
+
+## PR Workflow
+
+- Branch from and PR against `main`. Branch names: `feature/...` or `fix/...`.
+- Conventional commits: `type(scope): description`
+  (`feat`/`fix`/`docs`/`style`/`refactor`/`test`/`chore`).
+- Before pushing, `npm run check` should pass (or at minimum
+  `lint:strict` + `typecheck` + `test`).
+- Every PR against `IDNTEQ/pdfweave` is auto-reviewed by **Greptile**
+  (`.greptile/settings.yaml`) and **CodeRabbit** (`.coderabbit.yaml`). Wait
+  for both, then address or push back with reasoning. There is no `@claude`
+  GitHub Action and one is not planned — the agent operates on the repo
+  directly via `gh`.
+
+## Fork relationship
+
+PDFweave is a **hard fork**, not a downstream mirror. We selectively port
+useful upstream pdfme changes case-by-case only when they don't conflict
+with the data-binding / anchor / smart-table / stationery contracts. There
+is no standing backport queue. See `MIGRATION.md` and GOALS.md "Non-goals".
+
+## Environment Notes
+
+- Node 18+ recommended (16 minimum). For large PDFs, raise the heap:
+  `export NODE_OPTIONS="--max-old-space-size=8192"`.
+- Fonts are subset-embedded; CJK relies on the forked `@pdfweave/pdf-lib`.
+- The codebase runs in both Node and browser; some modules have
+  environment-specific implementations.
