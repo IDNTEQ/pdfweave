@@ -72,7 +72,7 @@ jobs:
           # deep-link reload. (Docusaurus emits its own per-page HTML.)
           cp pages-artifact/index.html pages-artifact/404.html
 
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: pages-artifact
 
