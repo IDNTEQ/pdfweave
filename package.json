@@ -61,7 +61,7 @@
     "@size-limit/file": "^12.1.0",
     "@types/node": "^26.0.0",
     "@typescript-eslint/parser": "^8.59.2",
-    "@vitest/coverage-v8": "^4.1.5",
+    "@vitest/coverage-v8": "^4.1.9",
     "eslint": "^9.39.4",
     "eslint-import-resolver-typescript": "^4.4.4",
     "eslint-plugin-import": "^2.32.0",
@@ -82,7 +82,7 @@
     "vite": "^8.0.10",
     "vite-plus": "^0.2.1",
     "vitest": "^4.1.5",
-    "vitest-image-snapshot": "^0.6.50"
+    "vitest-image-snapshot": "^0.6.51"
   },
   "overrides": {
     "js-cookie": "^3.0.8",
