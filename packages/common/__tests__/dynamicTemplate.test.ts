@@ -5,6 +5,8 @@ import {
   getDynamicTemplate,
   getDynamicHeights,
   PAGE_BREAK_SCHEMA_TYPE,
+  sanitizeHeight,
+  sanitizeHeights,
 } from '../src/dynamicTemplate.js';
 import { Template, Schema, Font, Plugin, BasePdf } from '../src/index.js';
 
@@ -728,7 +730,14 @@ describe('Same Y position scenarios (horizontal layout) — pdfme#1489', () => {
       schemas: [
         [
           { name: 'a', content: 'a', type: 'a', position: { x: 10, y: 10 }, width: 80, height: 10 },
-          { name: 'b', content: 'b', type: 'b', position: { x: 100, y: 10 }, width: 80, height: 10 },
+          {
+            name: 'b',
+            content: 'b',
+            type: 'b',
+            position: { x: 100, y: 10 },
+            width: 80,
+            height: 10,
+          },
         ],
       ],
     };
@@ -780,7 +789,11 @@ describe('Same Y position scenarios (horizontal layout) — pdfme#1489', () => {
             position: { x: 10, y: 10 },
             width: 80,
             height: 10,
-            layout: { mode: 'anchored', x: { mode: 'pageLeft', offsetMm: 10 }, y: { mode: 'pageTop', offsetMm: 10 } },
+            layout: {
+              mode: 'anchored',
+              x: { mode: 'pageLeft', offsetMm: 10 },
+              y: { mode: 'pageTop', offsetMm: 10 },
+            },
           } as Schema,
           {
             name: 'b',
@@ -789,7 +802,11 @@ describe('Same Y position scenarios (horizontal layout) — pdfme#1489', () => {
             position: { x: 100, y: 10 },
             width: 80,
             height: 10,
-            layout: { mode: 'anchored', x: { mode: 'pageLeft', offsetMm: 100 }, y: { mode: 'pageTop', offsetMm: 10 } },
+            layout: {
+              mode: 'anchored',
+              x: { mode: 'pageLeft', offsetMm: 100 },
+              y: { mode: 'pageTop', offsetMm: 10 },
+            },
           } as Schema,
         ],
       ],
@@ -882,7 +899,7 @@ describe('Runtime anchor re-resolution (Phase 2 — RFC 0001)', () => {
 
   const phase2BasePdf: BasePdf = { width: 200, height: 400, padding: [10, 10, 10, 10] };
 
-  test('anchored chain: B re-resolves below A using A\'s actual height', async () => {
+  test("anchored chain: B re-resolves below A using A's actual height", async () => {
     const template: Template = {
       basePdf: phase2BasePdf,
       schemas: [
@@ -990,7 +1007,7 @@ describe('Runtime anchor re-resolution (Phase 2 — RFC 0001)', () => {
     expect(b?.height).toBe(10);
   });
 
-  test('mixed mode: B anchored to absolute A; uses A\'s actual height', async () => {
+  test("mixed mode: B anchored to absolute A; uses A's actual height", async () => {
     const template: Template = {
       basePdf: phase2BasePdf,
       schemas: [
@@ -1165,7 +1182,7 @@ describe('Runtime anchor re-resolution (Phase 2 — RFC 0001)', () => {
     expect(b?.position.y).toBe(45);
   });
 
-  test('anchored chain where upstream target paginates: B uses A\'s last-fragment bottom', async () => {
+  test("anchored chain where upstream target paginates: B uses A's last-fragment bottom", async () => {
     // Regression for CodeRabbit feedback on PR #46:
     // anchored-to-anchored chain where the upstream target spans
     // pages. B targets A's bottom; A's actual content overflows page 1
@@ -1298,6 +1315,24 @@ describe('Runtime anchor re-resolution (Phase 2 — RFC 0001)', () => {
     // B.y = C.position.y (30) + C.actualHeight (40) + offset (8) = 78
     expect(b?.position.x).toBe(75);
     expect(b?.position.y).toBe(78);
+  });
+});
+
+describe('sanitizeHeight / sanitizeHeights (defensive guards)', () => {
+  it('passes through valid positive heights', () => {
+    expect(sanitizeHeight(42.5, 10)).toBe(42.5);
+    expect(sanitizeHeights([10, 20.1, 0], 5)).toEqual([10, 20.1, 0]);
+  });
+
+  it('rejects NaN, negative, and Infinity and falls back to declared height', () => {
+    expect(sanitizeHeight(NaN, 15)).toBe(15);
+    expect(sanitizeHeight(-5, 15)).toBe(15);
+    expect(sanitizeHeight(Infinity, 15)).toBe(15);
+    expect(sanitizeHeights([NaN, -3, Infinity], 12)).toEqual([12, 12, 12]);
+  });
+
+  it('never returns negative fallback', () => {
+    expect(sanitizeHeight(NaN, -7)).toBe(0);
   });
 });
 

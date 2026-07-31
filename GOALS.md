@@ -49,9 +49,10 @@ correctly across pages, and ship branded stationery.
 
 See [ROADMAP.md](ROADMAP.md) for the live punch list. Headline items:
 
-- Backport selected upstream PRs (#1290, #1250, #1159, #1055).
-- Inherit upstream merged work where useful (e.g. #1467 dynamic text
-  height).
+- Selectively evaluate and port useful upstream changes when they align
+  with PDFweave's contracts (data binding, anchors, smart tables,
+  stationery). We are a hard fork and do not maintain a standing backport
+  queue (see ROADMAP.md "Upstream / fork relationship").
 - Land the quality-bar tooling (Phases 1–3 of the tooling roadmap).
 - Walk the codebase package-by-package flipping lint warnings to errors.
 
