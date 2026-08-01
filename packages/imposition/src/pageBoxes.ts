@@ -117,7 +117,7 @@ export const inspectSourcePages = (
         width: rawBox.width * userUnit,
         height: rawBox.height * userUnit,
       },
-      sourceBox,
+      selection.kind,
       pageIndex,
     );
     if (selection.fallback) {

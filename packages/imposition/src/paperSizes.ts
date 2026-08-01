@@ -27,31 +27,7 @@ export const PAPER_SIZES_MM: Readonly<Record<PaperSizeName, Readonly<Size>>> = O
   Legal: frozenSize(215.9, 355.6),
 });
 
-const getNamedPaperSize = (name: PaperSizeName): Readonly<Size> => {
-  switch (name) {
-    case 'A2': {
-      return PAPER_SIZES_MM.A2;
-    }
-    case 'A3': {
-      return PAPER_SIZES_MM.A3;
-    }
-    case 'A4': {
-      return PAPER_SIZES_MM.A4;
-    }
-    case 'A5': {
-      return PAPER_SIZES_MM.A5;
-    }
-    case 'A6': {
-      return PAPER_SIZES_MM.A6;
-    }
-    case 'Letter': {
-      return PAPER_SIZES_MM.Letter;
-    }
-    case 'Legal': {
-      return PAPER_SIZES_MM.Legal;
-    }
-  }
-};
+const getNamedPaperSize = (name: PaperSizeName): Readonly<Size> => PAPER_SIZES_MM[name];
 
 const toPoints = (value: number, unit: 'mm' | 'pt'): number =>
   unit === 'mm' ? value * MM_TO_PT : value;
@@ -185,7 +161,7 @@ const normalizePages = (props: ImposeProps, sourcePageCount: number): number[] =
     : Array.from({ length: sourcePageCount }, (_, index) => index);
   if (pages.length === 0) throw invalidOption('pages', 'at least one source page is required');
 
-  const invalidPageIndex = pages.find((pageIndex) => pageIndex >= sourcePageCount);
+  const invalidPageIndex = pages.find((pageIndex) => pageIndex < 0 || pageIndex >= sourcePageCount);
   if (invalidPageIndex === undefined) return pages;
   throw invalidOption(
     'pages',

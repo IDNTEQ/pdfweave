@@ -1,10 +1,52 @@
 import { spawnSync } from 'node:child_process';
+import { existsSync, realpathSync } from 'node:fs';
 import { rm } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const npmExecutable = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+
+const resolveExistingNpmCli = (candidate) => {
+  if (!candidate || !existsSync(candidate)) return undefined;
+  const resolved = realpathSync(candidate);
+  return path.basename(resolved) === 'npm-cli.js' ? resolved : undefined;
+};
+
+/** Resolve npm's JavaScript entry point so Windows never needs to spawn npm.cmd. */
+export const resolveNpmCliPath = () => {
+  const nodeDirectory = path.dirname(process.execPath);
+  const candidates = [
+    process.env.npm_execpath,
+    path.join(nodeDirectory, 'node_modules', 'npm', 'bin', 'npm-cli.js'),
+    path.resolve(nodeDirectory, '..', 'lib', 'node_modules', 'npm', 'bin', 'npm-cli.js'),
+  ];
+
+  for (const candidate of candidates) {
+    const resolved = resolveExistingNpmCli(candidate);
+    if (resolved) return resolved;
+  }
+
+  const launcherNames = process.platform === 'win32' ? ['npm.cmd', 'npm'] : ['npm'];
+  for (const directory of (process.env.PATH ?? '').split(path.delimiter).filter(Boolean)) {
+    for (const launcherName of launcherNames) {
+      const launcher = path.join(directory, launcherName);
+      if (!existsSync(launcher)) continue;
+      const resolvedLauncher = realpathSync(launcher);
+      if (path.basename(resolvedLauncher) === 'npm-cli.js') return resolvedLauncher;
+      const resolved = resolveExistingNpmCli(
+        path.join(directory, 'node_modules', 'npm', 'bin', 'npm-cli.js'),
+      );
+      if (resolved) return resolved;
+    }
+  }
+
+  throw new Error('Could not resolve npm/bin/npm-cli.js; run qualification through npm');
+};
+
+export const createNpmInvocation = (
+  args,
+  { nodeExecutable = process.execPath, npmCliPath = resolveNpmCliPath() } = {},
+) => ({ command: nodeExecutable, args: [npmCliPath, ...args] });
 
 export const qualificationJUnitPaths = [
   'packages/generator/test-results.xml',
@@ -28,8 +70,7 @@ export const qualificationSetup = {
 export const qualificationSuites = [
   {
     label: 'Generator qualification tests',
-    command: npmExecutable,
-    args: [
+    ...createNpmInvocation([
       'test',
       '-w',
       'packages/generator',
@@ -39,12 +80,11 @@ export const qualificationSuites = [
       '--reporter=default',
       '--reporter=junit',
       '--outputFile=test-results.xml',
-    ],
+    ]),
   },
   {
     label: 'Imposition qualification tests',
-    command: npmExecutable,
-    args: [
+    ...createNpmInvocation([
       'test',
       '-w',
       'packages/imposition',
@@ -52,7 +92,7 @@ export const qualificationSuites = [
       '--reporter=default',
       '--reporter=junit',
       '--outputFile=test-results.xml',
-    ],
+    ]),
   },
 ];
 

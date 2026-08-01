@@ -1,5 +1,6 @@
 import { PDFDocument, degrees } from '@pdfweave/pdf-lib';
 import { MM_TO_PT, PAPER_SIZES_MM, planImposition, type ImposeProps } from '../src/index.js';
+import { normalizeOptions } from '../src/paperSizes.js';
 import { createSourcePdf } from './helpers.js';
 
 const createPages = (count: number, width = 40, height = 80) =>
@@ -297,11 +298,58 @@ describe('planImposition', () => {
     expect(plan.options.sheet.height).toBeCloseTo(240 * MM_TO_PT, 8);
   });
 
+  test('rejects negative page indices at the internal normalization boundary', () => {
+    const props: ImposeProps = {
+      source: new Uint8Array(),
+      unit: 'pt',
+      sheet: { size: { width: 100, height: 100 } },
+      layout: { type: 'n-up', rows: 1, columns: 1 },
+      sourceBox: 'media',
+      pages: [-1],
+    };
+
+    expect(() => normalizeOptions(props, 1)).toThrow(
+      '[@pdfweave/imposition] Invalid pages: page index -1 is outside the source page range 0-0',
+    );
+  });
+
   test.each([
+    {
+      name: 'multiple non-union fields in first-error order',
+      mutate: (props: ImposeProps) => ({
+        ...props,
+        unit: 'px' as ImposeProps['unit'],
+        layout: { type: 'n-up' as const, rows: 0, columns: 1 },
+      }),
+      message: 'Invalid unit: Invalid option: expected one of "mm"|"pt"',
+    },
     {
       name: 'out-of-range page',
       mutate: (props: ImposeProps) => ({ ...props, pages: [2] }),
       message: 'Invalid pages: page index 2 is outside the source page range 0-0',
+    },
+    {
+      name: 'negative page at the public schema boundary',
+      mutate: (props: ImposeProps) => ({ ...props, pages: [-1] }),
+      message: 'Invalid pages.0: Too small: expected number to be >=0',
+    },
+    {
+      name: 'negative custom sheet width',
+      mutate: (props: ImposeProps) => ({
+        ...props,
+        sheet: { size: { width: -1, height: 100 } },
+      }),
+      message: 'Invalid sheet.size.width: Too small: expected number to be >0',
+    },
+    {
+      name: 'invalid custom sheet width type',
+      mutate: (props: ImposeProps) => ({
+        ...props,
+        sheet: {
+          size: { width: 'wide' as unknown as number, height: 100 },
+        },
+      }),
+      message: 'Invalid sheet.size.width: Invalid input: expected number, received string',
     },
     {
       name: 'impossible gutters',

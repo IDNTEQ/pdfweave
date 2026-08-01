@@ -39,10 +39,11 @@ const createBoletoBook = async (): Promise<Uint8Array> => {
 
   for (const [index, client] of clients.entries()) {
     const page = document.addPage([mm(190), mm(85)]);
-    const amount = (875.35 + index * 143.27).toLocaleString('pt-BR', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
+    // Keep snapshot text independent of the runtime's ICU locale data.
+    const amount = (875.35 + index * 143.27)
+      .toFixed(2)
+      .replace('.', ',')
+      .replace(/\B(?=(\d{3})+(?!\d))/g, '.');
     page.drawRectangle({ x: 0, y: 0, width: mm(190), height: mm(85), color: rgb(1, 1, 1) });
     page.drawRectangle({
       x: 0,

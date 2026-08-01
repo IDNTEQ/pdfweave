@@ -15,8 +15,9 @@ security, preflight, and workflow automation is maintained in
       CRAP remediation, and one protected publishing pipeline.
 - [ ] **P1 - Production document semantics:** grouped totals, master pages,
       batch controls, and output security.
-- [x] **P2.1 - N-up imposition:** configurable physical sheets, ordering,
-      scaling, copy collation, visual artifacts, and placement manifests.
+- [ ] **P2.1 - N-up imposition (implemented locally; release pending):**
+      configurable physical sheets, ordering, scaling, copy collation, visual
+      artifacts, and placement manifests.
 - [ ] **P2.2-P2.4 - Finishing:** marks, page boxes, duplex/booklets, preflight,
       PDF/X, and output profiles.
 - [ ] **P3 - Workflow platform:** DataMapper, durable orchestration, print and

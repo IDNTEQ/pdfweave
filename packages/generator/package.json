@@ -48,7 +48,7 @@
     "lint": "vp lint -c ../../.oxlintrc.json src",
     "fmt": "vp fmt -c ../../.oxfmtrc.json src --write",
     "test": "vitest run --config ../../vitest.config.ts",
-    "test:render-artifacts": "vitest run --config ../../vitest.config.ts __tests__/complex-documents.test.ts",
+    "test:render-artifacts": "vitest run --config ../../vitest.config.ts __tests__/complex-documents.test.ts __tests__/embed-once.test.ts",
     "coverage": "vitest run --config ../../vitest.config.ts --coverage",
     "test:update-snapshots": "vitest run --config ../../vitest.config.ts -u"
   },

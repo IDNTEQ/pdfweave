@@ -277,4 +277,23 @@ describe('qualification HTML', () => {
     assert.equal(document.querySelector('[data-pdf-id]'), null);
     assert.match(document.querySelector('.case-results').textContent, /<failure details>/);
   });
+
+  test('requires an authoritative successful run and complete evidence before reporting passed', () => {
+    const unknownRun = new JSDOM(render({ runOutcome: 'unknown' })).window.document;
+    assert.match(
+      unknownRun.querySelector('.status').textContent,
+      /Feature qualification: Incomplete/,
+    );
+
+    const missingEvidence = new JSDOM(
+      render({ scenarios: [scenario({ available: false, error: 'PDF was not generated' })] }),
+    ).window.document;
+    assert.match(
+      missingEvidence.querySelector('.status').textContent,
+      /Feature qualification: Incomplete/,
+    );
+
+    const failedRun = new JSDOM(render({ runOutcome: 'failed' })).window.document;
+    assert.match(failedRun.querySelector('.status').textContent, /Feature qualification: Failed/);
+  });
 });

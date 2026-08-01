@@ -82,11 +82,53 @@ const imposePropsSchema = z
   })
   .strict();
 
+interface ValidationErrorTree {
+  errors: string[];
+  properties?: Record<string, ValidationErrorTree | undefined>;
+  items?: (ValidationErrorTree | undefined)[];
+}
+
+interface ValidationIssue {
+  path: (string | number)[];
+  message: string;
+}
+
+const flattenErrorTree = (
+  tree: ValidationErrorTree,
+  path: (string | number)[] = [],
+): ValidationIssue[] => [
+  ...tree.errors.map((message) => ({ path, message })),
+  ...Object.entries(tree.properties ?? {}).flatMap(([key, child]) =>
+    child ? flattenErrorTree(child, [...path, key]) : [],
+  ),
+  ...(tree.items ?? []).flatMap((child, index) =>
+    child ? flattenErrorTree(child, [...path, index]) : [],
+  ),
+];
+
+const getMostSpecificIssue = (error: z.ZodError): ValidationIssue => {
+  const rootIssue = error.issues[0];
+  if (!rootIssue) return { path: [], message: 'Invalid input' };
+  if (rootIssue.code !== 'invalid_union') {
+    return { path: rootIssue.path as (string | number)[], message: rootIssue.message };
+  }
+
+  const issues = flattenErrorTree(z.treeifyError(new z.ZodError([rootIssue])));
+  let selected = issues.at(0) ?? {
+    path: rootIssue.path as (string | number)[],
+    message: rootIssue.message,
+  };
+  for (const candidate of issues.slice(1)) {
+    if (candidate.path.length > selected.path.length) selected = candidate;
+  }
+  return selected;
+};
+
 export const parseImposeProps = (props: ImposeProps): ImposeProps => {
   const result = imposePropsSchema.safeParse(props);
   if (result.success) return result.data;
 
-  const issue = result.error.issues[0];
+  const issue = getMostSpecificIssue(result.error);
   const path = issue.path.length > 0 ? issue.path.map(String).join('.') : 'options';
   throw invalidOption(path, issue.message);
 };

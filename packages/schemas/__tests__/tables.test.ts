@@ -166,6 +166,25 @@ describe('table cell padding (pdfme/pdfme#1422)', () => {
 });
 
 describe('public table height measurement', () => {
+  it('measures only the bounded rows when the first fragment starts at zero', async () => {
+    const schema = baseTableSchema();
+    schema.__bodyRange = { start: 0, end: 2 };
+    const body = Array.from({ length: 5 }, (_, index) => [
+      `Item ${String(index + 1)}`,
+      `${String(index + 1)}.00`,
+    ]);
+    const args = {
+      schema,
+      basePdf: BLANK_A4_PDF,
+      options: {},
+      _cache: new Map<string | number, unknown>(),
+    };
+
+    const measuredHeights = await getDynamicHeightsForTable(JSON.stringify(body), args);
+
+    expect(measuredHeights).toHaveLength(3);
+  });
+
   it('retains continuation-header height accounting for direct callers', async () => {
     const schema = baseTableSchema();
     schema.position.y = 5;

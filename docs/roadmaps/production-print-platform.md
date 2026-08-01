@@ -314,7 +314,7 @@ RSS, Node version, platform, and renderer version.
 | A2/A3 populated and blank page sizes | Complete | `packages/generator/__tests__/page-sizes.test.ts` |
 | P0 release integrity | Planned | Acceptance criteria above |
 | P1 document semantics | Planned | RFC required |
-| P2.1 n-up imposition | Complete locally; release pending | RFC 0002, 45 package tests, and qualification dashboard |
+| P2.1 n-up imposition | Complete locally; release pending | RFC 0002, 61 package tests, and qualification dashboard |
 | P2.2-P2.4 production finishing | Planned | P2.1 dependency |
 | P3 workflow platform | Planned | P0-P2 dependency |
 

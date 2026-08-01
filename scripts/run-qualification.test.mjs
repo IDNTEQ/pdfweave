@@ -1,16 +1,44 @@
 import assert from 'node:assert/strict';
+import path from 'node:path';
 import { describe, test } from 'node:test';
 import {
+  createNpmInvocation,
   qualificationArtifactPaths,
   qualificationJUnitPaths,
   qualificationSetup,
   qualificationSuites,
+  resolveNpmCliPath,
   runQualification,
 } from './run-qualification.mjs';
 
 const silentLogger = { error: () => undefined };
 
 describe('qualification runner', () => {
+  test('runs npm through the Node CLI entry point without a shell-specific launcher', () => {
+    const invocation = createNpmInvocation(['test', '-w', 'packages/imposition'], {
+      nodeExecutable: 'C:\\Program Files\\nodejs\\node.exe',
+      npmCliPath: 'C:\\Program Files\\nodejs\\node_modules\\npm\\bin\\npm-cli.js',
+    });
+
+    assert.deepEqual(invocation, {
+      command: 'C:\\Program Files\\nodejs\\node.exe',
+      args: [
+        'C:\\Program Files\\nodejs\\node_modules\\npm\\bin\\npm-cli.js',
+        'test',
+        '-w',
+        'packages/imposition',
+      ],
+    });
+    assert.equal(invocation.command.endsWith('.cmd'), false);
+    assert.equal(path.basename(resolveNpmCliPath()), 'npm-cli.js');
+    assert.equal(
+      qualificationSuites.every(
+        ({ command, args }) => command === process.execPath && args[0] === resolveNpmCliPath(),
+      ),
+      true,
+    );
+  });
+
   test('cleans stale artifacts, runs every suite, and builds a passed dashboard', async () => {
     let cleanCalls = 0;
     const steps = [];

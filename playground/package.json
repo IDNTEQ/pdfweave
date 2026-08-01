@@ -21,6 +21,7 @@
     "@pdfweave/common": "file:../packages/common",
     "@pdfweave/converter": "file:../packages/converter",
     "@pdfweave/generator": "file:../packages/generator",
+    "@pdfweave/imposition": "file:../packages/imposition",
     "@pdfweave/schemas": "file:../packages/schemas",
     "@pdfweave/ui": "file:../packages/ui",
     "@sentry/react": "^10.60.0",

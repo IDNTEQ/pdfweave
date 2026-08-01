@@ -13,6 +13,7 @@ import {
   rgb,
 } from '@pdfweave/pdf-lib';
 import { impose, planImposition } from '../src/index.js';
+import { inspectSourcePages } from '../src/pageBoxes.js';
 import { addLinkAnnotation, createSourcePdf, pdfToImages } from './helpers.js';
 
 const getFormXObjects = (document: PDFDocument): PDFStream[] =>
@@ -171,6 +172,18 @@ describe('impose', () => {
         message: 'Source page 0 has no trim box; using crop box',
       },
     ]);
+  });
+
+  test('attributes scaled fallback geometry errors to the selected crop box', async () => {
+    const sourceDocument = await PDFDocument.create();
+    const page = sourceDocument.addPage([100, 100]);
+    page.setMediaBox(0, 0, Number.MAX_VALUE, Number.MAX_VALUE);
+    page.setCropBox(0, 0, Number.MAX_VALUE, Number.MAX_VALUE);
+    page.node.set(PDFName.of('UserUnit'), PDFNumber.of(2));
+
+    expect(() => inspectSourcePages([page], [0], 'trim')).toThrow(
+      '[@pdfweave/imposition] Source page 0 has an invalid crop box',
+    );
   });
 
   test.each([

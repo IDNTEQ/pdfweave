@@ -19,9 +19,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: '24'
           registry-url: 'https://registry.npmjs.org'
@@ -76,9 +76,9 @@ jobs:
         package: [common, pdf-lib, schemas, generator, imposition, ui, cli, converter, manipulator]
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: '24'
           registry-url: 'https://registry.npmjs.org'
@@ -99,6 +99,8 @@ jobs:
           VERSION="${GITHUB_REF#refs/tags/v}"
           export VERSION
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          NPM_DIST_TAG="$(node scripts/npm-dist-tag.mjs "$VERSION")"
+          echo "NPM_DIST_TAG=$NPM_DIST_TAG" >> "$GITHUB_ENV"
 
           node <<'NODE'
           const fs = require('node:fs');
@@ -151,7 +153,7 @@ jobs:
 
       - name: Publish
         if: steps.published-version.outputs.exists != 'true'
-        run: npm publish --provenance --access public -w packages/${{ matrix.package }}
+        run: npm publish --provenance --access public --tag "$NPM_DIST_TAG" -w packages/${{ matrix.package }}
 
       - name: Report existing version
         if: steps.published-version.outputs.exists == 'true'
@@ -166,7 +168,20 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Install the repository-pinned npm
+        run: npm install -g npm@11.12.1
+
+      - run: npm ci
+
+      - name: Build qualification dashboard
+        run: npm run qualification
 
       - name: Create release
         env:
@@ -175,4 +190,5 @@ jobs:
           VERSION="${GITHUB_REF#refs/tags/v}"
           gh release create "${{ github.ref_name }}" \
             --title "PDFweave v$VERSION" \
-            --notes "See [CHANGELOG.md](https://github.com/IDNTEQ/pdfweave/blob/main/CHANGELOG.md) for details."
+            --notes "See [CHANGELOG.md](https://github.com/IDNTEQ/pdfweave/blob/main/CHANGELOG.md) for details." \
+            "test-artifacts/qualification-report.html#PDFweave qualification dashboard"

@@ -9,7 +9,7 @@ a focused scope. Here's how to be effective.
 
 PDFweave is an npm-workspaces monorepo. Nine packages:
 
-```
+```text
 packages/
   common/       — shared types, dynamic-template (reflow), binding/anchor helpers
   pdf-lib/      — vendored fork of pdf-lib with PDFweave-specific tweaks

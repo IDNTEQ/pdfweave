@@ -82,6 +82,11 @@ To inspect supported production features alongside their exact tests and
 rendered PDF evidence, run `npm run qualification` and open
 `test-artifacts/qualification-report.html`.
 
+For pull requests, open the [Testing workflow](https://github.com/IDNTEQ/pdfweave/actions/workflows/test.yml),
+select the run, and download `pdfweave-qualification-report` from its Summary
+page. The artifact is retained for 14 days; extract it and open
+`qualification-report.html`.
+
 For data binding, anchor layouts, smart tables, and stationery PDFs —
 see the docs at [pdfweave.dev](https://pdfweave.dev) (coming soon).
 
@@ -109,7 +114,7 @@ the new features, switching is one find-and-replace and a `pnpm install`.
 | Smart table reflow with header repeat | ✅ |
 | Designer binding panel (drag-from-data, JSON-path picker) | ✅ |
 | `StationeryPdf` basePdf shape (single-page PDF stamped on every page) | ✅ |
-| Simplex n-up imposition on A2/A3/A4/custom sheets | ✅ |
+| Simplex n-up imposition on A2-A6, Letter, Legal, and custom sheets | ✅ |
 | Page selection, copies, and collated/uncollated imposition | ✅ |
 | Duplex, booklet signatures, crop/registration marks, and creep | Planned |
 | Plugin `measure` hook for layout-aware schemas | ✅ |

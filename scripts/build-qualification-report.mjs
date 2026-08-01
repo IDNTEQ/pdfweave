@@ -497,11 +497,15 @@ export const buildHtml = ({
   const visualFeatures = features.filter((feature) => feature.evidenceKind !== 'logic').length;
   const availableScenarios = scenarios.filter((scenario) => scenario.available).length;
   const featureStatuses = features.map((feature) => feature.status);
-  const qualificationStatus = featureStatuses.some((status) => status === 'failed')
-    ? 'failed'
-    : featureStatuses.length > 0 && featureStatuses.every((status) => status === 'passed')
-      ? 'passed'
-      : 'incomplete';
+  const qualificationStatus =
+    runOutcome === 'failed' || featureStatuses.some((status) => status === 'failed')
+      ? 'failed'
+      : runOutcome === 'passed' &&
+          featureStatuses.length > 0 &&
+          featureStatuses.every((status) => status === 'passed') &&
+          availableScenarios === scenarios.length
+        ? 'passed'
+        : 'incomplete';
   const statusClass = qualificationStatus === 'incomplete' ? 'unknown' : qualificationStatus;
   const statusLabel =
     qualificationStatus === 'passed'
@@ -675,7 +679,7 @@ export const buildHtml = ({
         <span class="status ${statusClass}">Feature qualification: ${statusLabel}</span>
         <span>Package feature-test command: <strong>${runLabel}</strong></span>
         <span>JUnit testcases read: <strong>${String(testCaseCount)}</strong></span>
-        <span>Revision: <code>${escapeHtml(revision)}</code></span>
+        <span>Report revision: <code>${escapeHtml(revision)}</code></span>
         <span>Generated: <time datetime="${escapeHtml(generatedAt)}">${escapeHtml(generatedAt)}</time></span>
         <span>Node: <code>${escapeHtml(process.version)}</code></span>
       </div>

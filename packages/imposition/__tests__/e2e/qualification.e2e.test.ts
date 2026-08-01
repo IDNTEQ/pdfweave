@@ -1,4 +1,4 @@
-import { PDFDocument, StandardFonts, rgb, type PDFPage } from '@pdfweave/pdf-lib';
+import { PDFDocument, StandardFonts, rgb } from '@pdfweave/pdf-lib';
 import {
   impose,
   MM_TO_PT,

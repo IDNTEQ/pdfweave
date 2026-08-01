@@ -7,7 +7,7 @@ import {
   treatsLikeBlank,
 } from '@pdfweave/common';
 import { createSingleTable } from './tableHelper.js';
-import { getBodyWithRange, getBody } from './helper.js';
+import { getBodyWithRange } from './helper.js';
 import { TableSchema } from './types.js';
 
 const PRE_PAGINATED_HEIGHTS = Symbol.for('@pdfweave/pre-paginated-dynamic-heights');
@@ -32,10 +32,7 @@ const measureTableRows = async (value: string, args: DynamicTableArgs) => {
     (Array.isArray(schema.headWidthPercentages) && schema.headWidthPercentages.length) ||
     (Array.isArray(schema.head) && schema.head.length) ||
     undefined;
-  const body =
-    schema.__bodyRange?.start === 0
-      ? getBody(value, columnCount)
-      : getBodyWithRange(value, schema.__bodyRange, columnCount);
+  const body = getBodyWithRange(value, schema.__bodyRange, columnCount);
   const table = await createSingleTable(body, args);
 
   const baseHeights = schema.showHead

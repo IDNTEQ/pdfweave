@@ -5,12 +5,12 @@ The artifact suite includes production-shaped, multi-page render cases for:
 - an invoice with bound line items, repeated table headings, and subtotal, tax, and total rows;
 - a bank extract with bound transactions, repeated table headings, running balances, and a closing-balance row;
 - seven boleto-style items packed three-up over three A4 sheets;
-- five A5 client statements packed four-up over two landscape A3 sheets.
+- five A5 client statements packed four-up over two landscape A3 sheets;
 - one hundred client invoice statements in one PDF with one shared logo/font resource;
 - every named paper preset and a custom millimeter sheet;
 - contain, cover, none, alignment, upscale, clipping, and auto-rotation modes;
 - media, crop, bleed, trim, and art source boxes with fallback warnings;
-- intrinsic 0, 90, 180, and 270 degree page rotation;
+- intrinsic page rotation at 0, 90, 180, and 270 degrees;
 - row-major, column-major, collated, and uncollated ordering.
 
 The regular generator suite separately includes a 100-document batch test that verifies every client value and constant logo reaches the renderer while the shared image and font are embedded only once in the output PDF.
@@ -33,9 +33,12 @@ Open that HTML file directly in a browser. It contains the feature matrix,
 expandable test source, embedded PDFs, every rendered PNG, manifests, and PDF
 SHA-256 values. No development server or network access is required.
 
-To regenerate only the PDFs and PNGs, use `npm run test:render-artifacts`. To
-rebuild the page from already-generated evidence, use
-`npm run qualification:build`.
+For a visual-development loop, `npm run test:render-artifacts` regenerates every
+catalogued PDF and PNG. `npm run qualification:build` rebuilds the presentation
+from whatever evidence and JUnit files are already present; without an
+authoritative test-run outcome, the page reports the qualification as
+incomplete. Always use `npm run qualification` when producing evidence for the
+current revision.
 
 Generated files are written to:
 
@@ -55,8 +58,12 @@ updated.
 
 Pull-request CI publishes the consolidated page as the
 `pdfweave-qualification-report` artifact for 14 days and adds its download URL
-to the workflow summary. The original `complex-pdf-renders` and
-`imposition-renders` artifacts remain available for direct file access. When an
-image comparison fails, CI also publishes `visual-diff-diagnostics` with the
-actual render and available diff output. JUnit results are published as a
+to the workflow summary. GitHub delivers the artifact as a ZIP; extract it and
+open `qualification-report.html`. When their producing tests run, the original
+`complex-pdf-renders` and `imposition-renders` artifacts are also uploaded for
+direct file access. Test setup failures after dependencies are installed can
+leave those render artifacts absent while the diagnostic dashboard records the
+incomplete run. When an image comparison fails, CI also publishes
+`visual-diff-diagnostics` with the actual render and available diff output.
+JUnit results are published as a
 Checks report, while coverage artifacts remain separate.
