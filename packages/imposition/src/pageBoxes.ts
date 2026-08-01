@@ -27,7 +27,7 @@ const normalizeRotation = (angle: number, pageIndex: number): RotationAngle => {
 };
 
 const getUserUnit = (page: PDFPage, pageIndex: number): number => {
-  let userUnit = 1;
+  let userUnit: number;
   try {
     userUnit = page.node.lookupMaybe(PDFName.of('UserUnit'), PDFNumber)?.asNumber() ?? 1;
   } catch {
