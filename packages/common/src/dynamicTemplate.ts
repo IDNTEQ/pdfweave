@@ -78,6 +78,10 @@ type LayoutUnitFragmentSource = 'dynamicHeights' | 'prePaginatedHeights' | 'frag
 
 const PRE_PAGINATED_HEIGHTS = Symbol.for('@pdfweave/pre-paginated-dynamic-heights');
 
+interface PrePaginatedHeightsMetadata {
+  rawHeights: number[];
+}
+
 type LayoutUnitFragment = LayoutFragment & {
   height: number;
   __source: LayoutUnitFragmentSource;
@@ -136,6 +140,13 @@ function layoutFragmentsFromHeights(
 ): LayoutUnitFragment[] {
   return heights.map((height) => ({ height, __source: source }));
 }
+
+const getRawPrePaginatedHeights = (heights: number[]): number[] | undefined => {
+  const metadata = Reflect.get(heights, PRE_PAGINATED_HEIGHTS) as unknown;
+  if (!metadata || typeof metadata !== 'object' || !('rawHeights' in metadata)) return undefined;
+  const { rawHeights } = metadata as PrePaginatedHeightsMetadata;
+  return Array.isArray(rawHeights) ? rawHeights : undefined;
+};
 
 function getLayoutFragmentsFromLayoutResult(
   schema: Schema,
@@ -578,6 +589,13 @@ async function measurePageItem(
   }
   if (ctx.getDynamicHeights) {
     const heights = await ctx.getDynamicHeights(value, measureArgs);
+    const rawHeights = getRawPrePaginatedHeights(heights);
+    if (rawHeights) {
+      return layoutFragmentsFromHeights(
+        rawHeights.length === 0 ? [0] : rawHeights,
+        'dynamicHeights',
+      );
+    }
     const source = Reflect.get(heights, PRE_PAGINATED_HEIGHTS)
       ? 'prePaginatedHeights'
       : 'dynamicHeights';

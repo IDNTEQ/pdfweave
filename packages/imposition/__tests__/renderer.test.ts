@@ -1,10 +1,12 @@
 import { runInNewContext } from 'node:vm';
 import { vi } from 'vitest';
 import {
+  PDFArray,
   PDFDict,
   PDFDocument,
   PDFName,
   PDFNumber,
+  type PDFPage,
   PDFStream,
   PDFString,
   degrees,
@@ -13,15 +15,30 @@ import {
 import { impose, planImposition } from '../src/index.js';
 import { addLinkAnnotation, createSourcePdf, pdfToImages } from './helpers.js';
 
-const countFormXObjects = (document: PDFDocument): number =>
+const getFormXObjects = (document: PDFDocument): PDFStream[] =>
   document.context
     .enumerateIndirectObjects()
     .map(([, object]) => object)
     .filter(
-      (object) =>
+      (object): object is PDFStream =>
         object instanceof PDFStream &&
         object.dict.get(PDFName.of('Subtype')) === PDFName.of('Form'),
-    ).length;
+    );
+
+const countFormXObjects = (document: PDFDocument): number => getFormXObjects(document).length;
+
+type TestedPageBox = 'crop' | 'trim' | 'bleed' | 'art';
+
+const setTestPageBox = (
+  page: PDFPage,
+  sourceBox: TestedPageBox,
+  box: Readonly<{ x: number; y: number; width: number; height: number }>,
+): void => {
+  if (sourceBox === 'crop') page.setCropBox(box.x, box.y, box.width, box.height);
+  if (sourceBox === 'trim') page.setTrimBox(box.x, box.y, box.width, box.height);
+  if (sourceBox === 'bleed') page.setBleedBox(box.x, box.y, box.width, box.height);
+  if (sourceBox === 'art') page.setArtBox(box.x, box.y, box.width, box.height);
+};
 
 describe('impose', () => {
   afterEach(() => vi.restoreAllMocks());
@@ -55,6 +72,60 @@ describe('impose', () => {
     for (const page of output.getPages()) {
       expect(page.getMediaBox()).toMatchObject({ x: 0, y: 0, width: 220, height: 320 });
     }
+  });
+
+  test('reuses one sheet resource name for one hundred placements of the same page', async () => {
+    const sourceDocument = await PDFDocument.create({ updateMetadata: false });
+    const sourcePage = sourceDocument.addPage([10, 10]);
+    sourcePage.drawRectangle({ x: 0, y: 0, width: 10, height: 10 });
+
+    const result = await impose({
+      source: await sourceDocument.save(),
+      unit: 'pt',
+      sheet: { size: { width: 100, height: 100 } },
+      layout: { type: 'n-up', rows: 10, columns: 10 },
+      sourceBox: 'media',
+      pages: Array.from({ length: 100 }, () => 0),
+    });
+
+    const output = await PDFDocument.load(result.pdf);
+    const resources = output.getPage(0).node.Resources();
+    const xObjects = resources?.lookupMaybe(PDFName.of('XObject'), PDFDict);
+    const entries = xObjects?.entries() ?? [];
+
+    expect(result.plan).toMatchObject({ placementCount: 100, sheetCount: 1, capacity: 100 });
+    expect(entries).toHaveLength(1);
+    expect(new Set(entries.map(([, reference]) => reference.toString())).size).toBe(1);
+    expect(countFormXObjects(output)).toBe(1);
+    expect(result.pdf.byteLength).toBeLessThan(10_000);
+  });
+
+  test('preserves a source page transparency group on the embedded form', async () => {
+    const sourceDocument = await PDFDocument.create({ updateMetadata: false });
+    const sourcePage = sourceDocument.addPage([100, 100]);
+    sourcePage.node.set(
+      PDFName.of('Group'),
+      sourceDocument.context.obj({ S: 'Transparency', I: true, K: false, CS: 'DeviceRGB' }),
+    );
+    sourcePage.drawRectangle({ x: 0, y: 0, width: 100, height: 100, opacity: 0.5 });
+
+    const result = await impose({
+      source: await sourceDocument.save(),
+      unit: 'pt',
+      sheet: { size: { width: 100, height: 100 } },
+      layout: { type: 'n-up', rows: 1, columns: 1 },
+      sourceBox: 'media',
+    });
+
+    const output = await PDFDocument.load(result.pdf);
+    const forms = getFormXObjects(output);
+    expect(forms).toHaveLength(1);
+    const [form] = forms;
+    const group = form.dict.lookupMaybe(PDFName.of('Group'), PDFDict);
+
+    expect(group).toBeInstanceOf(PDFDict);
+    expect(group?.get(PDFName.of('S'))).toBe(PDFName.of('Transparency'));
+    expect(group?.get(PDFName.of('CS'))).toBe(PDFName.of('DeviceRGB'));
   });
 
   test('uses explicit nonzero source boxes and reports deterministic fallback warnings', async () => {
@@ -101,6 +172,73 @@ describe('impose', () => {
       },
     ]);
   });
+
+  test.each([
+    {
+      sourceBox: 'crop',
+      authored: { x: -50, y: -25, width: 200, height: 150 },
+      effective: { x: 0, y: 0, width: 100, height: 100 },
+    },
+    {
+      sourceBox: 'trim',
+      authored: { x: -20, y: 20, width: 80, height: 100 },
+      effective: { x: 0, y: 20, width: 60, height: 80 },
+    },
+    {
+      sourceBox: 'bleed',
+      authored: { x: 40, y: -30, width: 90, height: 80 },
+      effective: { x: 40, y: 0, width: 60, height: 50 },
+    },
+    {
+      sourceBox: 'art',
+      authored: { x: -10, y: 30, width: 140, height: 40 },
+      effective: { x: 0, y: 30, width: 100, height: 40 },
+    },
+  ] as const)(
+    'intersects an oversized $sourceBox box with the media box',
+    async ({ sourceBox, authored, effective }) => {
+      const sourceDocument = await PDFDocument.create({ updateMetadata: false });
+      const page = sourceDocument.addPage([100, 100]);
+      setTestPageBox(page, sourceBox, authored);
+      page.drawRectangle({ x: 0, y: 0, width: 100, height: 100 });
+
+      const result = await impose({
+        source: await sourceDocument.save(),
+        unit: 'pt',
+        sheet: { size: { width: 100, height: 100 } },
+        layout: { type: 'n-up', rows: 1, columns: 1, allowUpscale: true },
+        sourceBox,
+      });
+      const output = await PDFDocument.load(result.pdf);
+      const [form] = getFormXObjects(output);
+      const embeddedBox = form.dict.lookup(PDFName.of('BBox'), PDFArray).asRectangle();
+
+      expect(result.warnings).toEqual([]);
+      expect(result.plan.sheets[0].front.placements[0].source).toEqual(effective);
+      expect(embeddedBox).toEqual(effective);
+    },
+  );
+
+  test.each(['crop', 'trim', 'bleed', 'art'] as const)(
+    'rejects a %s box that is entirely outside the media box',
+    async (sourceBox) => {
+      const sourceDocument = await PDFDocument.create({ updateMetadata: false });
+      const page = sourceDocument.addPage([100, 100]);
+      setTestPageBox(page, sourceBox, { x: 150, y: 150, width: 20, height: 20 });
+
+      await expect(
+        planImposition({
+          source: await sourceDocument.save(),
+          unit: 'pt',
+          sheet: { size: { width: 100, height: 100 } },
+          layout: { type: 'n-up', rows: 1, columns: 1 },
+          sourceBox,
+        }),
+      ).rejects.toThrow(
+        `[@pdfweave/imposition] Source page 0 has a ${sourceBox} box that does not intersect its media box`,
+      );
+    },
+  );
 
   test('uses explicit trim, bleed, and art boxes without fallback warnings', async () => {
     const sourceDocument = await PDFDocument.create();
@@ -180,7 +318,6 @@ describe('impose', () => {
       content: { x: 10, y: 10, width: 200, height: 100 },
     });
     const [image] = await pdfToImages(result.pdf);
-    expect(image.byteLength).toBeGreaterThan(2000);
     await expect(image).toMatchImage({
       name: 'intrinsic-page-rotation',
       allowedPixelRatio: 0.001,

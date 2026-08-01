@@ -12,6 +12,10 @@ import { TableSchema } from './types.js';
 
 const PRE_PAGINATED_HEIGHTS = Symbol.for('@pdfweave/pre-paginated-dynamic-heights');
 
+interface PrePaginatedHeightsMetadata {
+  rawHeights: number[];
+}
+
 export interface DynamicTableArgs {
   schema: Schema;
   basePdf: BasePdf;
@@ -117,6 +121,7 @@ export const getDynamicHeightsForTable = async (
     }
   }
 
-  Object.defineProperty(result, PRE_PAGINATED_HEIGHTS, { value: true });
+  const metadata: PrePaginatedHeightsMetadata = { rawHeights: [...baseHeights] };
+  Object.defineProperty(result, PRE_PAGINATED_HEIGHTS, { value: metadata });
   return result;
 };

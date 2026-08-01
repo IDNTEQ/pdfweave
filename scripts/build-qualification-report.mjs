@@ -10,6 +10,8 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
 const catalogPath = path.join(repoRoot, 'docs', 'testing', 'qualification-cases.json');
 const outputPath = path.join(repoRoot, 'test-artifacts', 'qualification-report.html');
 const validEvidenceKinds = new Set(['visual', 'hybrid', 'logic']);
+const catalogIdPattern = /^[a-z0-9](?:[a-z0-9-]{0,127})$/;
+const artifactFilenamePattern = /^[A-Za-z0-9](?:[A-Za-z0-9._-]{0,254})$/;
 
 const fail = (message) => {
   throw new Error(`[@pdfweave/qualification-report] ${message}`);
@@ -44,6 +46,9 @@ const assertUniqueIds = (items, label) => {
     if (!item || typeof item.id !== 'string' || item.id.length === 0) {
       fail(`${label} contains an item without an id`);
     }
+    if (!catalogIdPattern.test(item.id)) {
+      fail(`${label} contains invalid id '${item.id}'`);
+    }
     if (ids.has(item.id)) fail(`${label} contains duplicate id '${item.id}'`);
     ids.add(item.id);
   }
@@ -52,6 +57,18 @@ const assertUniqueIds = (items, label) => {
 const assertNonEmptyString = (value, label) => {
   if (typeof value !== 'string' || value.length === 0) fail(`${label} must be a non-empty string`);
 };
+
+const assertArtifactFilename = (value, extension, label) => {
+  if (!artifactFilenamePattern.test(value) || !value.toLowerCase().endsWith(extension)) {
+    fail(`${label} must be a safe ${extension} filename`);
+  }
+};
+
+export const serializeInlineScriptData = (value) =>
+  JSON.stringify(value)
+    .replaceAll('<', '\\u003c')
+    .replaceAll('\u2028', '\\u2028')
+    .replaceAll('\u2029', '\\u2029');
 
 export const validateCatalog = (catalog) => {
   if (!catalog || typeof catalog !== 'object') fail('Catalog must be an object');
@@ -68,6 +85,8 @@ export const validateCatalog = (catalog) => {
     for (const field of ['id', 'title', 'description', 'artifactDirectory', 'pdf', 'manifest']) {
       assertNonEmptyString(scenario[field], `Scenario '${scenario.id ?? 'unknown'}' ${field}`);
     }
+    assertArtifactFilename(scenario.pdf, '.pdf', `Scenario '${scenario.id}' PDF`);
+    assertArtifactFilename(scenario.manifest, '.json', `Scenario '${scenario.id}' manifest`);
   }
 
   const scenarioIds = new Set(catalog.scenarios.map((scenario) => scenario.id));
@@ -494,7 +513,7 @@ export const buildHtml = ({
   const pdfAssets = Object.fromEntries(
     scenarios
       .filter((scenario) => scenario.available)
-      .map((scenario) => [scenario.id, { name: scenario.pdf, base64: scenario.pdfBase64 }]),
+      .map((scenario) => [scenario.id, { base64: scenario.pdfBase64 }]),
   );
 
   return `<!doctype html>
@@ -698,16 +717,19 @@ export const buildHtml = ({
   </main>
   <footer><div class="shell">Generated from <code>docs/testing/qualification-cases.json</code> and Vitest JUnit results. Coverage and CRAP are separate CI gates and are not represented by the feature-test command status.</div></footer>
   <script>
-    const pdfAssets = ${JSON.stringify(pdfAssets)};
+    const pdfAssets = ${serializeInlineScriptData(pdfAssets)};
     const decodeBase64 = (value) => {
       const binary = atob(value);
       const bytes = new Uint8Array(binary.length);
       for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
       return bytes;
     };
+    const pdfLinks = [...document.querySelectorAll('[data-pdf-id]')];
     for (const [id, asset] of Object.entries(pdfAssets)) {
       const url = URL.createObjectURL(new Blob([decodeBase64(asset.base64)], { type: 'application/pdf' }));
-      for (const link of document.querySelectorAll('[data-pdf-id="' + id + '"]')) link.href = url;
+      for (const link of pdfLinks) {
+        if (link.dataset.pdfId === id) link.href = url;
+      }
     }
     const search = document.querySelector('#feature-search');
     const category = document.querySelector('#category-filter');

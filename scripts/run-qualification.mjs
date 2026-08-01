@@ -1,0 +1,140 @@
+import { spawnSync } from 'node:child_process';
+import { rm } from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const npmExecutable = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+
+export const qualificationJUnitPaths = [
+  'packages/generator/test-results.xml',
+  'packages/imposition/test-results.xml',
+];
+
+export const qualificationArtifactPaths = [
+  'packages/generator/test-artifacts/complex-documents',
+  'packages/generator/test-artifacts/resource-reuse',
+  'packages/imposition/test-artifacts/n-up',
+  ...qualificationJUnitPaths,
+  'test-artifacts/qualification-report.html',
+];
+
+export const qualificationSetup = {
+  label: 'Prepare generated version metadata',
+  command: process.execPath,
+  args: ['packages/common/set-version.js'],
+};
+
+export const qualificationSuites = [
+  {
+    label: 'Generator qualification tests',
+    command: npmExecutable,
+    args: [
+      'test',
+      '-w',
+      'packages/generator',
+      '--',
+      '__tests__/complex-documents.test.ts',
+      '__tests__/embed-once.test.ts',
+      '--reporter=default',
+      '--reporter=junit',
+      '--outputFile=test-results.xml',
+    ],
+  },
+  {
+    label: 'Imposition qualification tests',
+    command: npmExecutable,
+    args: [
+      'test',
+      '-w',
+      'packages/imposition',
+      '--',
+      '--reporter=default',
+      '--reporter=junit',
+      '--outputFile=test-results.xml',
+    ],
+  },
+];
+
+const cleanArtifacts = async () => {
+  const results = await Promise.allSettled(
+    qualificationArtifactPaths.map((artifactPath) =>
+      rm(path.join(repoRoot, artifactPath), { recursive: true, force: true }),
+    ),
+  );
+  const failures = results.flatMap((result) =>
+    result.status === 'rejected' ? [result.reason] : [],
+  );
+  if (failures.length > 0) {
+    throw new AggregateError(
+      failures,
+      'One or more stale qualification artifacts could not be removed',
+    );
+  }
+};
+
+const runCommand = ({ command, args }) => {
+  const result = spawnSync(command, args, {
+    cwd: repoRoot,
+    env: process.env,
+    stdio: 'inherit',
+  });
+  if (result.error) throw result.error;
+  return result.status ?? 1;
+};
+
+const reportFailure = (label, error, logger) => {
+  const message = error instanceof Error ? error.message : String(error);
+  logger.error(`[@pdfweave/qualification] ${label}: ${message}`);
+};
+
+const execute = async (step, executeCommand, logger) => {
+  try {
+    const status = await executeCommand(step);
+    if (status !== 0) {
+      logger.error(`[@pdfweave/qualification] ${step.label} exited with status ${String(status)}`);
+      return false;
+    }
+    return true;
+  } catch (error) {
+    reportFailure(step.label, error, logger);
+    return false;
+  }
+};
+
+export const runQualification = async ({
+  clean = cleanArtifacts,
+  executeCommand = runCommand,
+  logger = console,
+} = {}) => {
+  let testsPassed = true;
+
+  try {
+    await clean();
+  } catch (error) {
+    reportFailure('Could not clean stale qualification artifacts', error, logger);
+    testsPassed = false;
+  }
+
+  if (!(await execute(qualificationSetup, executeCommand, logger))) testsPassed = false;
+  for (const suite of qualificationSuites) {
+    if (!(await execute(suite, executeCommand, logger))) testsPassed = false;
+  }
+
+  const dashboard = {
+    label: 'Build qualification dashboard',
+    command: process.execPath,
+    args: [
+      'scripts/build-qualification-report.mjs',
+      `--status=${testsPassed ? 'passed' : 'failed'}`,
+      ...qualificationJUnitPaths.map((junitPath) => `--junit=${junitPath}`),
+    ],
+  };
+  const dashboardPassed = await execute(dashboard, executeCommand, logger);
+
+  return testsPassed && dashboardPassed ? 0 : 1;
+};
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  process.exitCode = await runQualification();
+}

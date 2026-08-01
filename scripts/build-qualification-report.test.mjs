@@ -6,6 +6,7 @@ import {
   deriveFeatureStatus,
   mapTestReference,
   parseJUnitReport,
+  serializeInlineScriptData,
   validateCatalog,
 } from './build-qualification-report.mjs';
 
@@ -112,6 +113,24 @@ describe('qualification catalog validation', () => {
     unknown.features[0].scenarios = ['missing'];
     assert.throws(() => validateCatalog(unknown), /references unknown scenario 'missing'/);
   });
+
+  test('rejects unsafe catalog ids and artifact filenames', () => {
+    const unsafeFeature = catalog();
+    unsafeFeature.features[0].id = '</script>';
+    assert.throws(() => validateCatalog(unsafeFeature), /features contains invalid id/);
+
+    const unsafeScenario = catalog();
+    unsafeScenario.scenarios[0].id = 'evidence one';
+    assert.throws(() => validateCatalog(unsafeScenario), /scenarios contains invalid id/);
+
+    const unsafePdf = catalog();
+    unsafePdf.scenarios[0].pdf = '../evidence-one.pdf';
+    assert.throws(() => validateCatalog(unsafePdf), /must be a safe \.pdf filename/);
+
+    const unsafeManifest = catalog();
+    unsafeManifest.scenarios[0].manifest = 'manifest.html';
+    assert.throws(() => validateCatalog(unsafeManifest), /must be a safe \.json filename/);
+  });
 });
 
 describe('JUnit result mapping', () => {
@@ -166,6 +185,33 @@ describe('JUnit result mapping', () => {
 });
 
 describe('qualification HTML', () => {
+  test('keeps serialized report data inside the executable script', () => {
+    const breakout = '</script><img id=qualification-xss src=x><script>';
+    const serialized = serializeInlineScriptData({ breakout, separator: '\u2028' });
+    assert.equal(serialized.includes('</script>'), false);
+    assert.equal(serialized.includes('\u2028'), false);
+    assert.match(serialized, /\\u003c\/script>/);
+    assert.match(serialized, /\\u2028/);
+
+    const html = render({
+      features: [feature({ scenarios: [breakout] })],
+      scenarios: [scenario({ id: breakout })],
+    });
+    const dom = new JSDOM(html, {
+      runScripts: 'dangerously',
+      beforeParse(window) {
+        window.URL.createObjectURL = () => 'blob:qualification-safe';
+      },
+    });
+
+    assert.equal(dom.window.document.querySelector('#qualification-xss'), null);
+    assert.equal(dom.window.document.querySelectorAll('script').length, 1);
+    assert.equal(
+      dom.window.document.querySelector('[data-pdf-id]').href,
+      'blob:qualification-safe',
+    );
+  });
+
   test('escapes repository data and wires Blob PDF links and filters', () => {
     const first = feature({ name: '<img id="injected"> Alpha' });
     const second = feature({

@@ -74,6 +74,14 @@
       "artifactDirectory": "packages/generator/test-artifacts/complex-documents/complex-bank-extract",
       "pdf": "complex-bank-extract.pdf",
       "manifest": "manifest.json"
+    },
+    {
+      "id": "100-client-statements",
+      "title": "100 client invoice statements",
+      "description": "One 100-page A4 PDF with unique client, invoice, date, service, and amount data while the constant logo and font are embedded once.",
+      "artifactDirectory": "packages/generator/test-artifacts/resource-reuse/100-client-statements",
+      "pdf": "100-client-statements.pdf",
+      "manifest": "manifest.json"
     }
   ],
   "features": [
@@ -368,20 +376,25 @@
     {
       "id": "resource-reuse",
       "category": "Performance",
-      "name": "Source pages embedded once and reused",
+      "name": "Shared resources across 100 client statements",
       "evidenceKind": "hybrid",
-      "definition": "The input PDF is loaded once and every unique source page becomes one reusable Form XObject, independent of copies or sheet count.",
+      "definition": "A single 100-page PDF repeats variable invoice-statement data for 100 clients while embedding the constant logo and font once; imposition likewise reuses every unique source page Form.",
       "assertions": [
         "One source load and one embedPages call are asserted.",
-        "Only two Form XObjects exist for twelve placements of two source pages."
+        "Only two Form XObjects exist for twelve placements of two source pages.",
+        "The generator emits 100 client pages with one image embed and one font embed, bounded PDF size, exact client coverage, and inspectable page renders."
       ],
       "tests": [
         {
           "file": "packages/imposition/__tests__/renderer.test.ts",
           "title": "loads once, embeds each unique source page once, and reuses forms across sheets"
+        },
+        {
+          "file": "packages/generator/__tests__/embed-once.test.ts",
+          "title": "shares constant image and font resources across 100 statement pages"
         }
       ],
-      "scenarios": ["a4-boleto-booklet"]
+      "scenarios": ["100-client-statements", "a4-boleto-booklet"]
     },
     {
       "id": "invoice-totals",

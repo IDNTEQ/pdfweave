@@ -13,6 +13,7 @@ export interface SourcePageDescriptor {
 
 interface BoxSelection {
   box: Rectangle;
+  kind: SourcePageBox;
   fallback?: 'crop' | 'media';
 }
 
@@ -42,22 +43,24 @@ const getUserUnit = (page: PDFPage, pageIndex: number): number => {
   return userUnit;
 };
 
-const selectBox = (page: PDFPage, sourceBox: SourcePageBox): BoxSelection => {
-  if (sourceBox === 'media') return { box: page.getMediaBox() };
+const selectBox = (page: PDFPage, mediaBox: Rectangle, sourceBox: SourcePageBox): BoxSelection => {
+  if (sourceBox === 'media') return { box: mediaBox, kind: 'media' };
 
   const hasCrop = Boolean(page.node.CropBox());
   if (sourceBox === 'crop') {
-    return hasCrop ? { box: page.getCropBox() } : { box: page.getMediaBox(), fallback: 'media' };
+    return hasCrop
+      ? { box: page.getCropBox(), kind: 'crop' }
+      : { box: mediaBox, kind: 'media', fallback: 'media' };
   }
 
   let explicitBox;
   if (sourceBox === 'trim') explicitBox = page.node.TrimBox();
   if (sourceBox === 'bleed') explicitBox = page.node.BleedBox();
   if (sourceBox === 'art') explicitBox = page.node.ArtBox();
-  if (explicitBox) return { box: explicitBox.asRectangle() };
+  if (explicitBox) return { box: explicitBox.asRectangle(), kind: sourceBox };
   return hasCrop
-    ? { box: page.getCropBox(), fallback: 'crop' }
-    : { box: page.getMediaBox(), fallback: 'media' };
+    ? { box: page.getCropBox(), kind: 'crop', fallback: 'crop' }
+    : { box: mediaBox, kind: 'media', fallback: 'media' };
 };
 
 const validateBox = (box: Rectangle, sourceBox: SourcePageBox, pageIndex: number): Rectangle => {
@@ -68,6 +71,24 @@ const validateBox = (box: Rectangle, sourceBox: SourcePageBox, pageIndex: number
     );
   }
   return { ...box };
+};
+
+const intersectWithMediaBox = (
+  box: Rectangle,
+  mediaBox: Rectangle,
+  boxKind: SourcePageBox,
+  pageIndex: number,
+): Rectangle => {
+  const x = Math.max(box.x, mediaBox.x);
+  const y = Math.max(box.y, mediaBox.y);
+  const right = Math.min(box.x + box.width, mediaBox.x + mediaBox.width);
+  const top = Math.min(box.y + box.height, mediaBox.y + mediaBox.height);
+  if (right <= x || top <= y) {
+    throw new ImpositionError(
+      `Source page ${String(pageIndex)} has a ${boxKind} box that does not intersect its media box`,
+    );
+  }
+  return { x, y, width: right - x, height: top - y };
 };
 
 export const inspectSourcePages = (
@@ -84,8 +105,10 @@ export const inspectSourcePages = (
       throw new ImpositionError(`Source page ${String(pageIndex)} does not exist`);
     }
 
-    const selection = selectBox(page, sourceBox);
-    const rawBox = validateBox(selection.box, sourceBox, pageIndex);
+    const mediaBox = validateBox(page.getMediaBox(), 'media', pageIndex);
+    const selection = selectBox(page, mediaBox, sourceBox);
+    const selectedBox = validateBox(selection.box, selection.kind, pageIndex);
+    const rawBox = intersectWithMediaBox(selectedBox, mediaBox, selection.kind, pageIndex);
     const userUnit = getUserUnit(page, pageIndex);
     const box = validateBox(
       {

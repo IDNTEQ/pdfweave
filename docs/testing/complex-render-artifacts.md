@@ -6,6 +6,7 @@ The artifact suite includes production-shaped, multi-page render cases for:
 - a bank extract with bound transactions, repeated table headings, running balances, and a closing-balance row;
 - seven boleto-style items packed three-up over three A4 sheets;
 - five A5 client statements packed four-up over two landscape A3 sheets.
+- one hundred client invoice statements in one PDF with one shared logo/font resource;
 - every named paper preset and a custom millimeter sheet;
 - contain, cover, none, alignment, upscale, clipping, and auto-rotation modes;
 - media, crop, bleed, trim, and art source boxes with fallback warnings;
@@ -40,6 +41,7 @@ Generated files are written to:
 
 ```text
 packages/generator/test-artifacts/complex-documents/
+packages/generator/test-artifacts/resource-reuse/
 packages/imposition/test-artifacts/n-up/
 ```
 

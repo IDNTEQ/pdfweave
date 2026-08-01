@@ -23,6 +23,11 @@ alignment, and `contain`, `cover`, or unscaled rendering. The result exposes
 the complete placement plan and warnings for page-box fallbacks or omitted
 annotations.
 
+`limits.maxPlacements` and `limits.maxSheets` bound planned output work. They
+do not currently cap serialized source bytes or decoded PDF streams. Until the
+bounded decoder/worker milestone lands, process untrusted PDFs in an isolated
+worker with external memory and time limits.
+
 Source page boxes and `/UserUnit` are normalized into physical PDF points in
 the plan. Custom sheet dimensions must normalize to 0.01-14,400 points.
 

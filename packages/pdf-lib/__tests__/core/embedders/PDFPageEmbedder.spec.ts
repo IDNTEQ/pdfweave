@@ -1,7 +1,10 @@
 import fs from 'fs';
 import { PDFDocument } from '../../../src/api';
 import {
+  PDFBool,
   PDFContext,
+  PDFDict,
+  PDFName,
   PDFPageEmbedder,
   PDFRawStream,
   PDFRef,
@@ -61,5 +64,31 @@ describe(`PDFPageEmbedder`, () => {
 
     expect(embedder.width).toEqual(122);
     expect(embedder.height).toEqual(233);
+  });
+
+  it(`preserves a page transparency group on the embedded Form XObject`, async () => {
+    const source = await PDFDocument.create();
+    const page = source.addPage([100, 100]);
+    page.drawText('transparent page');
+    page.node.set(
+      PDFName.of('Group'),
+      source.context.obj({
+        Type: 'Group',
+        S: 'Transparency',
+        CS: 'DeviceRGB',
+        I: true,
+        K: false,
+      }),
+    );
+
+    const output = await PDFDocument.create();
+    const embeddedPage = await output.embedPage(page);
+    await embeddedPage.embed();
+
+    const xObject = output.context.lookup(embeddedPage.ref, PDFRawStream);
+    const group = xObject.dict.lookup(PDFName.of('Group'), PDFDict);
+    expect(group.lookup(PDFName.of('S'), PDFName)).toBe(PDFName.of('Transparency'));
+    expect(group.lookup(PDFName.of('I'), PDFBool)).toBe(PDFBool.True);
+    expect(group.lookup(PDFName.of('K'), PDFBool)).toBe(PDFBool.False);
   });
 });

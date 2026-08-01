@@ -83,7 +83,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: complex-pdf-renders
-          path: packages/generator/test-artifacts/complex-documents/
+          path: packages/generator/test-artifacts/
           if-no-files-found: warn
           retention-days: 14
       - name: Upload imposition render artifacts

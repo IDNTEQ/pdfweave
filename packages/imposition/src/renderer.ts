@@ -1,8 +1,11 @@
 import {
   PDFDocument,
   type PDFEmbeddedPage,
+  PDFName,
+  type PDFPage,
   clip,
   degrees,
+  drawPage as drawEmbeddedPage,
   endPath,
   popGraphicsState,
   pushGraphicsState,
@@ -62,6 +65,21 @@ export const planImposition = async (props: ImposeProps): Promise<ImpositionPlan
 
 const clockwiseDegrees = (rotation: RotationAngle): number => (rotation === 0 ? 0 : -rotation);
 
+const getOrCreateSheetXObjectName = (args: {
+  names: Map<number, PDFName>;
+  page: PDFPage;
+  pageIndex: number;
+  embeddedPage: PDFEmbeddedPage;
+}): PDFName => {
+  const existing = args.names.get(args.pageIndex);
+  if (existing) return existing;
+
+  const name = PDFName.of(`PdfweaveSourcePage${String(args.pageIndex)}`);
+  args.page.node.setXObject(name, args.embeddedPage.ref);
+  args.names.set(args.pageIndex, name);
+  return name;
+};
+
 export const impose = async (props: ImposeProps): Promise<ImpositionResult> => {
   const { descriptors, plan } = await preparePlan(props);
   try {
@@ -102,6 +120,7 @@ export const impose = async (props: ImposeProps): Promise<ImpositionResult> => {
 
     for (const sheet of plan.sheets) {
       const page = output.addPage([plan.options.sheet.width, plan.options.sheet.height]);
+      const xObjectNames = new Map<number, PDFName>();
       for (const placement of sheet.front.placements) {
         const embeddedPage = embeddedByPage.get(placement.sourcePageIndex);
         if (!embeddedPage) {
@@ -109,6 +128,12 @@ export const impose = async (props: ImposeProps): Promise<ImpositionResult> => {
             `Source page ${String(placement.sourcePageIndex)} was not embedded`,
           );
         }
+        const xObjectName = getOrCreateSheetXObjectName({
+          names: xObjectNames,
+          page,
+          pageIndex: placement.sourcePageIndex,
+          embeddedPage,
+        });
         const { cell, content, scale, rotation, sourceUserUnit } = placement;
         const origin = getDrawOrigin(content, rotation);
         page.pushOperators(
@@ -116,15 +141,17 @@ export const impose = async (props: ImposeProps): Promise<ImpositionResult> => {
           rectangle(cell.x, cell.y, cell.width, cell.height),
           clip(),
           endPath(),
+          ...drawEmbeddedPage(xObjectName, {
+            x: origin.x,
+            y: origin.y,
+            xScale: scale * sourceUserUnit,
+            yScale: scale * sourceUserUnit,
+            rotate: degrees(clockwiseDegrees(rotation)),
+            xSkew: degrees(0),
+            ySkew: degrees(0),
+          }),
+          popGraphicsState(),
         );
-        page.drawPage(embeddedPage, {
-          x: origin.x,
-          y: origin.y,
-          xScale: scale * sourceUserUnit,
-          yScale: scale * sourceUserUnit,
-          rotate: degrees(clockwiseDegrees(rotation)),
-        });
-        page.pushOperators(popGraphicsState());
       }
     }
 

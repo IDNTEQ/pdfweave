@@ -93,6 +93,11 @@ pass on both supported Node lines without `EBADENGINE` warnings.
   decisions with owners.
 - Triage all high and critical CodeQL findings.
 - Add parser/input limits for PDFs, fonts, SVG, images, and remote resources.
+- Add cumulative decoded-stream budgets or an isolated render worker with
+  enforced heap and wall-clock termination for compressed PDF content.
+- Add an independently produced PDF compatibility corpus covering inherited
+  page boxes, object streams, filtered content, transparency groups, Type 3
+  fonts, and optional-content groups.
 - Add SSRF, path traversal, decompression, timeout, and cancellation tests.
 
 **Acceptance:** every production audit exits zero at `--audit-level=high`; no

@@ -48,6 +48,15 @@ _No unreleased changes yet._
 - Correct nonzero custom-PDF MediaBox embedding and date-only binding values.
 - Configure pdf.js standard-font data for complete, warning-free Node raster
   artifacts.
+- Preserve source-page transparency groups during embedding, reuse one Form
+  XObject resource name per unique imposed page and sheet, and intersect
+  effective Crop, Trim, Bleed, and Art boxes with MediaBox geometry.
+- Keep repeated table headings clear of static footer bounds when the legacy
+  table-height callback is composed with the shared layout engine.
+- Make qualification runs execute every suite and always emit a diagnostic
+  dashboard, including when an earlier suite fails; harden its inline report
+  data and catalog paths against markup or path injection.
+- Include the MIT license text in every published workspace tarball.
 - Refresh DOMPurify, Vite/Vite Plus, React Router, PostCSS, and Docusaurus
   security patch levels; add website Dependabot coverage and time-bounded audit
   decisions for findings without a compatible upstream fix.

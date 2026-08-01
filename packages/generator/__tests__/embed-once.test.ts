@@ -1,9 +1,17 @@
+import { createHash } from 'node:crypto';
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { vi } from 'vitest';
 import generate from '../src/generate.js';
 import { Template, BLANK_A4_PDF, BLANK_PDF, Schema } from '@pdfweave/common';
 import * as pdfLib from '@pdfweave/pdf-lib';
 import { image, text } from '@pdfweave/schemas';
 import { prepareBasePdfResources } from '../src/helper.js';
+import { getImageSnapshotOptions, pdfToImages } from './utils.js';
+
+const resourceArtifactDirectory = fileURLToPath(
+  new URL('../test-artifacts/resource-reuse/100-client-statements', import.meta.url),
+);
 
 // Minimal valid 1-page custom PDF base64 — same fixture style as
 // generate.test.ts's multiSchemasTemplate.basePdf.
@@ -69,10 +77,9 @@ describe('pdfme#729 — embed basePdf once across the inputs loop', () => {
     expect(pdf.length).toBeGreaterThan(0);
   });
 
-  test('shares constant image and font resources across 100 output documents', async () => {
-    const minimalPng =
-      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAAXNSR0IArs4c6QAAAA1J' +
-      'REFUGFdj+P///38ACfsD/QVDRcoAAAAASUVORK5CYII=';
+  test('shares constant image and font resources across 100 statement pages', async () => {
+    const constantLogo =
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAW0lEQVR4AcXBsQ1AUAAA0XPRGkFtGyOojGUxtUGYQfKTe29a9uNloOe8+UNiEpOYxCQmMYlJTGISk9jMYOu18YfEJCYxiUlMYhKTmMQkJjGJSUxiEpOYxCQmsQ/9MgT6Xr5uTQAAAABJRU5ErkJggg==';
     const embedPngSpy = vi.spyOn(pdfLib.PDFDocument.prototype, 'embedPng');
     const embedFontSpy = vi.spyOn(pdfLib.PDFDocument.prototype, 'embedFont');
     const renderedClientNames: string[] = [];
@@ -81,26 +88,43 @@ describe('pdfme#729 — embed basePdf once across the inputs loop', () => {
       basePdf: BLANK_A4_PDF,
       schemas: [
         [
-          textObject(30, 30, 'clientName'),
+          {
+            ...textObject(30, 18, 'statementTitle'),
+            content: 'PDFWEAVE INVOICE STATEMENT',
+            readOnly: true,
+            width: 125,
+            height: 12,
+            fontSize: 20,
+            fontColor: '#0d4e5e',
+          },
+          { ...textObject(30, 48, 'clientName'), width: 130, height: 10, fontSize: 16 },
+          { ...textObject(30, 70, 'statementNumber'), width: 80, height: 8, fontSize: 11 },
+          { ...textObject(115, 70, 'invoiceDate'), width: 55, height: 8, fontSize: 11 },
+          { ...textObject(30, 96, 'lineSummary'), width: 140, height: 10, fontSize: 12 },
+          { ...textObject(30, 124, 'amountDue'), width: 100, height: 12, fontSize: 18 },
           {
             name: 'constantLogo',
             type: 'image',
-            content: minimalPng,
+            content: constantLogo,
             readOnly: true,
-            position: { x: 160, y: 20 },
-            width: 20,
-            height: 20,
+            position: { x: 167, y: 15 },
+            width: 25,
+            height: 25,
           },
         ],
       ],
     };
     const inputs = Array.from({ length: 100 }, (_, index) => ({
       clientName: `Client ${String(index + 1).padStart(3, '0')}`,
+      statementNumber: `Statement INV-${String(2026001 + index)}`,
+      invoiceDate: `Date 2026-08-${String((index % 28) + 1).padStart(2, '0')}`,
+      lineSummary: `Professional services - account ${String(index + 1).padStart(4, '0')}`,
+      amountDue: `TOTAL DUE $${(1250 + index * 17.35).toFixed(2)}`,
     }));
     const recordingText = {
       ...text,
       pdf: async (arg: Parameters<typeof text.pdf>[0]) => {
-        renderedClientNames.push(arg.value);
+        if (arg.schema.name === 'clientName') renderedClientNames.push(arg.value);
         await text.pdf(arg);
       },
     };
@@ -121,10 +145,10 @@ describe('pdfme#729 — embed basePdf once across the inputs loop', () => {
     expect(embedPngSpy).toHaveBeenCalledTimes(1);
     expect(embedFontSpy).toHaveBeenCalledTimes(1);
     expect(renderedClientNames).toEqual(inputs.map(({ clientName }) => clientName));
-    expect(renderedLogoValues).toEqual(Array.from({ length: 100 }, () => minimalPng));
+    expect(renderedLogoValues).toEqual(Array.from({ length: 100 }, () => constantLogo));
     const outputDocument = await pdfLib.PDFDocument.load(pdf);
     expect(outputDocument.getPageCount()).toBe(100);
-    expect(pdf.byteLength).toBeLessThan(1_000_000);
+    expect(pdf.byteLength).toBeLessThan(2_000_000);
 
     const indirectObjects = outputDocument.context
       .enumerateIndirectObjects()
@@ -143,6 +167,51 @@ describe('pdfme#729 — embed basePdf once across the inputs loop', () => {
     expect(imageStreams.length).toBeLessThanOrEqual(2);
     expect(fontDictionaries.length).toBeGreaterThan(0);
     expect(fontDictionaries.length).toBeLessThanOrEqual(2);
+
+    const images = await pdfToImages(pdf);
+    expect(images).toHaveLength(100);
+    expect(images.every((rendered) => rendered.byteLength > 5_000)).toBe(true);
+    for (const index of [0, 49, 99]) {
+      await expect(images[index]).toMatchImage(
+        getImageSnapshotOptions(`100-client-statements-page-${String(index + 1)}`),
+      );
+    }
+
+    rmSync(resourceArtifactDirectory, { recursive: true, force: true });
+    mkdirSync(resourceArtifactDirectory, { recursive: true });
+    writeFileSync(`${resourceArtifactDirectory}/100-client-statements.pdf`, pdf);
+    images.forEach((rendered, index) => {
+      writeFileSync(
+        `${resourceArtifactDirectory}/100-client-statements-page-${String(index + 1).padStart(3, '0')}.png`,
+        rendered,
+      );
+    });
+    writeFileSync(
+      `${resourceArtifactDirectory}/manifest.json`,
+      `${JSON.stringify(
+        {
+          scenario: '100-client-statements',
+          generatedBy: '@pdfweave/generator embed-once integration test',
+          pageCount: outputDocument.getPageCount(),
+          clientCount: inputs.length,
+          firstClient: inputs[0].clientName,
+          lastClient: inputs.at(-1)?.clientName,
+          resourceAssertions: {
+            embedPngCalls: embedPngSpy.mock.calls.length,
+            embedFontCalls: embedFontSpy.mock.calls.length,
+            imageObjects: imageStreams.length,
+            fontObjects: fontDictionaries.length,
+          },
+          output: {
+            pdfBytes: pdf.byteLength,
+            pdfSha256: createHash('sha256').update(pdf).digest('hex'),
+            pngCount: images.length,
+          },
+        },
+        null,
+        2,
+      )}\n`,
+    );
   });
 
   test('embeds the full MediaBox when a custom base PDF has a nonzero origin', async () => {

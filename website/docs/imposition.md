@@ -82,6 +82,11 @@ const plan = await planImposition({
 Use `limits.maxPlacements` and `limits.maxSheets` at service boundaries to
 apply workload limits below the package hard caps.
 
+These options limit planned placements and sheets only. They do not yet bound
+source-file bytes or decoded content streams. Treat arbitrary PDFs as
+untrusted input and run them in an isolated process with memory and time limits
+until the parser/resource budgets in the production-print roadmap are complete.
+
 ## Test Artifacts
 
 Run `npm run qualification` in the repository. It creates

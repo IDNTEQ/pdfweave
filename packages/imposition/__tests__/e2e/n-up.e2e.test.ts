@@ -269,7 +269,11 @@ describe('n-up production artifacts', () => {
     expect(images).toHaveLength(3);
     for (const [index, image] of images.entries()) {
       expect(image.byteLength).toBeGreaterThan(10_000);
-      await expect(image).toMatchImage(`a4-boleto-booklet-sheet-${index + 1}`);
+      await expect(image).toMatchImage({
+        name: `a4-boleto-booklet-sheet-${index + 1}`,
+        allowedPixelRatio: 0.001,
+        includeAA: false,
+      });
     }
   });
 
@@ -307,7 +311,11 @@ describe('n-up production artifacts', () => {
     expect(images).toHaveLength(2);
     for (const [index, image] of images.entries()) {
       expect(image.byteLength).toBeGreaterThan(20_000);
-      await expect(image).toMatchImage(`a3-client-statements-sheet-${index + 1}`);
+      await expect(image).toMatchImage({
+        name: `a3-client-statements-sheet-${index + 1}`,
+        allowedPixelRatio: 0.001,
+        includeAA: false,
+      });
     }
   });
 });

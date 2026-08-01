@@ -229,6 +229,63 @@ describe('public table height measurement', () => {
       8,
     );
   });
+
+  it('uses static footer bounds when composing the legacy callback with repeated headers', async () => {
+    const schema = baseTableSchema();
+    schema.position = { x: 10, y: 5 };
+    schema.width = 60;
+    schema.repeatHead = true;
+    schema.headStyles.padding = { top: 2, right: 2, bottom: 2, left: 2 };
+    schema.bodyStyles.padding = { top: 2, right: 2, bottom: 2, left: 2 };
+    const basePdf = {
+      width: 100,
+      height: 100,
+      padding: [5, 5, 5, 5] as [number, number, number, number],
+      staticSchema: [
+        {
+          name: 'footer',
+          type: 'text',
+          content: 'page footer',
+          position: { x: 10, y: 80 },
+          width: 80,
+          height: 15,
+        },
+      ],
+    };
+    const body = Array.from({ length: 18 }, (_, index) => [
+      `Item ${String(index + 1)}`,
+      `${String(index + 1)}.00`,
+    ]);
+    const value = JSON.stringify(body);
+    const template: Template = { basePdf, schemas: [[schema]] };
+
+    const dynamicTemplate = await getDynamicTemplate({
+      template,
+      input: { items: value },
+      options: {},
+      _cache: new Map(),
+      getDynamicHeights: getDynamicHeightsForTable,
+    });
+    const fragments = dynamicTemplate.schemas.flat().filter(({ name }) => name === schema.name);
+
+    expect(fragments.map(({ __bodyRange }) => __bodyRange)).toEqual([
+      { start: 0, end: 8 },
+      { start: 8, end: 16 },
+      { start: 16, end: 18 },
+    ]);
+    for (const fragment of fragments) {
+      expect(fragment.position.y + fragment.height).toBeLessThanOrEqual(80.01);
+      const range = fragment.__bodyRange!;
+      const rendered = await createSingleTable(body.slice(range.start, range.end), {
+        schema: fragment as TableSchema,
+        basePdf,
+        options: {},
+        _cache: new Map(),
+      });
+      const renderedHeight = rendered.allRows().reduce((sum, row) => sum + row.height, 0);
+      expect(fragment.height).toBeCloseTo(renderedHeight, 8);
+    }
+  });
 });
 
 describe('table getBody recovery (pdfme/pdfme#1299)', () => {
