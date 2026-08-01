@@ -33,6 +33,11 @@ Open that HTML file directly in a browser. It contains the feature matrix,
 expandable test source, embedded PDFs, every rendered PNG, manifests, and PDF
 SHA-256 values. No development server or network access is required.
 
+The latest successful `main` build is also deployed as a directly viewable
+[qualification dashboard](https://idnteq.github.io/pdfweave/qualification/).
+Pull-request artifacts remain the authoritative evidence for changes that have
+not yet merged.
+
 For a visual-development loop, `npm run test:render-artifacts` regenerates every
 catalogued PDF and PNG. `npm run qualification:build` rebuilds the presentation
 from whatever evidence and JUnit files are already present; without an

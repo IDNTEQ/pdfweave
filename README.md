@@ -86,6 +86,9 @@ select the run, and download `pdfweave-qualification-report` from its Summary
 page. The artifact is retained for 14 days; extract it and open
 `qualification-report.html`.
 
+The latest successful `main` build is published as a directly viewable
+[qualification dashboard](https://idnteq.github.io/pdfweave/qualification/).
+
 For data binding, anchor layouts, smart tables, and stationery PDFs —
 see the docs at [pdfweave.dev](https://pdfweave.dev) (coming soon).
 

@@ -1,4 +1,4 @@
-name: Deploy Pages (playground + docs)
+name: Deploy Pages (playground + docs + qualification)
 
 on:
   push:
@@ -6,7 +6,12 @@ on:
     paths:
       - 'packages/**'
       - 'playground/**'
+      - 'scripts/**'
       - 'website/**'
+      - 'docs/testing/qualification-cases.json'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'vitest.config.ts'
       - '.github/workflows/deploy-playground.yml'
   workflow_dispatch:
 
@@ -25,14 +30,14 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           # Fetch tags so packages/common/set-version.js can stamp the
           # latest release version into the bundle (otherwise PDFWEAVE_VERSION
           # falls back to 'x.x.x' and shows that in the playground header).
           fetch-depth: 0
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: '24'
           cache: npm
@@ -46,6 +51,10 @@ jobs:
 
       - name: Build packages
         run: npm run build
+
+      # --- Qualification dashboard (served at /pdfweave/qualification/) --
+      - name: Build qualification dashboard
+        run: npm run qualification
 
       # --- Playground (served at /pdfweave/) -----------------------------
       - name: Install playground dependencies
@@ -68,11 +77,13 @@ jobs:
           cp -r playground/dist/. pages-artifact/
           mkdir -p pages-artifact/docs
           cp -r website/build/. pages-artifact/docs/
+          mkdir -p pages-artifact/qualification
+          cp test-artifacts/qualification-report.html pages-artifact/qualification/index.html
           # SPA fallback so the playground's client-side routes resolve on
           # deep-link reload. (Docusaurus emits its own per-page HTML.)
           cp pages-artifact/index.html pages-artifact/404.html
 
-      - uses: actions/upload-pages-artifact@v5
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5
         with:
           path: pages-artifact
 
@@ -84,4 +95,4 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v5
+        uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5
