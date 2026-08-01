@@ -5,16 +5,12 @@ import {
   StationeryPdf,
   CommonOptions,
   treatsLikeBlank,
+  PRE_PAGINATED_HEIGHTS,
+  PrePaginatedHeightsMetadata,
 } from '@pdfweave/common';
 import { createSingleTable } from './tableHelper.js';
 import { getBodyWithRange } from './helper.js';
 import { TableSchema } from './types.js';
-
-const PRE_PAGINATED_HEIGHTS = Symbol.for('@pdfweave/pre-paginated-dynamic-heights');
-
-interface PrePaginatedHeightsMetadata {
-  rawHeights: number[];
-}
 
 export interface DynamicTableArgs {
   schema: Schema;

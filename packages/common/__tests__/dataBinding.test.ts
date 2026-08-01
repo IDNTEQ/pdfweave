@@ -97,6 +97,21 @@ describe('data binding helpers', () => {
     }
   });
 
+  test('formats numeric epoch timestamps without parsing them as date strings', () => {
+    vi.stubEnv('TZ', 'UTC');
+    try {
+      expect(
+        formatDesignDataValue(0, {
+          kind: 'date',
+          locale: 'en-US',
+          dateStyle: 'short',
+        }),
+      ).toBe('1/1/70');
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   test('extracts variables from design data metadata and inferred arrays', () => {
     const variables = getDesignDataVariables({
       data: {

@@ -36,8 +36,7 @@ See [GOALS.md](GOALS.md) for the mission and quality bar, and
 ## Quick start
 
 ```bash
-pnpm add @pdfweave/generator @pdfweave/schemas
-# or: npm install @pdfweave/generator @pdfweave/schemas
+npm install @pdfweave/generator @pdfweave/schemas
 ```
 
 ```ts
@@ -95,7 +94,7 @@ see the docs at [pdfweave.dev](https://pdfweave.dev) (coming soon).
 ## Coming from pdfme?
 
 See **[MIGRATION.md](./MIGRATION.md)** — for templates that don't use
-the new features, switching is one find-and-replace and a `pnpm install`.
+the new features, switching is one find-and-replace and an `npm install`.
 
 ---
 

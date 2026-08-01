@@ -37,6 +37,7 @@ const getFormatOption = <T>(format: DataFormatHint | undefined, key: string): T 
 
 const parseDateValue = (value: unknown): Date => {
   if (value instanceof Date) return value;
+  if (typeof value === 'number') return new Date(value);
 
   const raw = String(value);
   const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);

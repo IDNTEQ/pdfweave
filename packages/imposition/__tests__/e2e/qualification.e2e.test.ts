@@ -3,6 +3,7 @@ import {
   impose,
   MM_TO_PT,
   type ImposeProps,
+  type ImpositionPlacement,
   type ImpositionPlan,
   type PaperSizeName,
   type Size,
@@ -157,7 +158,12 @@ describe('imposition qualification artifacts', () => {
   });
 
   test('renders contain, cover, none, alignment, upscale, and auto-rotation modes', async () => {
-    const cases: Array<{ label: string; source: Size; props: Omit<ImposeProps, 'source'> }> = [
+    const cases: {
+      label: string;
+      source: Size;
+      props: Omit<ImposeProps, 'source'>;
+      expectedPlacement: Pick<ImpositionPlacement, 'content' | 'rotation' | 'scale'>;
+    }[] = [
       {
         label: 'Contain centered | upscale capped',
         source: { width: 160, height: 60 },
@@ -169,6 +175,11 @@ describe('imposition qualification artifacts', () => {
           },
           layout: { type: 'n-up', rows: 1, columns: 1, scale: 'contain', allowUpscale: false },
           sourceBox: 'media',
+        },
+        expectedPlacement: {
+          content: { x: 80, y: 78, width: 160, height: 60 },
+          rotation: 0,
+          scale: 1,
         },
       },
       {
@@ -183,6 +194,11 @@ describe('imposition qualification artifacts', () => {
           layout: { type: 'n-up', rows: 1, columns: 1, scale: 'contain', allowUpscale: true },
           sourceBox: 'media',
         },
+        expectedPlacement: {
+          content: { x: 20, y: 55.5, width: 280, height: 105 },
+          rotation: 0,
+          scale: 1.75,
+        },
       },
       {
         label: 'Cover centered | cell clipping',
@@ -195,6 +211,11 @@ describe('imposition qualification artifacts', () => {
           },
           layout: { type: 'n-up', rows: 1, columns: 1, scale: 'cover', allowUpscale: true },
           sourceBox: 'media',
+        },
+        expectedPlacement: {
+          content: { x: -192, y: 20, width: 704, height: 176 },
+          rotation: 0,
+          scale: 3.52,
         },
       },
       {
@@ -215,6 +236,11 @@ describe('imposition qualification artifacts', () => {
           },
           sourceBox: 'media',
         },
+        expectedPlacement: {
+          content: { x: 140, y: 136, width: 160, height: 60 },
+          rotation: 0,
+          scale: 1,
+        },
       },
       {
         label: 'None | left and bottom',
@@ -234,6 +260,11 @@ describe('imposition qualification artifacts', () => {
           },
           sourceBox: 'media',
         },
+        expectedPlacement: {
+          content: { x: 20, y: 20, width: 160, height: 60 },
+          rotation: 0,
+          scale: 1,
+        },
       },
       {
         label: 'Auto-rotation | portrait source on landscape sheet',
@@ -247,6 +278,11 @@ describe('imposition qualification artifacts', () => {
           layout: { type: 'n-up', rows: 1, columns: 1, autoRotate: true, allowUpscale: true },
           sourceBox: 'media',
         },
+        expectedPlacement: {
+          content: { x: 20, y: 38, width: 280, height: 140 },
+          rotation: 90,
+          scale: 1.4,
+        },
       },
     ];
     const entries: CatalogEntry[] = [];
@@ -258,11 +294,11 @@ describe('imposition qualification artifacts', () => {
         ...item.props,
       });
       const placement = result.plan.sheets[0].front.placements[0];
+      expect(placement).toMatchObject(item.expectedPlacement);
       entries.push({ label: item.label, pdf: result.pdf });
       manifestCases.push({ label: item.label, placement, plan: placementSummary(result.plan) });
     }
 
-    expect(manifestCases.at(-1)?.placement).toMatchObject({ rotation: 90 });
     await writeCatalog('scale-alignment-catalog', await combineCatalog(entries), {
       scenario: 'scale-alignment-catalog',
       definition: 'Scaling, alignment, clipping, and auto-rotation modes',

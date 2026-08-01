@@ -7,8 +7,20 @@ export const HARD_MAX_SHEETS = 10_000;
 const HARD_MAX_GRID_AXIS = 1000;
 const HARD_MAX_COPIES = 10_000;
 
-const finitePositive = z.number().positive();
-const finiteNonNegative = z.number().nonnegative();
+const POSITIVE_NUMBER_MESSAGE = 'expected a finite number greater than 0';
+const NON_NEGATIVE_NUMBER_MESSAGE = 'expected a finite number greater than or equal to 0';
+const PAGE_INDEX_MESSAGE = 'expected a non-negative integer';
+
+const finitePositive = z
+  .number({ error: POSITIVE_NUMBER_MESSAGE })
+  .positive({ error: POSITIVE_NUMBER_MESSAGE });
+const finiteNonNegative = z
+  .number({ error: NON_NEGATIVE_NUMBER_MESSAGE })
+  .nonnegative({ error: NON_NEGATIVE_NUMBER_MESSAGE });
+const pageIndexSchema = z
+  .number({ error: PAGE_INDEX_MESSAGE })
+  .int({ error: PAGE_INDEX_MESSAGE })
+  .nonnegative({ error: PAGE_INDEX_MESSAGE });
 const insetsSchema = z
   .object({
     top: finiteNonNegative,
@@ -36,7 +48,7 @@ const sourceSchema = z.custom<PdfInput>(
 const imposePropsSchema = z
   .object({
     source: sourceSchema,
-    unit: z.enum(['mm', 'pt']).optional(),
+    unit: z.enum(['mm', 'pt'], { error: 'expected "mm" or "pt"' }).optional(),
     sheet: z
       .object({
         size: z.union([paperSizeSchema, customSizeSchema]),
@@ -64,7 +76,7 @@ const imposePropsSchema = z
       })
       .strict(),
     sourceBox: z.enum(['media', 'crop', 'trim', 'bleed', 'art']).optional(),
-    pages: z.array(z.number().int().nonnegative()).min(1).max(HARD_MAX_PLACEMENTS).optional(),
+    pages: z.array(pageIndexSchema).min(1).max(HARD_MAX_PLACEMENTS).optional(),
     sequence: z
       .object({
         copies: z.number().int().min(1).max(HARD_MAX_COPIES).optional(),
@@ -108,7 +120,6 @@ const flattenErrorTree = (
 
 const getMostSpecificIssue = (error: z.ZodError): ValidationIssue => {
   const rootIssue = error.issues[0];
-  if (!rootIssue) return { path: [], message: 'Invalid input' };
   if (rootIssue.code !== 'invalid_union') {
     return { path: rootIssue.path as (string | number)[], message: rootIssue.message };
   }

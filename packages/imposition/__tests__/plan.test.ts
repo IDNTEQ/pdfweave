@@ -298,18 +298,23 @@ describe('planImposition', () => {
     expect(plan.options.sheet.height).toBeCloseTo(240 * MM_TO_PT, 8);
   });
 
-  test('rejects negative page indices at the internal normalization boundary', () => {
+  test.each([
+    ['negative', -1],
+    ['fractional', 0.5],
+    ['NaN', Number.NaN],
+    ['undefined', undefined as unknown as number],
+  ])('rejects %s page indices at the internal normalization boundary', (_label, pageIndex) => {
     const props: ImposeProps = {
       source: new Uint8Array(),
       unit: 'pt',
       sheet: { size: { width: 100, height: 100 } },
       layout: { type: 'n-up', rows: 1, columns: 1 },
       sourceBox: 'media',
-      pages: [-1],
+      pages: [pageIndex],
     };
 
     expect(() => normalizeOptions(props, 1)).toThrow(
-      '[@pdfweave/imposition] Invalid pages: page index -1 is outside the source page range 0-0',
+      `[@pdfweave/imposition] Invalid pages: page index ${String(pageIndex)} is outside the source page range 0-0`,
     );
   });
 
@@ -321,7 +326,7 @@ describe('planImposition', () => {
         unit: 'px' as ImposeProps['unit'],
         layout: { type: 'n-up' as const, rows: 0, columns: 1 },
       }),
-      message: 'Invalid unit: Invalid option: expected one of "mm"|"pt"',
+      message: 'Invalid unit: expected "mm" or "pt"',
     },
     {
       name: 'out-of-range page',
@@ -331,7 +336,7 @@ describe('planImposition', () => {
     {
       name: 'negative page at the public schema boundary',
       mutate: (props: ImposeProps) => ({ ...props, pages: [-1] }),
-      message: 'Invalid pages.0: Too small: expected number to be >=0',
+      message: 'Invalid pages.0: expected a non-negative integer',
     },
     {
       name: 'negative custom sheet width',
@@ -339,7 +344,7 @@ describe('planImposition', () => {
         ...props,
         sheet: { size: { width: -1, height: 100 } },
       }),
-      message: 'Invalid sheet.size.width: Too small: expected number to be >0',
+      message: 'Invalid sheet.size.width: expected a finite number greater than 0',
     },
     {
       name: 'invalid custom sheet width type',
@@ -349,7 +354,15 @@ describe('planImposition', () => {
           size: { width: 'wide' as unknown as number, height: 100 },
         },
       }),
-      message: 'Invalid sheet.size.width: Invalid input: expected number, received string',
+      message: 'Invalid sheet.size.width: expected a finite number greater than 0',
+    },
+    {
+      name: 'invalid source value',
+      mutate: (props: ImposeProps) => ({
+        ...props,
+        source: 'not PDF bytes' as unknown as Uint8Array,
+      }),
+      message: 'Invalid source: expected an ArrayBuffer or Uint8Array',
     },
     {
       name: 'impossible gutters',
@@ -357,6 +370,15 @@ describe('planImposition', () => {
         ...props,
         sheet: { size: { width: 100, height: 100 }, gutter: 101 },
         layout: { type: 'n-up' as const, rows: 1, columns: 2 },
+      }),
+      message: 'Invalid sheet: horizontal margins and gutters leave no printable width',
+    },
+    {
+      name: 'non-positive cells in unscaled rendering',
+      mutate: (props: ImposeProps) => ({
+        ...props,
+        sheet: { size: { width: 100, height: 100 }, gutter: 101 },
+        layout: { type: 'n-up' as const, rows: 1, columns: 2, scale: 'none' as const },
       }),
       message: 'Invalid sheet: horizontal margins and gutters leave no printable width',
     },

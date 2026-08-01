@@ -25,7 +25,7 @@ export const escapeHtml = (value) =>
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#39;');
 
-const resolveRepositoryPath = (relativePath) => {
+export const resolveRepositoryPath = (relativePath) => {
   if (
     typeof relativePath !== 'string' ||
     relativePath.length === 0 ||
@@ -248,6 +248,67 @@ export const deriveFeatureStatus = (tests) => {
   return tests.length > 0 && tests.every((test) => test.status === 'passed') ? 'passed' : 'unknown';
 };
 
+const testCalleeNames = new Set(['test', 'it']);
+
+const getRootCalleeName = (expression) => {
+  let node = expression;
+  while (true) {
+    if (ts.isIdentifier(node)) return node.text;
+    if (ts.isPropertyAccessExpression(node) || ts.isCallExpression(node)) {
+      node = node.expression;
+      continue;
+    }
+    return undefined;
+  }
+};
+
+const extractTestCall = (text, sourceFile, title) => {
+  const matches = [];
+  const visit = (node) => {
+    if (ts.isCallExpression(node) && node.arguments.length > 0) {
+      const callTitle = node.arguments[0];
+      const calleeName = getRootCalleeName(node.expression);
+      if (
+        ts.isStringLiteralLike(callTitle) &&
+        callTitle.text === title &&
+        calleeName !== undefined &&
+        testCalleeNames.has(calleeName)
+      ) {
+        matches.push(node);
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
+
+  if (matches.length !== 1) return { matches };
+  const node = matches[0];
+  const start = node.getStart(sourceFile);
+  const { line } = sourceFile.getLineAndCharacterOfPosition(start);
+  return {
+    matches,
+    definition: {
+      line: line + 1,
+      source: text.slice(start, node.getEnd()),
+    },
+  };
+};
+
+export const extractTestCallFromSource = (text, file, title) => {
+  const sourceFile = ts.createSourceFile(
+    file,
+    text,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TS,
+  );
+  const { matches, definition } = extractTestCall(text, sourceFile, title);
+  if (matches.length !== 1) {
+    fail(`Expected one test titled '${title}' in ${file}, found ${String(matches.length)}`);
+  }
+  return definition;
+};
+
 const extractTestDefinition = async (testReference) => {
   if (
     !testReference ||
@@ -257,35 +318,20 @@ const extractTestDefinition = async (testReference) => {
     fail('Every test reference requires file and title strings');
   }
   const { text, sourceFile } = await getSourceFile(testReference.file);
-  const matches = [];
-
-  const visit = (node) => {
-    if (ts.isCallExpression(node) && node.arguments.length > 0) {
-      const title = node.arguments[0];
-      if (ts.isStringLiteralLike(title) && title.text === testReference.title) {
-        matches.push(node);
-      }
-    }
-    ts.forEachChild(node, visit);
-  };
-  visit(sourceFile);
+  const { matches, definition } = extractTestCall(text, sourceFile, testReference.title);
 
   if (matches.length !== 1) {
     fail(
       `Expected one test titled '${testReference.title}' in ${testReference.file}, found ${String(matches.length)}`,
     );
   }
-  const node = matches[0];
-  const start = node.getStart(sourceFile);
-  const { line } = sourceFile.getLineAndCharacterOfPosition(start);
   return {
     ...testReference,
-    line: line + 1,
-    source: text.slice(start, node.getEnd()),
+    ...definition,
   };
 };
 
-const resolveArtifactPath = (directory, relativePath, label) => {
+export const resolveArtifactPath = (directory, relativePath, label) => {
   if (path.isAbsolute(relativePath)) fail(`${label} must be relative to its artifact directory`);
   const resolved = path.resolve(directory, relativePath);
   if (resolved !== directory && !resolved.startsWith(`${directory}${path.sep}`)) {
@@ -452,8 +498,8 @@ const renderScenario = (scenario) => {
         <p>${escapeHtml(scenario.description)}</p>
       </div>
       <div class="evidence-actions">
-        <a class="command primary" data-pdf-id="${escapeHtml(scenario.id)}" target="_blank" rel="noreferrer">Open PDF</a>
-        <a class="command" data-pdf-id="${escapeHtml(scenario.id)}" download="${escapeHtml(scenario.pdf)}">Download</a>
+        <a class="command primary" href="#evidence-${escapeHtml(scenario.id)}" data-pdf-id="${escapeHtml(scenario.id)}" target="_blank" rel="noreferrer">Open PDF</a>
+        <a class="command" href="#evidence-${escapeHtml(scenario.id)}" data-pdf-id="${escapeHtml(scenario.id)}" download="${escapeHtml(scenario.pdf)}">Download</a>
       </div>
     </header>
     <dl class="artifact-meta">
@@ -820,6 +866,33 @@ const normalizeRunOutcome = (value) => {
   return 'unknown';
 };
 
+export const resolveRunOutcome = ({
+  cliArguments = process.argv.slice(2),
+  environment = process.env,
+} = {}) => {
+  const statusArgument = cliArguments
+    .find((argument) => argument.startsWith('--status='))
+    ?.slice('--status='.length);
+  return normalizeRunOutcome(statusArgument ?? environment.QUALIFICATION_TEST_STATUS ?? 'unknown');
+};
+
+export const assertQualificationGate = ({ runOutcome, features, scenarios }) => {
+  if (runOutcome !== 'passed') return;
+  const incompleteFeatures = features.filter((feature) => feature.status !== 'passed');
+  const unavailableScenarios = scenarios.filter((scenario) => !scenario.available);
+  if (incompleteFeatures.length === 0 && unavailableScenarios.length === 0) return;
+
+  const details = [
+    incompleteFeatures.length > 0
+      ? `${String(incompleteFeatures.length)} feature result(s) are not passed`
+      : undefined,
+    unavailableScenarios.length > 0
+      ? `${String(unavailableScenarios.length)} PDF evidence artifact(s) are unavailable`
+      : undefined,
+  ].filter(Boolean);
+  fail(`Qualification report is incomplete after a successful test run: ${details.join('; ')}`);
+};
+
 export const main = async () => {
   const catalog = validateCatalog(JSON.parse(await readFile(catalogPath, 'utf8')));
   const junit = await loadJUnitResults();
@@ -834,12 +907,7 @@ export const main = async () => {
       return { ...feature, tests, status: deriveFeatureStatus(tests) };
     }),
   );
-  const statusArgument = process.argv
-    .slice(2)
-    .find((argument) => argument.startsWith('--status='))
-    ?.slice('--status='.length);
-  const rawStatus = process.env.QUALIFICATION_TEST_STATUS ?? statusArgument ?? 'unknown';
-  const runOutcome = normalizeRunOutcome(rawStatus);
+  const runOutcome = resolveRunOutcome();
   const generatedAt = new Date().toISOString();
   const html = buildHtml({
     catalog,
@@ -856,21 +924,7 @@ export const main = async () => {
   process.stdout.write(
     `Qualification report: ${path.relative(repoRoot, outputPath)} (${String(features.length)} features, ${String(scenarios.length)} PDFs, ${formatBytes(Buffer.byteLength(html))})\n`,
   );
-  if (runOutcome === 'passed') {
-    const incompleteFeatures = features.filter((feature) => feature.status !== 'passed');
-    const unavailableScenarios = scenarios.filter((scenario) => !scenario.available);
-    if (incompleteFeatures.length > 0 || unavailableScenarios.length > 0) {
-      const details = [
-        incompleteFeatures.length > 0
-          ? `${String(incompleteFeatures.length)} feature result(s) are not passed`
-          : undefined,
-        unavailableScenarios.length > 0
-          ? `${String(unavailableScenarios.length)} PDF evidence artifact(s) are unavailable`
-          : undefined,
-      ].filter(Boolean);
-      fail(`Qualification report is incomplete after a successful test run: ${details.join('; ')}`);
-    }
-  }
+  assertQualificationGate({ runOutcome, features, scenarios });
 };
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

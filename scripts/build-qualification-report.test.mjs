@@ -2,10 +2,16 @@ import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 import { JSDOM } from 'jsdom';
 import {
+  assertQualificationGate,
   buildHtml,
   deriveFeatureStatus,
+  extractTestCallFromSource,
+  loadScenario,
   mapTestReference,
   parseJUnitReport,
+  resolveArtifactPath,
+  resolveRepositoryPath,
+  resolveRunOutcome,
   serializeInlineScriptData,
   validateCatalog,
 } from './build-qualification-report.mjs';
@@ -131,6 +137,45 @@ describe('qualification catalog validation', () => {
     unsafeManifest.scenarios[0].manifest = 'manifest.html';
     assert.throws(() => validateCatalog(unsafeManifest), /must be a safe \.json filename/);
   });
+
+  test('rejects repository and artifact path traversal and marks the scenario unavailable', async () => {
+    assert.throws(() => resolveRepositoryPath('../../etc'), /Path escapes the repository/);
+
+    const artifactDirectory = resolveRepositoryPath('test-artifacts');
+    assert.throws(
+      () => resolveArtifactPath(artifactDirectory, '../outside.pdf', 'Test PDF'),
+      /Test PDF escapes its artifact directory/,
+    );
+
+    const loaded = await loadScenario({
+      ...catalog().scenarios[0],
+      artifactDirectory: '../../etc',
+    });
+    assert.equal(loaded.available, false);
+    assert.match(loaded.error, /Path escapes the repository/);
+  });
+});
+
+describe('test definition extraction', () => {
+  test('ignores unrelated calls and extracts direct and parameterized test declarations', () => {
+    const directSource = `describe('renders evidence', () => {});\nwriteCatalog('renders evidence', {});\ntest('renders evidence', () => {});`;
+    const direct = extractTestCallFromSource(
+      directSource,
+      'packages/example/direct.test.ts',
+      'renders evidence',
+    );
+    assert.equal(direct.line, 3);
+    assert.match(direct.source, /^test\('renders evidence'/);
+
+    const eachSource = `combineCatalog('handles $name', {});\ntest.each([{ name: 'one' }])('handles $name', () => {});`;
+    const parameterized = extractTestCallFromSource(
+      eachSource,
+      'packages/example/each.test.ts',
+      'handles $name',
+    );
+    assert.equal(parameterized.line, 2);
+    assert.match(parameterized.source, /^test\.each/);
+  });
 });
 
 describe('JUnit result mapping', () => {
@@ -225,6 +270,17 @@ describe('qualification HTML', () => {
       features: [first, second],
       scenarios: [scenario(), scenario({ id: 'evidence-two', title: 'Evidence two' })],
     });
+    const staticLinks = [
+      ...new JSDOM(html).window.document.querySelectorAll('[data-pdf-id="evidence-one"]'),
+    ];
+    assert.equal(staticLinks.length, 2);
+    assert.equal(
+      staticLinks.every(
+        (link) => link.getAttribute('href') === '#evidence-evidence-one' && link.tabIndex === 0,
+      ),
+      true,
+    );
+
     let blobIndex = 0;
     const dom = new JSDOM(html, {
       runScripts: 'dangerously',
@@ -295,5 +351,43 @@ describe('qualification HTML', () => {
 
     const failedRun = new JSDOM(render({ runOutcome: 'failed' })).window.document;
     assert.match(failedRun.querySelector('.status').textContent, /Feature qualification: Failed/);
+  });
+});
+
+describe('qualification execution controls', () => {
+  test('gives explicit CLI status precedence over the CI environment', () => {
+    assert.equal(
+      resolveRunOutcome({
+        cliArguments: ['--status=failed'],
+        environment: { QUALIFICATION_TEST_STATUS: 'success' },
+      }),
+      'failed',
+    );
+    assert.equal(
+      resolveRunOutcome({
+        cliArguments: [],
+        environment: { QUALIFICATION_TEST_STATUS: 'success' },
+      }),
+      'passed',
+    );
+  });
+
+  test('fails the qualification gate after a successful but incomplete run', () => {
+    assert.throws(
+      () =>
+        assertQualificationGate({
+          runOutcome: 'passed',
+          features: [feature({ status: 'missing' })],
+          scenarios: [scenario({ available: false })],
+        }),
+      /1 feature result\(s\) are not passed; 1 PDF evidence artifact\(s\) are unavailable/,
+    );
+    assert.doesNotThrow(() =>
+      assertQualificationGate({
+        runOutcome: 'passed',
+        features: [feature()],
+        scenarios: [scenario()],
+      }),
+    );
   });
 });

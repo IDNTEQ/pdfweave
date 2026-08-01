@@ -3,15 +3,18 @@ import path from 'node:path';
 import { describe, test } from 'node:test';
 import {
   createNpmInvocation,
+  getQualificationSuites,
   qualificationArtifactPaths,
   qualificationJUnitPaths,
   qualificationSetup,
-  qualificationSuites,
   resolveNpmCliPath,
   runQualification,
 } from './run-qualification.mjs';
 
 const silentLogger = { error: () => undefined };
+const virtualNpmCli = '/virtual/npm/bin/npm-cli.js';
+const resolveVirtualNpmCli = () => virtualNpmCli;
+const qualificationSuites = getQualificationSuites({ resolveNpmCli: resolveVirtualNpmCli });
 
 describe('qualification runner', () => {
   test('runs npm through the Node CLI entry point without a shell-specific launcher', () => {
@@ -30,12 +33,66 @@ describe('qualification runner', () => {
       ],
     });
     assert.equal(invocation.command.endsWith('.cmd'), false);
-    assert.equal(path.basename(resolveNpmCliPath()), 'npm-cli.js');
+
+    let resolutionCalls = 0;
+    const suites = getQualificationSuites({
+      resolveNpmCli: () => {
+        resolutionCalls += 1;
+        return virtualNpmCli;
+      },
+    });
+    assert.equal(resolutionCalls, 1);
     assert.equal(
-      qualificationSuites.every(
-        ({ command, args }) => command === process.execPath && args[0] === resolveNpmCliPath(),
+      suites.every(
+        ({ command, args }) => command === process.execPath && args[0] === virtualNpmCli,
       ),
       true,
+    );
+  });
+
+  test('resolves npm CLI candidates through injected filesystem inputs', () => {
+    const npmExecPath = '/virtual/bin/npm';
+    assert.equal(
+      resolveNpmCliPath({
+        npmExecPath,
+        nodeExecutable: '/runtime/bin/node',
+        searchPath: '',
+        platform: 'linux',
+        pathApi: path.posix,
+        fileExists: (candidate) => candidate === npmExecPath,
+        resolveRealPath: (candidate) => (candidate === npmExecPath ? virtualNpmCli : candidate),
+      }),
+      virtualNpmCli,
+    );
+
+    const bundledNpmCli = '/runtime/lib/node_modules/npm/bin/npm-cli.js';
+    assert.equal(
+      resolveNpmCliPath({
+        npmExecPath: null,
+        nodeExecutable: '/runtime/bin/node',
+        searchPath: '',
+        platform: 'linux',
+        pathApi: path.posix,
+        fileExists: (candidate) => candidate === bundledNpmCli,
+        resolveRealPath: (candidate) => candidate,
+      }),
+      bundledNpmCli,
+    );
+
+    const launcher = '/tools/bin/npm';
+    const pathNpmCli = '/tools/bin/node_modules/npm/bin/npm-cli.js';
+    const existingPaths = new Set([launcher, pathNpmCli]);
+    assert.equal(
+      resolveNpmCliPath({
+        npmExecPath: null,
+        nodeExecutable: '/runtime/bin/node',
+        searchPath: '/tools/bin',
+        platform: 'linux',
+        pathApi: path.posix,
+        fileExists: (candidate) => existingPaths.has(candidate),
+        resolveRealPath: (candidate) => candidate,
+      }),
+      pathNpmCli,
     );
   });
 
@@ -51,6 +108,7 @@ describe('qualification runner', () => {
         return 0;
       },
       logger: silentLogger,
+      resolveNpmCli: resolveVirtualNpmCli,
     });
 
     assert.equal(status, 0);
@@ -90,6 +148,7 @@ describe('qualification runner', () => {
         return step.label === qualificationSuites[0].label ? 1 : 0;
       },
       logger: silentLogger,
+      resolveNpmCli: resolveVirtualNpmCli,
     });
 
     assert.equal(status, 1);
@@ -117,6 +176,7 @@ describe('qualification runner', () => {
         return step.label === 'Build qualification dashboard' ? 2 : 0;
       },
       logger: silentLogger,
+      resolveNpmCli: resolveVirtualNpmCli,
     });
 
     assert.equal(status, 1);
@@ -130,5 +190,29 @@ describe('qualification runner', () => {
       ],
     );
     assert.equal(steps.at(-1).args[1], '--status=failed');
+  });
+
+  test('reports npm resolution failure and still builds a failed dashboard', async () => {
+    const steps = [];
+    const errors = [];
+    const status = await runQualification({
+      clean: async () => undefined,
+      executeCommand: async (step) => {
+        steps.push(step);
+        return 0;
+      },
+      logger: { error: (message) => errors.push(message) },
+      resolveNpmCli: () => {
+        throw new Error('npm unavailable');
+      },
+    });
+
+    assert.equal(status, 1);
+    assert.deepEqual(
+      steps.map(({ label }) => label),
+      [qualificationSetup.label, 'Build qualification dashboard'],
+    );
+    assert.equal(steps.at(-1).args[1], '--status=failed');
+    assert.match(errors.join('\n'), /Could not resolve npm CLI: npm unavailable/);
   });
 });

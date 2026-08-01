@@ -76,9 +76,9 @@ interface LayoutItem {
 
 type LayoutUnitFragmentSource = 'dynamicHeights' | 'prePaginatedHeights' | 'fragments' | 'height';
 
-const PRE_PAGINATED_HEIGHTS = Symbol.for('@pdfweave/pre-paginated-dynamic-heights');
+export const PRE_PAGINATED_HEIGHTS = Symbol.for('@pdfweave/pre-paginated-dynamic-heights');
 
-interface PrePaginatedHeightsMetadata {
+export interface PrePaginatedHeightsMetadata {
   rawHeights: number[];
 }
 

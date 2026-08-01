@@ -6,19 +6,26 @@ import { fileURLToPath } from 'node:url';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
-const resolveExistingNpmCli = (candidate) => {
-  if (!candidate || !existsSync(candidate)) return undefined;
-  const resolved = realpathSync(candidate);
-  return path.basename(resolved) === 'npm-cli.js' ? resolved : undefined;
-};
-
 /** Resolve npm's JavaScript entry point so Windows never needs to spawn npm.cmd. */
-export const resolveNpmCliPath = () => {
-  const nodeDirectory = path.dirname(process.execPath);
+export const resolveNpmCliPath = ({
+  npmExecPath = process.env.npm_execpath,
+  nodeExecutable = process.execPath,
+  searchPath = process.env.PATH ?? '',
+  platform = process.platform,
+  fileExists = existsSync,
+  resolveRealPath = realpathSync,
+  pathApi = path,
+} = {}) => {
+  const resolveExistingNpmCli = (candidate) => {
+    if (!candidate || !fileExists(candidate)) return undefined;
+    const resolved = resolveRealPath(candidate);
+    return pathApi.basename(resolved) === 'npm-cli.js' ? resolved : undefined;
+  };
+  const nodeDirectory = pathApi.dirname(nodeExecutable);
   const candidates = [
-    process.env.npm_execpath,
-    path.join(nodeDirectory, 'node_modules', 'npm', 'bin', 'npm-cli.js'),
-    path.resolve(nodeDirectory, '..', 'lib', 'node_modules', 'npm', 'bin', 'npm-cli.js'),
+    npmExecPath,
+    pathApi.join(nodeDirectory, 'node_modules', 'npm', 'bin', 'npm-cli.js'),
+    pathApi.resolve(nodeDirectory, '..', 'lib', 'node_modules', 'npm', 'bin', 'npm-cli.js'),
   ];
 
   for (const candidate of candidates) {
@@ -26,15 +33,15 @@ export const resolveNpmCliPath = () => {
     if (resolved) return resolved;
   }
 
-  const launcherNames = process.platform === 'win32' ? ['npm.cmd', 'npm'] : ['npm'];
-  for (const directory of (process.env.PATH ?? '').split(path.delimiter).filter(Boolean)) {
+  const launcherNames = platform === 'win32' ? ['npm.cmd', 'npm'] : ['npm'];
+  for (const directory of searchPath.split(pathApi.delimiter).filter(Boolean)) {
     for (const launcherName of launcherNames) {
-      const launcher = path.join(directory, launcherName);
-      if (!existsSync(launcher)) continue;
-      const resolvedLauncher = realpathSync(launcher);
-      if (path.basename(resolvedLauncher) === 'npm-cli.js') return resolvedLauncher;
+      const launcher = pathApi.join(directory, launcherName);
+      if (!fileExists(launcher)) continue;
+      const resolvedLauncher = resolveRealPath(launcher);
+      if (pathApi.basename(resolvedLauncher) === 'npm-cli.js') return resolvedLauncher;
       const resolved = resolveExistingNpmCli(
-        path.join(directory, 'node_modules', 'npm', 'bin', 'npm-cli.js'),
+        pathApi.join(directory, 'node_modules', 'npm', 'bin', 'npm-cli.js'),
       );
       if (resolved) return resolved;
     }
@@ -43,10 +50,10 @@ export const resolveNpmCliPath = () => {
   throw new Error('Could not resolve npm/bin/npm-cli.js; run qualification through npm');
 };
 
-export const createNpmInvocation = (
-  args,
-  { nodeExecutable = process.execPath, npmCliPath = resolveNpmCliPath() } = {},
-) => ({ command: nodeExecutable, args: [npmCliPath, ...args] });
+export const createNpmInvocation = (args, { nodeExecutable, npmCliPath }) => ({
+  command: nodeExecutable,
+  args: [npmCliPath, ...args],
+});
 
 export const qualificationJUnitPaths = [
   'packages/generator/test-results.xml',
@@ -67,10 +74,10 @@ export const qualificationSetup = {
   args: ['packages/common/set-version.js'],
 };
 
-export const qualificationSuites = [
+export const qualificationSuiteDefinitions = [
   {
     label: 'Generator qualification tests',
-    ...createNpmInvocation([
+    args: [
       'test',
       '-w',
       'packages/generator',
@@ -80,11 +87,11 @@ export const qualificationSuites = [
       '--reporter=default',
       '--reporter=junit',
       '--outputFile=test-results.xml',
-    ]),
+    ],
   },
   {
     label: 'Imposition qualification tests',
-    ...createNpmInvocation([
+    args: [
       'test',
       '-w',
       'packages/imposition',
@@ -92,9 +99,20 @@ export const qualificationSuites = [
       '--reporter=default',
       '--reporter=junit',
       '--outputFile=test-results.xml',
-    ]),
+    ],
   },
 ];
+
+export const getQualificationSuites = ({
+  resolveNpmCli = resolveNpmCliPath,
+  nodeExecutable = process.execPath,
+} = {}) => {
+  const npmCliPath = resolveNpmCli();
+  return qualificationSuiteDefinitions.map(({ label, args }) => ({
+    label,
+    ...createNpmInvocation(args, { nodeExecutable, npmCliPath }),
+  }));
+};
 
 const cleanArtifacts = async () => {
   const results = await Promise.allSettled(
@@ -146,6 +164,8 @@ export const runQualification = async ({
   clean = cleanArtifacts,
   executeCommand = runCommand,
   logger = console,
+  resolveNpmCli = resolveNpmCliPath,
+  nodeExecutable = process.execPath,
 } = {}) => {
   let testsPassed = true;
 
@@ -157,6 +177,13 @@ export const runQualification = async ({
   }
 
   if (!(await execute(qualificationSetup, executeCommand, logger))) testsPassed = false;
+  let qualificationSuites = [];
+  try {
+    qualificationSuites = getQualificationSuites({ resolveNpmCli, nodeExecutable });
+  } catch (error) {
+    reportFailure('Could not resolve npm CLI', error, logger);
+    testsPassed = false;
+  }
   for (const suite of qualificationSuites) {
     if (!(await execute(suite, executeCommand, logger))) testsPassed = false;
   }

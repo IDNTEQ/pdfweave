@@ -1,4 +1,4 @@
-import { PDFName, PDFNumber, type PDFPage } from '@pdfweave/pdf-lib';
+import { type PDFArray, PDFName, PDFNumber, type PDFPage } from '@pdfweave/pdf-lib';
 import type { ImpositionWarning, Rectangle, RotationAngle, SourcePageBox } from './types.js';
 import { ImpositionError } from './errors.js';
 
@@ -53,7 +53,7 @@ const selectBox = (page: PDFPage, mediaBox: Rectangle, sourceBox: SourcePageBox)
       : { box: mediaBox, kind: 'media', fallback: 'media' };
   }
 
-  let explicitBox;
+  let explicitBox: PDFArray | undefined;
   if (sourceBox === 'trim') explicitBox = page.node.TrimBox();
   if (sourceBox === 'bleed') explicitBox = page.node.BleedBox();
   if (sourceBox === 'art') explicitBox = page.node.ArtBox();

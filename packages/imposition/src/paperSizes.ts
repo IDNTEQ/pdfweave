@@ -161,8 +161,11 @@ const normalizePages = (props: ImposeProps, sourcePageCount: number): number[] =
     : Array.from({ length: sourcePageCount }, (_, index) => index);
   if (pages.length === 0) throw invalidOption('pages', 'at least one source page is required');
 
-  const invalidPageIndex = pages.find((pageIndex) => pageIndex < 0 || pageIndex >= sourcePageCount);
-  if (invalidPageIndex === undefined) return pages;
+  const invalidAt = pages.findIndex(
+    (pageIndex) => !Number.isInteger(pageIndex) || pageIndex < 0 || pageIndex >= sourcePageCount,
+  );
+  if (invalidAt === -1) return pages;
+  const invalidPageIndex = pages.at(invalidAt);
   throw invalidOption(
     'pages',
     `page index ${String(invalidPageIndex)} is outside the source page range 0-${String(sourcePageCount - 1)}`,
