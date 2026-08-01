@@ -47,7 +47,9 @@ test('BaseUIClass mount renders without forcing a synchronous flush', async () =
       expect(domContainer.querySelector('[data-testid="base-ui-mounted"]')).toBeInTheDocument();
     });
 
-    ui.destroy();
+    act(() => {
+      ui.destroy();
+    });
   } finally {
     domContainer.remove();
     globalThis.ResizeObserver = originalResizeObserver;

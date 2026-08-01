@@ -1,4 +1,5 @@
 import {
+  formatDesignDataValue,
   getDesignDataVariables,
   getTableBindingPreview,
   getValueByPath,
@@ -29,9 +30,9 @@ describe('data binding helpers', () => {
       ['ENV-10', '$0.82'],
     ]);
     expect(getTableBindingPreview([['ENV-10', 0.82]], columns)).toEqual([['ENV-10', '$0.82']]);
-    expect(getTableBindingPreview(JSON.stringify([{ sku: 'ENV-10', price: 0.82 }]), columns)).toEqual([
-      ['ENV-10', '$0.82'],
-    ]);
+    expect(
+      getTableBindingPreview(JSON.stringify([{ sku: 'ENV-10', price: 0.82 }]), columns),
+    ).toEqual([['ENV-10', '$0.82']]);
   });
 
   test('resolves bound table values from JSON string inputs', () => {
@@ -79,6 +80,21 @@ describe('data binding helpers', () => {
         totalPages: 3,
       }),
     ).toBe('Page 2 of 3: Invoice');
+  });
+
+  test('formats date-only values as calendar dates west of UTC', () => {
+    vi.stubEnv('TZ', 'America/Los_Angeles');
+    try {
+      expect(
+        formatDesignDataValue('2026-01-01', {
+          kind: 'date',
+          locale: 'en-US',
+          dateStyle: 'short',
+        }),
+      ).toBe('1/1/26');
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   test('extracts variables from design data metadata and inferred arrays', () => {

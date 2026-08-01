@@ -1,0 +1,30 @@
+export { ImpositionError } from './errors.js';
+export { impose, planImposition } from './renderer.js';
+export { MM_TO_PT, PAPER_SIZES_MM } from './paperSizes.js';
+export type {
+  CollationMode,
+  FillOrder,
+  Gutters,
+  HorizontalAlignment,
+  ImposeProps,
+  ImpositionEmptySlot,
+  ImpositionPlan,
+  ImpositionPlacement,
+  ImpositionResult,
+  ImpositionSheetPlan,
+  ImpositionSidePlan,
+  ImpositionUnit,
+  ImpositionWarning,
+  ImpositionWarningCode,
+  Insets,
+  NormalizedImpositionOptions,
+  PaperSizeName,
+  PdfInput,
+  Rectangle,
+  RotationAngle,
+  ScaleMode,
+  SheetOrientation,
+  Size,
+  SourcePageBox,
+  VerticalAlignment,
+} from './types.js';

@@ -2,11 +2,12 @@ import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { Canvas, createCanvas } from '@napi-rs/canvas';
 import { pdf2img as _pdf2img, Pdf2ImgOptions } from './pdf2img.js';
 import { pdf2size as _pdf2size, Pdf2SizeOptions } from './pdf2size.js';
-import { getPdfJsWasmUrl } from './pdfjs.node.js';
+import { getPdfJsStandardFontDataUrl, getPdfJsWasmUrl } from './pdfjs.node.js';
 
 const clonePdfData = (pdf: ArrayBuffer | Uint8Array) =>
   pdf instanceof Uint8Array ? new Uint8Array(pdf) : new Uint8Array(pdf);
 const pdfJsWasmUrl = getPdfJsWasmUrl();
+const pdfJsStandardFontDataUrl = getPdfJsStandardFontDataUrl();
 
 export const pdf2img = async (
   pdf: ArrayBuffer | Uint8Array,
@@ -16,6 +17,7 @@ export const pdf2img = async (
     getDocument: (pdf) =>
       pdfjsLib.getDocument({
         data: clonePdfData(pdf),
+        standardFontDataUrl: pdfJsStandardFontDataUrl,
         wasmUrl: pdfJsWasmUrl,
       }).promise,
     createCanvas: (width, height) => createCanvas(width, height) as unknown as HTMLCanvasElement,
@@ -35,6 +37,7 @@ export const pdf2size = async (pdf: ArrayBuffer | Uint8Array, options: Pdf2SizeO
     getDocument: (pdf) =>
       pdfjsLib.getDocument({
         data: clonePdfData(pdf),
+        standardFontDataUrl: pdfJsStandardFontDataUrl,
         wasmUrl: pdfJsWasmUrl,
       }).promise,
   });

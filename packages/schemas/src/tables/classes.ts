@@ -21,12 +21,12 @@ export class Cell {
   x = 0;
   y = 0;
 
-  constructor(raw: string, styles: Styles, section: Section) {
+  constructor(raw: string | undefined, styles: Styles, section: Section) {
     this.styles = styles;
     this.section = section;
-    this.raw = raw;
+    this.raw = raw ?? '';
     const splitRegex = /\r\n|\r|\n/g;
-    this.text = raw.split(splitRegex);
+    this.text = this.raw.split(splitRegex);
   }
 
   getContentHeight() {

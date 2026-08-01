@@ -15,6 +15,45 @@ _No unreleased changes yet._
 
 ---
 
+## [0.4.0] — 2026-08-01
+
+### Added
+
+- **`@pdfweave/imposition` Phase 1.** New `planImposition()` and `impose()`
+  APIs provide deterministic simplex n-up packing on A2, A3, A4, A5, A6,
+  Letter, Legal, or custom sheets. The package supports page selection,
+  copies, collated/uncollated sequencing, source-page boxes, uniform scaling,
+  alignment, auto-rotation, slot clipping, explicit limits, and inspectable
+  plans/warnings. Visual integration tests publish A4 boleto-style and
+  landscape A3 client-statement PDFs, PNGs, and JSON manifests. Duplex,
+  booklet signatures, press marks, and creep remain planned.
+- **Production-shaped render qualification.** Multi-page invoice and bank
+  extract fixtures exercise bound tables, repeated headings, subtotal/tax/
+  grand-total rows, running balances, visual snapshots, PDFs, PNGs, and JSON
+  manifests. A 100-client batch test verifies bounded serialized image/font
+  resources, and CI publishes the render artifacts.
+- **Self-contained qualification dashboard.** `npm run qualification` now
+  produces one offline HTML page mapping supported production features to
+  exact executable test definitions, clickable PDFs, raster previews,
+  manifests, and SHA-256 values. CI publishes the page as a single artifact.
+
+### Fixed
+
+- Preserve interior and trailing declared blank template pages through dynamic
+  layout and final PDF generation.
+- Reserve repeated table-heading height during pagination while retaining the
+  pagination-aware public `getDynamicHeightsForTable()` contract.
+- Render every split schema fragment on a page, normalize ragged/non-string
+  table cells, and keep terminal total rows in their original source ranges.
+- Correct nonzero custom-PDF MediaBox embedding and date-only binding values.
+- Configure pdf.js standard-font data for complete, warning-free Node raster
+  artifacts.
+- Refresh DOMPurify, Vite/Vite Plus, React Router, PostCSS, and Docusaurus
+  security patch levels; add website Dependabot coverage and time-bounded audit
+  decisions for findings without a compatible upstream fix.
+
+---
+
 ## [0.3.0] — 2026-05-20
 
 Independence sweep + anchor-resolution rewrite. The biggest behavioural

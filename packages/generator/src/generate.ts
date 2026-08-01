@@ -47,19 +47,12 @@ export type GenerateHooks = {
   postprocessing?: PostprocessingHook;
 };
 
-const generate = async (
-  props: GenerateProps & GenerateHooks,
-): Promise<Uint8Array<ArrayBuffer>> => {
+const generate = async (props: GenerateProps & GenerateHooks): Promise<Uint8Array<ArrayBuffer>> => {
   // The runtime check is over the zod-validated subset; pull the hooks out
   // first so the .strict() schema doesn't reject them as unknown keys.
   const { preprocessing: preHook, postprocessing: postHook, ...validatableProps } = props;
   checkGenerateProps(validatableProps);
-  const {
-    inputs,
-    template: _template,
-    options = {},
-    plugins: userPlugins = {},
-  } = validatableProps;
+  const { inputs, template: _template, options = {}, plugins: userPlugins = {} } = validatableProps;
   const template = cloneDeep(_template);
 
   const basePdf = template.basePdf;
@@ -118,16 +111,6 @@ const generate = async (
     });
 
     const schemas = dynamicTemplate.schemas;
-    // Create a type-safe array of schema names without using Set spread which requires downlevelIteration
-    const schemaNameSet = new Set<string>();
-    schemas.forEach((page: Schema[]) => {
-      page.forEach((schema: Schema) => {
-        if (schema.name) {
-          schemaNameSet.add(schema.name);
-        }
-      });
-    });
-    const schemaNames = Array.from(schemaNameSet);
 
     for (let j = 0; j < basePages.length; j += 1) {
       const basePage = basePages[j];
@@ -190,14 +173,8 @@ const generate = async (
         }
       }
 
-      for (let l = 0; l < schemaNames.length; l += 1) {
-        const name = schemaNames[l];
-        const schemaPage = schemas[j] || [];
-        const schema = schemaPage.find((s: Schema) => s.name == name);
-        if (!schema) {
-          continue;
-        }
-
+      const schemaPage = schemas[j] || [];
+      for (const schema of schemaPage) {
         const render = renderObj[schema.type];
         if (!render) {
           continue;

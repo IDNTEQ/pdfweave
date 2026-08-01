@@ -3,11 +3,11 @@
   "version": "0.1.0",
   "description": "TypeScript base PDF generator and React base UI. Open source, developed by the community, and completely free to use under the MIT license!",
   "keywords": [
-    "pdfweave",
     "pdf",
     "pdf-designer",
     "pdf-generation",
     "pdf-viewer",
+    "pdfweave",
     "react",
     "typescript"
   ],
@@ -48,6 +48,7 @@
     "lint": "vp lint -c ../../.oxlintrc.json src",
     "fmt": "vp fmt -c ../../.oxfmtrc.json src --write",
     "test": "vitest run --config ../../vitest.config.ts",
+    "test:render-artifacts": "vitest run --config ../../vitest.config.ts __tests__/complex-documents.test.ts",
     "coverage": "vitest run --config ../../vitest.config.ts --coverage",
     "test:update-snapshots": "vitest run --config ../../vitest.config.ts -u"
   },

@@ -5,6 +5,23 @@ bar; this document tracks the actual work.
 
 ## Now
 
+### Production print platform (July 2026)
+
+The detailed, gated roadmap from document composition through imposition,
+security, preflight, and workflow automation is maintained in
+[docs/roadmaps/production-print-platform.md](docs/roadmaps/production-print-platform.md).
+
+- [ ] **P0 - Release integrity:** Node policy, complete audits, truthful CI,
+      CRAP remediation, and one protected publishing pipeline.
+- [ ] **P1 - Production document semantics:** grouped totals, master pages,
+      batch controls, and output security.
+- [x] **P2.1 - N-up imposition:** configurable physical sheets, ordering,
+      scaling, copy collation, visual artifacts, and placement manifests.
+- [ ] **P2.2-P2.4 - Finishing:** marks, page boxes, duplex/booklets, preflight,
+      PDF/X, and output profiles.
+- [ ] **P3 - Workflow platform:** DataMapper, durable orchestration, print and
+      delivery adapters, audit, and multichannel output.
+
 ### Tooling — Quality push (May 2026)
 
 - [ ] **Phase 0** — Mission + roadmap + pinned tracking issue *(this PR)*

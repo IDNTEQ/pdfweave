@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { BLANK_A4_PDF, getTableBindingPreview } from '@pdfweave/common';
+import {
+  BLANK_A4_PDF,
+  getDynamicTemplate,
+  getTableBindingPreview,
+  type Template,
+} from '@pdfweave/common';
 import { createSingleTable } from '../src/tables/tableHelper.js';
 import { getBody } from '../src/tables/helper.js';
+import { getDynamicHeightsForTable } from '../src/tables.js';
 import type { TableSchema } from '../src/tables/types.js';
 
 const baseTableSchema = (): TableSchema => ({
@@ -159,6 +165,72 @@ describe('table cell padding (pdfme/pdfme#1422)', () => {
   });
 });
 
+describe('public table height measurement', () => {
+  it('retains continuation-header height accounting for direct callers', async () => {
+    const schema = baseTableSchema();
+    schema.position.y = 5;
+    schema.width = 60;
+    schema.repeatHead = true;
+    const basePdf = {
+      width: 100,
+      height: 60,
+      padding: [5, 5, 5, 5] as [number, number, number, number],
+    };
+    const body = Array.from({ length: 20 }, (_, index) => [`Item ${index + 1}`, `${index + 1}.00`]);
+    const args = { schema, basePdf, options: {}, _cache: new Map<string | number, unknown>() };
+    const table = await createSingleTable(body, args);
+    const rawHeights = table.allRows().map((row) => row.height);
+    const measuredHeights = await getDynamicHeightsForTable(JSON.stringify(body), args);
+    const repeatedHeight =
+      measuredHeights.reduce((sum, height) => sum + height, 0) -
+      rawHeights.reduce((sum, height) => sum + height, 0);
+
+    expect(measuredHeights).toHaveLength(rawHeights.length);
+    expect(repeatedHeight).toBeGreaterThan(0);
+    expect(repeatedHeight / table.getHeadHeight()).toBeCloseTo(
+      Math.round(repeatedHeight / table.getHeadHeight()),
+      8,
+    );
+  });
+
+  it('composes with the legacy dynamic-template callback without repeating page headers twice', async () => {
+    const schema = baseTableSchema();
+    schema.position.y = 5;
+    schema.width = 60;
+    schema.repeatHead = true;
+    const basePdf = {
+      width: 100,
+      height: 60,
+      padding: [5, 5, 5, 5] as [number, number, number, number],
+    };
+    const body = Array.from({ length: 20 }, (_, index) => [`Item ${index + 1}`, `${index + 1}.00`]);
+    const value = JSON.stringify(body);
+    const template: Template = { basePdf, schemas: [[schema]] };
+    const args = { schema, basePdf, options: {}, _cache: new Map<string | number, unknown>() };
+    const measuredHeights = await getDynamicHeightsForTable(value, args);
+
+    const dynamicTemplate = await getDynamicTemplate({
+      template,
+      input: { items: value },
+      options: {},
+      _cache: new Map(),
+      getDynamicHeights: getDynamicHeightsForTable,
+    });
+    const fragments = dynamicTemplate.schemas.flat().filter(({ name }) => name === schema.name);
+    const ranges = fragments.map(({ __bodyRange }) => __bodyRange);
+
+    expect(ranges[0]).toMatchObject({ start: 0 });
+    expect(ranges.at(-1)).toMatchObject({ end: body.length });
+    for (let index = 1; index < ranges.length; index += 1) {
+      expect(ranges[index]?.start).toBe(ranges[index - 1]?.end);
+    }
+    expect(fragments.reduce((sum, fragment) => sum + fragment.height, 0)).toBeCloseTo(
+      measuredHeights.reduce((sum, height) => sum + height, 0),
+      8,
+    );
+  });
+});
+
 describe('table getBody recovery (pdfme/pdfme#1299)', () => {
   it('parses canonical JSON-string bodies as before', () => {
     expect(getBody('[["a","b"],["c","d"]]')).toEqual([
@@ -203,5 +275,23 @@ describe('table getBody recovery (pdfme/pdfme#1299)', () => {
   });
   it('tolerates a single-row JSON array (string[]) by wrapping it', () => {
     expect(getBody('["a","b"]')).toEqual([['a', 'b']]);
+  });
+
+  it('normalizes numeric, boolean, null, and object cells from JSON', () => {
+    expect(getBody('[[1,true,null,{"code":"A-1"}]]')).toEqual([
+      ['1', 'true', '', '{"code":"A-1"}'],
+    ]);
+  });
+
+  it('renders ragged rows without calling string methods on missing cells', async () => {
+    const table = await createSingleTable([['complete', 'row'], ['missing']], {
+      schema: baseTableSchema(),
+      basePdf: BLANK_A4_PDF,
+      options: {},
+      _cache: new Map(),
+    });
+
+    expect(table.body[1].cells[0].raw).toBe('missing');
+    expect(table.body[1].cells[1].raw).toBe('');
   });
 });

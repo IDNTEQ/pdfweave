@@ -137,6 +137,23 @@ Details: [Tables with Dynamic Data](/tables)
 - Style-related
   - Color
 
+## Print Imposition
+
+The independent [`@pdfweave/imposition`](/imposition) package currently
+supports simplex n-up output with:
+
+- A2, A3, A4, A5, A6, Letter, Legal, and custom physical sheet sizes;
+- configurable rows, columns, margins, gutters, fill order, alignment,
+  contain/cover/no scaling, clipping, and automatic 90-degree rotation;
+- source page selection, repeated selections, copies, and collated or
+  uncollated sequencing;
+- MediaBox, CropBox, TrimBox, BleedBox, or ArtBox selection with explicit
+  fallback warnings;
+- inspectable placement plans and configurable workload limits.
+
+Duplex imposition, booklet signatures, crop and registration marks, creep,
+and color/preflight controls are planned, not currently supported.
+
 ## Planned Support
 
 - [HyperLink](https://github.com/IDNTEQ/pdfweave/issues/319)

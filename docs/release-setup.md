@@ -8,12 +8,26 @@ To enable token-free CI publishing via GitHub OIDC trusted publishers:
 
    - Provider: GitHub Actions
    - Repository: `IDNTEQ/pdfweave`
-   - Workflow: `.github/workflows/release.yml`
+   - Workflow filename: `release.yml`
    - Environment: leave blank unless you decide to add a `release` environment for approval gating
 
-   Packages: `common`, `pdf-lib`, `schemas`, `generator`, `ui`, and `cli`.
+   Packages: `common`, `pdf-lib`, `schemas`, `generator`, `imposition`, `ui`,
+   `cli`, `converter`, and `manipulator`.
 
-   `converter` and `manipulator` are not in the release workflow publish matrix yet.
+   npm cannot attach a trusted publisher until a package exists. Before the
+   first release containing `@pdfweave/imposition`, publish an authenticated
+   prerelease such as `0.4.0-rc.0` under the `next` tag, then configure it:
+
+   ```bash
+   npm trust github @pdfweave/imposition \
+     --file release.yml \
+     --repo IDNTEQ/pdfweave \
+     --allow-publish
+   npm trust list @pdfweave/imposition
+   ```
+
+   Use only the workflow filename in the npm configuration, not its full
+   `.github/workflows/` path.
 
 3. After registration, releases trigger via:
 

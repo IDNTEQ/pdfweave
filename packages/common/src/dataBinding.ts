@@ -35,6 +35,24 @@ const getFormatKind = (format?: DataFormatHint): string | undefined =>
 const getFormatOption = <T>(format: DataFormatHint | undefined, key: string): T | undefined =>
   typeof format === 'object' && format !== null ? (format[key] as T | undefined) : undefined;
 
+const parseDateValue = (value: unknown): Date => {
+  if (value instanceof Date) return value;
+
+  const raw = String(value);
+  const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
+  if (!dateOnly) return new Date(raw);
+
+  const year = Number(dateOnly[1]);
+  const month = Number(dateOnly[2]) - 1;
+  const day = Number(dateOnly[3]);
+  const date = new Date(year, month, day);
+  if (year < 100) date.setFullYear(year);
+
+  return date.getFullYear() === year && date.getMonth() === month && date.getDate() === day
+    ? date
+    : new Date(Number.NaN);
+};
+
 const tokenizePath = (path: string): Array<string | number> => {
   const tokens: Array<string | number> = [];
   const re = /([^[.\]]+)|\[(\d+|(["'])(.*?)\3)\]/g;
@@ -45,7 +63,7 @@ const tokenizePath = (path: string): Array<string | number> => {
       tokens.push(match[1]);
     } else if (match[2]) {
       const raw = match[2];
-      tokens.push(/^\d+$/.test(raw) ? Number(raw) : match[4] ?? raw);
+      tokens.push(/^\d+$/.test(raw) ? Number(raw) : (match[4] ?? raw));
     }
   }
 
@@ -103,7 +121,7 @@ export const formatDesignDataValue = (value: unknown, format?: DataFormatHint): 
   }
 
   if (kind === 'date') {
-    const date = value instanceof Date ? value : new Date(String(value));
+    const date = parseDateValue(value);
     if (!Number.isNaN(date.getTime())) {
       return new Intl.DateTimeFormat(locale, {
         dateStyle: getFormatOption<Intl.DateTimeFormatOptions['dateStyle']>(format, 'dateStyle'),
@@ -139,7 +157,10 @@ const inferItemFields = (items: unknown[]): Record<string, DesignDataField> | un
   if (!firstRecord) return undefined;
 
   return Object.fromEntries(
-    Object.entries(firstRecord).map(([key, value]) => [key, { type: inferType(value), sample: value }]),
+    Object.entries(firstRecord).map(([key, value]) => [
+      key,
+      { type: inferType(value), sample: value },
+    ]),
   );
 };
 
@@ -147,7 +168,10 @@ const createColumns = (
   itemFields: Record<string, DesignDataField> | undefined,
   sample: unknown,
 ): SchemaBindingColumn[] =>
-  inferTableColumns(sample, itemFields ?? (Array.isArray(sample) ? inferItemFields(sample) : undefined));
+  inferTableColumns(
+    sample,
+    itemFields ?? (Array.isArray(sample) ? inferItemFields(sample) : undefined),
+  );
 
 const visitFields = (
   fields: Record<string, DesignDataField>,
@@ -201,10 +225,7 @@ const visitFields = (
   });
 };
 
-const inferVariablesFromData = (
-  data: unknown,
-  prefix = '',
-): DesignDataVariable[] => {
+const inferVariablesFromData = (data: unknown, prefix = ''): DesignDataVariable[] => {
   if (!isRecord(data)) return [];
 
   return Object.entries(data).flatMap(([key, value]) => {
@@ -256,8 +277,7 @@ export const getDesignDataVariables = (designData?: DesignDataPackage): DesignDa
   return variables;
 };
 
-const getInputRecord = (input?: unknown): Record<string, unknown> =>
-  isRecord(input) ? input : {};
+const getInputRecord = (input?: unknown): Record<string, unknown> => (isRecord(input) ? input : {});
 
 export const resolveSchemaValue = (arg: {
   schema: Schema;

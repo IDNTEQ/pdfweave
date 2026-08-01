@@ -21,6 +21,9 @@ workflows actually need:
 - **Stationery PDFs** — Use a single-page PDF as the basePdf, and PDFweave
   stamps it onto every reflowed page (header, footer, page numbers all in
   one re-usable artwork file).
+- **N-up imposition** — Pack smaller logical pages onto A2-A6, Letter, Legal,
+  or custom physical sheets with deterministic geometry, clipping, page
+  selection, copies, and collated or uncollated sequencing.
 
 PDFweave is built for teams whose templates need to bind to real data,
 reflow correctly across pages, and ship branded stationery.
@@ -55,6 +58,30 @@ const pdf = await generate({
 });
 ```
 
+To mount generated invoices, statements, labels, or boleto-style items onto
+physical print sheets:
+
+```bash
+npm install @pdfweave/imposition
+```
+
+```ts
+import { impose } from '@pdfweave/imposition';
+
+const { pdf: printPdf, plan, warnings } = await impose({
+  source: pdf,
+  sheet: { size: 'A4', margins: 6, gutter: 3 },
+  layout: { type: 'n-up', rows: 3, columns: 1 },
+});
+```
+
+See the [imposition package guide](./packages/imposition/README.md) for page
+selection, scaling, alignment, copies, and collation.
+
+To inspect supported production features alongside their exact tests and
+rendered PDF evidence, run `npm run qualification` and open
+`test-artifacts/qualification-report.html`.
+
 For data binding, anchor layouts, smart tables, and stationery PDFs —
 see the docs at [pdfweave.dev](https://pdfweave.dev) (coming soon).
 
@@ -82,6 +109,9 @@ the new features, switching is one find-and-replace and a `pnpm install`.
 | Smart table reflow with header repeat | ✅ |
 | Designer binding panel (drag-from-data, JSON-path picker) | ✅ |
 | `StationeryPdf` basePdf shape (single-page PDF stamped on every page) | ✅ |
+| Simplex n-up imposition on A2/A3/A4/custom sheets | ✅ |
+| Page selection, copies, and collated/uncollated imposition | ✅ |
+| Duplex, booklet signatures, crop/registration marks, and creep | Planned |
 | Plugin `measure` hook for layout-aware schemas | ✅ |
 | MIT license | ✅ |
 
@@ -92,7 +122,9 @@ the new features, switching is one find-and-replace and a `pnpm install`.
 Pre-1.0. APIs may change between minor versions. Breaking changes are
 documented in [CHANGELOG.md](./CHANGELOG.md). Data binding, anchor
 layouts, smart tables, and stationery PDFs are the headline stable
-contracts.
+contracts. The imposition package currently implements Phase 1 simplex n-up;
+duplex, booklet signatures, press marks, creep, and color preflight remain on
+the [production-print roadmap](./docs/roadmaps/production-print-platform.md).
 
 ---
 

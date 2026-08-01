@@ -39,3 +39,4 @@ export {
 
 // Export utility functions
 export { getDynamicHeightsForTable } from './tables.js';
+export type { DynamicTableArgs } from './tables.js';

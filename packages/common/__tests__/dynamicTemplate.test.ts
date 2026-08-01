@@ -695,6 +695,62 @@ describe('getDynamicTemplate staticSchema-aware reflow (pdfme#1434)', () => {
     // Reflowed first row stays at the original padding-derived top (5).
     expect(dynamicTemplate.schemas[0][0].position.y).toBe(5);
   });
+
+  test('budgets a repeated table header inside the effective static-schema bounds', async () => {
+    const rowCount = 14;
+    const template: Template = {
+      schemas: [
+        [
+          {
+            name: 'table',
+            type: 'table',
+            content: '',
+            position: { x: 10, y: 5 },
+            width: 80,
+            height: 10,
+            showHead: true,
+            repeatHead: true,
+          },
+        ],
+      ],
+      basePdf: {
+        width: 100,
+        height: 100,
+        padding: [5, 5, 5, 5],
+        staticSchema: [
+          {
+            name: 'footer',
+            type: 'text',
+            content: 'page footer',
+            position: { x: 10, y: 80 },
+            width: 80,
+            height: 15,
+          },
+        ],
+      },
+    };
+
+    const dynamicTemplate = await getDynamicTemplate({
+      template,
+      input: { table: 'rows' },
+      options: {},
+      _cache: new Map(),
+      // Header = 5 mm, followed by fourteen 10 mm body rows.
+      getDynamicHeights: async () => [5, ...Array.from({ length: rowCount }, () => 10)],
+    });
+
+    expect(dynamicTemplate.schemas).toHaveLength(2);
+    const fragments = dynamicTemplate.schemas.map((page) => page[0]);
+    expect(fragments.map((fragment) => fragment.__bodyRange)).toEqual([
+      { start: 0, end: 7 },
+      { start: 7, end: 14 },
+    ]);
+    expect(fragments.map((fragment) => fragment.height)).toEqual([75, 75]);
+    expect(fragments[1].__isSplit).toBe(true);
+    for (const fragment of fragments) {
+      expect(fragment.position.y + fragment.height).toBeLessThanOrEqual(80 + 0.01);
+    }
+  });
 });
 
 describe('pageBreak schema type (pdfme#637)', () => {
@@ -728,7 +784,14 @@ describe('Same Y position scenarios (horizontal layout) — pdfme#1489', () => {
       schemas: [
         [
           { name: 'a', content: 'a', type: 'a', position: { x: 10, y: 10 }, width: 80, height: 10 },
-          { name: 'b', content: 'b', type: 'b', position: { x: 100, y: 10 }, width: 80, height: 10 },
+          {
+            name: 'b',
+            content: 'b',
+            type: 'b',
+            position: { x: 100, y: 10 },
+            width: 80,
+            height: 10,
+          },
         ],
       ],
     };
@@ -780,7 +843,11 @@ describe('Same Y position scenarios (horizontal layout) — pdfme#1489', () => {
             position: { x: 10, y: 10 },
             width: 80,
             height: 10,
-            layout: { mode: 'anchored', x: { mode: 'pageLeft', offsetMm: 10 }, y: { mode: 'pageTop', offsetMm: 10 } },
+            layout: {
+              mode: 'anchored',
+              x: { mode: 'pageLeft', offsetMm: 10 },
+              y: { mode: 'pageTop', offsetMm: 10 },
+            },
           } as Schema,
           {
             name: 'b',
@@ -789,7 +856,11 @@ describe('Same Y position scenarios (horizontal layout) — pdfme#1489', () => {
             position: { x: 100, y: 10 },
             width: 80,
             height: 10,
-            layout: { mode: 'anchored', x: { mode: 'pageLeft', offsetMm: 100 }, y: { mode: 'pageTop', offsetMm: 10 } },
+            layout: {
+              mode: 'anchored',
+              x: { mode: 'pageLeft', offsetMm: 100 },
+              y: { mode: 'pageTop', offsetMm: 10 },
+            },
           } as Schema,
         ],
       ],
@@ -882,7 +953,7 @@ describe('Runtime anchor re-resolution (Phase 2 — RFC 0001)', () => {
 
   const phase2BasePdf: BasePdf = { width: 200, height: 400, padding: [10, 10, 10, 10] };
 
-  test('anchored chain: B re-resolves below A using A\'s actual height', async () => {
+  test("anchored chain: B re-resolves below A using A's actual height", async () => {
     const template: Template = {
       basePdf: phase2BasePdf,
       schemas: [
@@ -990,7 +1061,7 @@ describe('Runtime anchor re-resolution (Phase 2 — RFC 0001)', () => {
     expect(b?.height).toBe(10);
   });
 
-  test('mixed mode: B anchored to absolute A; uses A\'s actual height', async () => {
+  test("mixed mode: B anchored to absolute A; uses A's actual height", async () => {
     const template: Template = {
       basePdf: phase2BasePdf,
       schemas: [
@@ -1165,7 +1236,7 @@ describe('Runtime anchor re-resolution (Phase 2 — RFC 0001)', () => {
     expect(b?.position.y).toBe(45);
   });
 
-  test('anchored chain where upstream target paginates: B uses A\'s last-fragment bottom', async () => {
+  test("anchored chain where upstream target paginates: B uses A's last-fragment bottom", async () => {
     // Regression for CodeRabbit feedback on PR #46:
     // anchored-to-anchored chain where the upstream target spans
     // pages. B targets A's bottom; A's actual content overflows page 1
@@ -1472,5 +1543,40 @@ describe('Page-aware anchor resolution (Phase 3 — RFC 0001)', () => {
     // B.x = A.x (20) + A.width (60) + offset (5) = 85
     // — independent of which page B ends up on.
     expect(b?.schema.position.x).toBe(85);
+  });
+
+  test.each([
+    { name: 'trailing', pageLengths: [1, 0] },
+    { name: 'interior and trailing', pageLengths: [0, 1, 0] },
+    { name: 'all blank', pageLengths: [0, 0, 0] },
+  ])('preserves $name declared template pages', async ({ pageLengths }) => {
+    const schemas: Schema[][] = pageLengths.map((length, pageIndex) =>
+      length === 0
+        ? []
+        : [
+            {
+              name: `page-${String(pageIndex)}`,
+              content: 'declared page',
+              type: 'text',
+              position: { x: 10, y: 10 },
+              width: 40,
+              height: 10,
+            },
+          ],
+    );
+    const declaredTemplate: Template = {
+      basePdf: { width: 100, height: 100, padding: [10, 10, 10, 10] },
+      schemas,
+    };
+    const dynamic = await getDynamicTemplate({
+      template: declaredTemplate,
+      input: {},
+      options: {},
+      _cache: new Map(),
+      getDynamicHeights: async (_value, args: { schema: Schema }) => [args.schema.height],
+    });
+
+    expect(dynamic.schemas).toHaveLength(schemas.length);
+    expect(dynamic.schemas.map((page) => page.length)).toEqual(schemas.map((page) => page.length));
   });
 });

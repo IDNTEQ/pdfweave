@@ -33,9 +33,16 @@ jobs:
         run: npm run size
       - name: npm audit (high+, runtime only)
         run: npm audit --omit=dev --audit-level=high
-      - run: npm run test
+      - name: Run package tests
+        id: package-tests
+        run: npm run test
         env:
           CI: true
+      - name: Build feature qualification dashboard
+        if: always()
+        run: npm run qualification:build
+        env:
+          QUALIFICATION_TEST_STATUS: ${{ steps.package-tests.outcome }}
       - name: Publish test report
         if: always()
         continue-on-error: true
@@ -70,6 +77,46 @@ jobs:
           path: |
             packages/*/coverage/
             coverage/
+          retention-days: 14
+      - name: Upload complex PDF render artifacts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: complex-pdf-renders
+          path: packages/generator/test-artifacts/complex-documents/
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Upload imposition render artifacts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: imposition-renders
+          path: packages/imposition/test-artifacts/
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Upload feature qualification dashboard
+        id: qualification-dashboard
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: pdfweave-qualification-report
+          path: test-artifacts/qualification-report.html
+          if-no-files-found: warn
+          retention-days: 14
+          compression-level: 0
+      - name: Link feature qualification dashboard
+        if: always() && steps.qualification-dashboard.outputs.artifact-url != ''
+        run: echo "[Download the PDFweave qualification dashboard](${{ steps.qualification-dashboard.outputs.artifact-url }})" >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload visual diff diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: visual-diff-diagnostics
+          path: |
+            packages/**/__image_actual__/
+            packages/**/__image_diffs__/
+            packages/**/__image_diff_report__/
+          if-no-files-found: ignore
           retention-days: 14
       - name: Coverage PR comment
         if: github.event_name == 'pull_request'

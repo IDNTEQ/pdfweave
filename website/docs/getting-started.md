@@ -13,8 +13,8 @@ PDFweave was created to simplify the design and generation process of a PDF. It 
 
 ## Installation
 
-The operating requirements should be the node environment `>=16`.  
-There are two packages in PDFweave, generator and UI.
+The operating requirements should be the node environment `>=16`. PDFweave is
+split into focused packages; install only the APIs used by your workflow.
 
 The package for generating PDF can be installed with the following command.
 
@@ -30,7 +30,15 @@ npm i @pdfweave/ui @pdfweave/common
 
 `@pdfweave/ui` ships as a standalone bundle, so you do not need to install `react` or `react-dom` separately just to use Designer, Form, or Viewer.
 
-\*You must install `@pdfweave/common` regardless of which package you use.
+Physical-sheet imposition can be installed independently:
+
+```
+npm i @pdfweave/imposition
+```
+
+Package manifests declare their own runtime dependencies. Applications do not
+need to add `@pdfweave/common` unless they import its types or utilities
+directly.
 
 The following type, function and classes are available in PDFweave.
 
@@ -47,6 +55,10 @@ The following type, function and classes are available in PDFweave.
 - [Designer]/getting-started#designer)
 - [Form]/getting-started#form)
 - [Viewer]/getting-started#viewer)
+
+`@pdfweave/imposition`
+
+- [impose and planImposition](/imposition)
 
 If your environment uses webpack, import the necessary items as shown below.
 
@@ -356,4 +368,3 @@ I definitely could not have created PDFweave without these libraries. I am grate
 
 If you want to contribute to PDFweave, please check the [Development Guide](/development-guide) page.  
 We look forward to your contribution!
-

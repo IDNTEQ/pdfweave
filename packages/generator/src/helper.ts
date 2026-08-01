@@ -95,7 +95,7 @@ export const prepareBasePdfResources = async (arg: {
   }));
   const boundingBoxes = embedPdfPages.map((p) => {
     const { x, y, width, height } = p.getMediaBox();
-    return { left: x, bottom: y, right: width, top: height + y };
+    return { left: x, bottom: y, right: x + width, top: y + height };
   });
   const transformationMatrices = embedPdfPages.map(
     () => [1, 0, 0, 1, 0, 0] as TransformationMatrix,
@@ -242,9 +242,9 @@ Check this document: https://pdfme.com/docs/custom-schemas`);
     (
       acc: Record<
         string,
-        (arg: LayoutMeasureProps<Schema & { [key: string]: unknown }>) =>
-          | Promise<LayoutMeasureResult>
-          | LayoutMeasureResult
+        (
+          arg: LayoutMeasureProps<Schema & { [key: string]: unknown }>,
+        ) => Promise<LayoutMeasureResult> | LayoutMeasureResult
       >,
       type: string,
     ) => {
@@ -263,9 +263,9 @@ Check this document: https://pdfme.com/docs/custom-schemas`);
     },
     {} as Record<
       string,
-      (arg: LayoutMeasureProps<Schema & { [key: string]: unknown }>) =>
-        | Promise<LayoutMeasureResult>
-        | LayoutMeasureResult
+      (
+        arg: LayoutMeasureProps<Schema & { [key: string]: unknown }>,
+      ) => Promise<LayoutMeasureResult> | LayoutMeasureResult
     >,
   );
 
@@ -336,9 +336,7 @@ export const insertPage = (arg: {
  * falls back to the MediaBox origin — which keeps the historical behavior for
  * the common case where MediaBox == CropBox. See pdfme/pdfme#623.
  */
-export const getPageContentOffset = (
-  embedPdfBox: EmbedPdfBox,
-): { x: number; y: number } => {
+export const getPageContentOffset = (embedPdfBox: EmbedPdfBox): { x: number; y: number } => {
   const box = embedPdfBox.cropBox ?? embedPdfBox.mediaBox;
   return { x: box.x, y: box.y };
 };

@@ -1,0 +1,61 @@
+{
+  "name": "@pdfweave/imposition",
+  "version": "0.1.0",
+  "description": "Deterministic PDF n-up imposition and physical sheet planning for PDFweave.",
+  "keywords": [
+    "collation",
+    "imposition",
+    "n-up",
+    "pdf",
+    "pdfweave",
+    "printing",
+    "typescript"
+  ],
+  "homepage": "https://pdfweave.dev",
+  "bugs": {
+    "url": "https://github.com/IDNTEQ/pdfweave/issues"
+  },
+  "license": "MIT",
+  "author": "PDFweave contributors (forked from pdfme by hand-dot)",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/IDNTEQ/pdfweave.git",
+    "directory": "packages/imposition"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "dev": "vite build --watch",
+    "build": "vite build && tsc -p tsconfig.build.json",
+    "clean": "rimraf dist",
+    "lint": "vp lint -c ../../.oxlintrc.json src",
+    "fmt": "vp fmt -c ../../.oxfmtrc.json src --write",
+    "test": "vitest run --config ../../vitest.config.ts",
+    "test:render-artifacts": "vitest run --config ../../vitest.config.ts __tests__/e2e",
+    "coverage": "vitest run --config ../../vitest.config.ts --coverage"
+  },
+  "dependencies": {
+    "@pdfweave/pdf-lib": "0.1.0",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@pdfweave/converter": "0.1.0"
+  }
+}

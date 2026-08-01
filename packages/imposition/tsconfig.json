@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "declaration": true,
+    "declarationDir": "./dist/typecheck",
+    "emitDeclarationOnly": true,
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "outDir": "./dist/typecheck",
+    "skipLibCheck": true,
+    "tsBuildInfoFile": "./dist/typecheck/tsconfig.tsbuildinfo"
+  },
+  "include": ["src/**/*.ts"],
+  "references": [{ "path": "../pdf-lib" }]
+}

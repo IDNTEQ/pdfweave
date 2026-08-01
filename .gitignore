@@ -9,6 +9,7 @@ coverage/
 *.tsbuildinfo
 test-results.xml
 .size-limit-result.json
+**/test-artifacts/**
 
 **/repomix-output.{txt,xml}
 

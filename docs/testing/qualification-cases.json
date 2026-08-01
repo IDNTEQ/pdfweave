@@ -1,0 +1,425 @@
+{
+  "schemaVersion": 1,
+  "title": "PDFweave production feature qualification",
+  "description": "A traceable map from supported production features to executable tests and inspectable PDF evidence.",
+  "scenarios": [
+    {
+      "id": "paper-size-catalog",
+      "title": "Paper size catalog",
+      "description": "Eight physical sheets covering A2, A3, A4, A5, A6, Letter, Legal, and a custom millimeter size.",
+      "artifactDirectory": "packages/imposition/test-artifacts/n-up/paper-size-catalog",
+      "pdf": "paper-size-catalog.pdf",
+      "manifest": "manifest.json"
+    },
+    {
+      "id": "scale-alignment-catalog",
+      "title": "Scale and alignment catalog",
+      "description": "Rendered contain, cover, none, upscale, alignment, clipping, and auto-rotation cases.",
+      "artifactDirectory": "packages/imposition/test-artifacts/n-up/scale-alignment-catalog",
+      "pdf": "scale-alignment-catalog.pdf",
+      "manifest": "manifest.json"
+    },
+    {
+      "id": "source-box-catalog",
+      "title": "Source box catalog",
+      "description": "Media, crop, bleed, trim, and art boxes plus a visible trim-to-crop fallback case.",
+      "artifactDirectory": "packages/imposition/test-artifacts/n-up/source-box-catalog",
+      "pdf": "source-box-catalog.pdf",
+      "manifest": "manifest.json"
+    },
+    {
+      "id": "rotation-catalog",
+      "title": "Rotation catalog",
+      "description": "A 2x2 sheet containing source pages with intrinsic 0, 90, 180, and 270 degree rotations.",
+      "artifactDirectory": "packages/imposition/test-artifacts/n-up/rotation-catalog",
+      "pdf": "rotation-catalog.pdf",
+      "manifest": "manifest.json"
+    },
+    {
+      "id": "ordering-catalog",
+      "title": "Fill order and collation catalog",
+      "description": "Row-major, column-major, collated-copy, and uncollated-copy output sequences.",
+      "artifactDirectory": "packages/imposition/test-artifacts/n-up/ordering-catalog",
+      "pdf": "ordering-catalog.pdf",
+      "manifest": "manifest.json"
+    },
+    {
+      "id": "a4-boleto-booklet",
+      "title": "A4 boleto-style 3-up job",
+      "description": "Seven boleto-style pages packed three-up across three A4 sheets with a partial final sheet.",
+      "artifactDirectory": "packages/imposition/test-artifacts/n-up/a4-boleto-booklet",
+      "pdf": "a4-boleto-booklet.pdf",
+      "manifest": "manifest.json"
+    },
+    {
+      "id": "a3-client-statements",
+      "title": "Landscape A3 statement 4-up job",
+      "description": "Five A5 client statements packed four-up across two landscape A3 sheets.",
+      "artifactDirectory": "packages/imposition/test-artifacts/n-up/a3-client-statements",
+      "pdf": "a3-client-statements.pdf",
+      "manifest": "manifest.json"
+    },
+    {
+      "id": "complex-invoice",
+      "title": "Multi-page invoice",
+      "description": "A three-page A4 invoice with repeated headings and terminal subtotal, tax, and total rows.",
+      "artifactDirectory": "packages/generator/test-artifacts/complex-documents/complex-invoice",
+      "pdf": "complex-invoice.pdf",
+      "manifest": "manifest.json"
+    },
+    {
+      "id": "complex-bank-extract",
+      "title": "Multi-page bank extract",
+      "description": "A three-page A4 bank extract with running balances and a terminal closing-balance row.",
+      "artifactDirectory": "packages/generator/test-artifacts/complex-documents/complex-bank-extract",
+      "pdf": "complex-bank-extract.pdf",
+      "manifest": "manifest.json"
+    }
+  ],
+  "features": [
+    {
+      "id": "paper-sizes",
+      "category": "Sheet formats",
+      "name": "A2-A6, Letter, Legal, and custom sheets",
+      "evidenceKind": "visual",
+      "definition": "Given each named preset and a custom millimeter sheet, imposition emits the requested physical dimensions and orientation.",
+      "assertions": [
+        "Every named preset is normalized to exact PDF points.",
+        "Custom millimeter dimensions are converted and oriented correctly.",
+        "The combined PDF contains one inspectable page for every case."
+      ],
+      "tests": [
+        {
+          "file": "packages/imposition/__tests__/plan.test.ts",
+          "title": "normalizes %s %s physical sheet dimensions"
+        },
+        {
+          "file": "packages/imposition/__tests__/plan.test.ts",
+          "title": "normalizes a custom millimeter sheet and applies its requested orientation"
+        },
+        {
+          "file": "packages/imposition/__tests__/e2e/qualification.e2e.test.ts",
+          "title": "renders every named paper preset and a custom millimeter sheet"
+        }
+      ],
+      "scenarios": ["paper-size-catalog"]
+    },
+    {
+      "id": "n-up-grid",
+      "category": "Placement",
+      "name": "N-up grids, margins, and gutters",
+      "evidenceKind": "visual",
+      "definition": "Given explicit rows, columns, asymmetric margins, and gutters, every slot has deterministic top-to-bottom physical coordinates.",
+      "assertions": [
+        "Exact cell rectangles are asserted numerically.",
+        "3-up A4 and 4-up landscape A3 jobs are rasterized and snapshot-tested.",
+        "Partial final sheets expose every empty slot."
+      ],
+      "tests": [
+        {
+          "file": "packages/imposition/__tests__/plan.test.ts",
+          "title": "calculates exact top-to-bottom cells with asymmetric margins and gutters"
+        },
+        {
+          "file": "packages/imposition/__tests__/e2e/n-up.e2e.test.ts",
+          "title": "packs seven boleto-style items three-up across three A4 sheets"
+        },
+        {
+          "file": "packages/imposition/__tests__/e2e/n-up.e2e.test.ts",
+          "title": "packs five A5 client statements four-up across two landscape A3 sheets"
+        }
+      ],
+      "scenarios": ["a4-boleto-booklet", "a3-client-statements"]
+    },
+    {
+      "id": "fill-order",
+      "category": "Placement",
+      "name": "Row-major and column-major ordering",
+      "evidenceKind": "visual",
+      "definition": "The same source sequence occupies different deterministic slot coordinates under row-major and column-major fill modes.",
+      "assertions": [
+        "Source indexes and row/column coordinates are asserted.",
+        "The PDF catalog shows both physical arrangements.",
+        "Empty slots remain explicit in the placement manifest."
+      ],
+      "tests": [
+        {
+          "file": "packages/imposition/__tests__/plan.test.ts",
+          "title": "supports column-major ordering and exposes all slots on a partial final sheet"
+        },
+        {
+          "file": "packages/imposition/__tests__/e2e/qualification.e2e.test.ts",
+          "title": "renders row-major, column-major, collated, and uncollated page order"
+        }
+      ],
+      "scenarios": ["ordering-catalog"]
+    },
+    {
+      "id": "scaling",
+      "category": "Placement",
+      "name": "Contain, cover, none, and upscale control",
+      "evidenceKind": "visual",
+      "definition": "Content can be contained, cover-cropped, or left at native scale, with enlargement controlled independently.",
+      "assertions": [
+        "Contain scaling is capped at one unless allowUpscale is enabled.",
+        "Cover output exceeds the cell in one axis and is clipped.",
+        "None mode preserves scale one."
+      ],
+      "tests": [
+        {
+          "file": "packages/imposition/__tests__/plan.test.ts",
+          "title": "caps contain scaling unless allowUpscale is enabled"
+        },
+        {
+          "file": "packages/imposition/__tests__/renderer.test.ts",
+          "title": "clips cover-scaled content to each slot"
+        },
+        {
+          "file": "packages/imposition/__tests__/e2e/qualification.e2e.test.ts",
+          "title": "renders contain, cover, none, alignment, upscale, and auto-rotation modes"
+        }
+      ],
+      "scenarios": ["scale-alignment-catalog"]
+    },
+    {
+      "id": "alignment",
+      "category": "Placement",
+      "name": "Horizontal and vertical alignment",
+      "evidenceKind": "visual",
+      "definition": "Left, center, right and bottom, middle, top alignment combinations place native-size content at exact cell offsets.",
+      "assertions": [
+        "All nine alignment combinations are asserted numerically.",
+        "Right/top and left/bottom output are included in the visual catalog."
+      ],
+      "tests": [
+        {
+          "file": "packages/imposition/__tests__/plan.test.ts",
+          "title": "positions unscaled content for every horizontal and vertical alignment"
+        },
+        {
+          "file": "packages/imposition/__tests__/e2e/qualification.e2e.test.ts",
+          "title": "renders contain, cover, none, alignment, upscale, and auto-rotation modes"
+        }
+      ],
+      "scenarios": ["scale-alignment-catalog"]
+    },
+    {
+      "id": "rotation",
+      "category": "Placement",
+      "name": "Auto-rotation and intrinsic page rotation",
+      "evidenceKind": "visual",
+      "definition": "Auto-rotation selects a strictly better fit, while intrinsic PDF rotations are normalized into placement geometry and rendering.",
+      "assertions": [
+        "A better 90 degree fit is selected while ties stay unrotated.",
+        "Intrinsic 0, 90, 180, and 270 degree pages render in one 2x2 sheet.",
+        "UserUnit and nonzero box origins remain physically correct."
+      ],
+      "tests": [
+        {
+          "file": "packages/imposition/__tests__/plan.test.ts",
+          "title": "selects a strictly better auto-rotation and keeps ties unrotated"
+        },
+        {
+          "file": "packages/imposition/__tests__/e2e/qualification.e2e.test.ts",
+          "title": "renders intrinsic rotations at 0, 90, 180, and 270 degrees"
+        },
+        {
+          "file": "packages/imposition/__tests__/renderer.test.ts",
+          "title": "normalizes source UserUnit, nonzero boxes, and rotation into physical points"
+        }
+      ],
+      "scenarios": ["rotation-catalog", "a3-client-statements"]
+    },
+    {
+      "id": "source-boxes",
+      "category": "PDF semantics",
+      "name": "Media, crop, bleed, trim, and art source boxes",
+      "evidenceKind": "visual",
+      "definition": "Each supported source box is honored, including nonzero origins, with deterministic fallback warnings when the requested box is absent.",
+      "assertions": [
+        "Explicit box coordinates are asserted for all five box types.",
+        "The visual catalog shows the progressively smaller source regions.",
+        "A missing trim box falls back to crop with a typed warning."
+      ],
+      "tests": [
+        {
+          "file": "packages/imposition/__tests__/renderer.test.ts",
+          "title": "uses explicit trim, bleed, and art boxes without fallback warnings"
+        },
+        {
+          "file": "packages/imposition/__tests__/e2e/qualification.e2e.test.ts",
+          "title": "renders every source page box and records a deterministic fallback warning"
+        }
+      ],
+      "scenarios": ["source-box-catalog"]
+    },
+    {
+      "id": "collation",
+      "category": "Sequencing",
+      "name": "Copies with collated and uncollated ordering",
+      "evidenceKind": "visual",
+      "definition": "Selected pages are expanded by copy count into either document-major or page-major order without mutating caller options.",
+      "assertions": [
+        "Exact source-page and copy-index sequences are asserted.",
+        "The PDF catalog renders both two-copy sequences."
+      ],
+      "tests": [
+        {
+          "file": "packages/imposition/__tests__/plan.test.ts",
+          "title": "expands collated and uncollated copies without mutating caller options"
+        },
+        {
+          "file": "packages/imposition/__tests__/e2e/qualification.e2e.test.ts",
+          "title": "renders row-major, column-major, collated, and uncollated page order"
+        }
+      ],
+      "scenarios": ["ordering-catalog"]
+    },
+    {
+      "id": "clipping",
+      "category": "PDF semantics",
+      "name": "Per-slot clipping",
+      "evidenceKind": "visual",
+      "definition": "Every placement is clipped to its cell so cover-scaled or native-size overflow cannot enter neighboring slots.",
+      "assertions": [
+        "The content rectangle deliberately exceeds the cell.",
+        "Raster snapshots verify that overflow is absent outside the clip."
+      ],
+      "tests": [
+        {
+          "file": "packages/imposition/__tests__/renderer.test.ts",
+          "title": "clips cover-scaled content to each slot"
+        },
+        {
+          "file": "packages/imposition/__tests__/e2e/qualification.e2e.test.ts",
+          "title": "renders contain, cover, none, alignment, upscale, and auto-rotation modes"
+        }
+      ],
+      "scenarios": ["scale-alignment-catalog"]
+    },
+    {
+      "id": "limits",
+      "category": "Safety",
+      "name": "Placement, sheet, grid, and numeric limits",
+      "evidenceKind": "logic",
+      "definition": "Invalid page indexes, impossible geometry, excessive grids, normalized overflows, and configured placement or sheet limits fail before rendering.",
+      "assertions": [
+        "Every failure uses a stable package-prefixed error.",
+        "No PDF is expected for rejection behavior; the linked PDF is a related valid boundary example."
+      ],
+      "tests": [
+        {
+          "file": "packages/imposition/__tests__/plan.test.ts",
+          "title": "rejects $name with a stable package error"
+        },
+        {
+          "file": "packages/imposition/__tests__/renderer.test.ts",
+          "title": "rejects a non-finite final draw scale from adversarial source geometry"
+        }
+      ],
+      "scenarios": ["a4-boleto-booklet"]
+    },
+    {
+      "id": "warnings",
+      "category": "Safety",
+      "name": "Typed fallback and annotation warnings",
+      "evidenceKind": "hybrid",
+      "definition": "Lossy or substituted behavior is surfaced through deterministic warning codes and source-page indexes.",
+      "assertions": [
+        "Missing boxes produce page-box-fallback warnings.",
+        "Unsupported annotations produce annotations-omitted warnings and are absent from output.",
+        "Blank logical pages remain placements."
+      ],
+      "tests": [
+        {
+          "file": "packages/imposition/__tests__/renderer.test.ts",
+          "title": "preserves blank placements and warns when source annotations cannot be copied"
+        },
+        {
+          "file": "packages/imposition/__tests__/e2e/qualification.e2e.test.ts",
+          "title": "renders every source page box and records a deterministic fallback warning"
+        }
+      ],
+      "scenarios": ["source-box-catalog"]
+    },
+    {
+      "id": "determinism",
+      "category": "Reproducibility",
+      "name": "Deterministic plans, manifests, and PDF bytes",
+      "evidenceKind": "hybrid",
+      "definition": "Identical source bytes and options produce deeply equal placement plans and byte-identical PDFs.",
+      "assertions": [
+        "Repeated plans are deeply equal.",
+        "Repeated PDFs are byte-identical.",
+        "Every artifact manifest records normalized options, placements, and a SHA-256 digest."
+      ],
+      "tests": [
+        {
+          "file": "packages/imposition/__tests__/plan.test.ts",
+          "title": "normalizes negative intrinsic rotations and returns deterministic plans"
+        },
+        {
+          "file": "packages/imposition/__tests__/renderer.test.ts",
+          "title": "produces byte-identical output for identical inputs and options"
+        }
+      ],
+      "scenarios": ["ordering-catalog"]
+    },
+    {
+      "id": "resource-reuse",
+      "category": "Performance",
+      "name": "Source pages embedded once and reused",
+      "evidenceKind": "hybrid",
+      "definition": "The input PDF is loaded once and every unique source page becomes one reusable Form XObject, independent of copies or sheet count.",
+      "assertions": [
+        "One source load and one embedPages call are asserted.",
+        "Only two Form XObjects exist for twelve placements of two source pages."
+      ],
+      "tests": [
+        {
+          "file": "packages/imposition/__tests__/renderer.test.ts",
+          "title": "loads once, embeds each unique source page once, and reuses forms across sheets"
+        }
+      ],
+      "scenarios": ["a4-boleto-booklet"]
+    },
+    {
+      "id": "invoice-totals",
+      "category": "Document rendering",
+      "name": "Multi-page invoice with terminal total rows",
+      "evidenceKind": "visual",
+      "definition": "A bound invoice table flows across three A4 pages with repeated headings and exactly one subtotal, tax, and total group at the end.",
+      "assertions": [
+        "All source rows have contiguous, nonduplicated page ranges.",
+        "Control totals and the terminal page are asserted.",
+        "Every rendered page is snapshot-tested."
+      ],
+      "tests": [
+        {
+          "file": "packages/generator/__tests__/complex-documents.test.ts",
+          "title": "renders a bound invoice table with terminal total rows across multiple A4 pages"
+        }
+      ],
+      "scenarios": ["complex-invoice"]
+    },
+    {
+      "id": "bank-extract",
+      "category": "Document rendering",
+      "name": "Multi-page bank extract with closing balance",
+      "evidenceKind": "visual",
+      "definition": "A bound transaction table flows across three A4 pages with running balances, repeated headings, and one final closing-balance row.",
+      "assertions": [
+        "All transactions have contiguous, nonduplicated page ranges.",
+        "Opening and closing control balances are recorded in the manifest.",
+        "Every rendered page is snapshot-tested."
+      ],
+      "tests": [
+        {
+          "file": "packages/generator/__tests__/complex-documents.test.ts",
+          "title": "renders a bank extract with a terminal closing-balance row across multiple A4 pages"
+        }
+      ],
+      "scenarios": ["complex-bank-extract"]
+    }
+  ]
+}

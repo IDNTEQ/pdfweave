@@ -1,7 +1,7 @@
 # PDFweave Open Source Library
 > A TypeScript PDF template engine with first-class data binding, anchor layouts, smart tables, and stationery PDFs. Built for production document workflows in both browser and Node.js environments.
 
-PDFweave is a hard fork of pdfme (MIT-licensed), focused on production document generation: dynamic layout that reflows across pages, anchor-based positioning that resolves at render time, expression-driven data binding, and stationery overlays. The eight workspaces ship together under `@pdfweave/*` on npm.
+PDFweave is a hard fork of pdfme (MIT-licensed), focused on production document generation: dynamic layout that reflows across pages, anchor-based positioning that resolves at render time, expression-driven data binding, stationery overlays, and simplex n-up print imposition. The nine workspaces ship together under `@pdfweave/*` on npm.
 
 ## Installation & Setup
 - [Getting Started](https://idnteq.github.io/pdfweave/docs/getting-started): Installation and basic setup guide
@@ -18,6 +18,7 @@ PDFweave is a hard fork of pdfme (MIT-licensed), focused on production document 
 - [Tables](https://idnteq.github.io/pdfweave/docs/tables): Dynamic table generation
 - [Headers and Footers](https://idnteq.github.io/pdfweave/docs/headers-and-footers): Page layout management
 - [Expression](https://idnteq.github.io/pdfweave/docs/expression): Dynamic content and calculations
+- [Imposition](https://idnteq.github.io/pdfweave/docs/imposition): N-up physical-sheet planning and rendering
 - [Template Contribution](https://idnteq.github.io/pdfweave/docs/template-contribution-guide): Template sharing guidelines
 
 ## Community & Development
@@ -26,6 +27,7 @@ PDFweave is a hard fork of pdfme (MIT-licensed), focused on production document 
 
 ## Package Ecosystem
 - [@pdfweave/generator](https://www.npmjs.com/package/@pdfweave/generator): PDF generation from templates
+- [@pdfweave/imposition](https://www.npmjs.com/package/@pdfweave/imposition): N-up physical-sheet planning and PDF rendering
 - [@pdfweave/ui](https://www.npmjs.com/package/@pdfweave/ui): Designer, Form, and Viewer components
 - [@pdfweave/schemas](https://www.npmjs.com/package/@pdfweave/schemas): Built-in field types and schemas
 - [@pdfweave/manipulator](https://www.npmjs.com/package/@pdfweave/manipulator): PDF manipulation utilities

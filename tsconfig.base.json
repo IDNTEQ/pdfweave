@@ -16,6 +16,7 @@
       "@pdfweave/common": ["packages/common/src/index.ts"],
       "@pdfweave/converter": ["packages/converter/src/index.ts"],
       "@pdfweave/generator": ["packages/generator/src/index.ts"],
+      "@pdfweave/imposition": ["packages/imposition/src/index.ts"],
       "@pdfweave/manipulator": ["packages/manipulator/src/index.ts"],
       "@pdfweave/pdf-lib": ["packages/pdf-lib/src/index.ts"],
       "@pdfweave/schemas": ["packages/schemas/src/index.ts"],

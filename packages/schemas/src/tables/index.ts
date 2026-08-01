@@ -3,7 +3,7 @@ import type { TableSchema } from './types.js';
 import { pdfRender } from './pdfRender.js';
 import { uiRender } from './uiRender.js';
 import { propPanel } from './propPanel.js';
-import { getDynamicHeightsForTable } from './dynamicTemplate.js';
+import { getTableRowHeights } from './dynamicTemplate.js';
 import { Table } from 'lucide';
 import { createSvgStr } from '../utils.js';
 
@@ -11,7 +11,7 @@ const tableSchema: Plugin<TableSchema> = {
   pdf: pdfRender,
   ui: uiRender,
   measure: async ({ value, schema, basePdf, options, _cache }) => {
-    const dynamicHeights = await getDynamicHeightsForTable(value, {
+    const dynamicHeights = await getTableRowHeights(value, {
       schema,
       basePdf,
       options,

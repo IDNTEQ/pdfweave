@@ -13,8 +13,7 @@ PDFweaveはPDFのデザインと生成プロセスを簡素化するために作
 
 ## インストール
 
-動作要件はnode環境 `>=16` です。  
-PDFweaveには、generatorとUIの2つのパッケージがあります。
+動作要件はnode環境 `>=16` です。PDFweaveは用途別のパッケージに分かれているため、ワークフローで使用するAPIだけをインストールできます。
 
 PDFを生成するためのパッケージは、以下のコマンドでインストールできます。
 
@@ -30,7 +29,13 @@ npm i @pdfweave/ui @pdfweave/common
 
 `@pdfweave/ui` は standalone bundle として配布されるため、Designer / Form / Viewer を使うためだけに `react` や `react-dom` を別途インストールする必要はありません。
 
-\*どのパッケージを使用する場合でも、`@pdfweave/common`をインストールする必要があります。
+物理印刷シートへの面付けは、独立してインストールできます。
+
+```
+npm i @pdfweave/imposition
+```
+
+各パッケージは必要なランタイム依存関係を宣言しています。型やユーティリティを直接importする場合を除き、アプリケーション側で`@pdfweave/common`を追加する必要はありません。
 
 PDFweaveでは以下の型、関数、クラスが利用可能です。
 
@@ -47,6 +52,10 @@ PDFweaveでは以下の型、関数、クラスが利用可能です。
 - [Designer]/getting-started#designer)
 - [Form]/getting-started#form)
 - [Viewer]/getting-started#viewer)
+
+`@pdfweave/imposition`
+
+- [imposeとplanImposition](/imposition)
 
 環境がwebpackを使用している場合は、以下のように必要なアイテムをインポートします。
 
@@ -362,4 +371,3 @@ const viewer = new Viewer({ domContainer, template, inputs });
 
 PDFweaveに貢献したい場合は、[開発ガイド](/development-guide)ページをご確認ください。  
 あなたの貢献をお待ちしています！
-
