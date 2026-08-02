@@ -12,7 +12,6 @@ For using schemas other than the Text schema, please refer to the following docu
 
 :::
 
-
 ### Text (text)
 
 - Style-related
@@ -85,6 +84,28 @@ For using schemas other than the Text schema, please refer to the following docu
   - Text Color
   - [Include text option (planned support)](https://github.com/IDNTEQ/pdfweave/issues/23)
 
+### Boleto de cobranca (boleto)
+
+- Generic FEBRABAN `ficha de compensacao` rendered from strict structured data
+- Canonical 44-digit barcode validation and derived 47-digit linha digitavel
+- Numeric and uppercase alphanumeric CNPJ validation
+- Fixed and variable amounts, direct and third-party beneficiary display
+- Reconciled fixed-amount discount, interest, and charged-value fields
+- Test mode omits the barcode and digitable line, adds explicit redaction
+  labels and a non-payable watermark
+- Fail-closed geometry/text/static-logo preflight, including animated-PNG
+  rejection before raster decode
+- Conventional vector header digits with physical stroke and ink dimensions
+- Vector mechanical-authentication caption at the 2 mm height ceiling and 0.3
+  mm stroke width
+- Exact-size A4 two-up and landscape A3 four-up qualification artifacts
+
+The component does not derive a complete boleto from a barcode, invent a
+bank-specific free field, register a title, or replace bank/provider
+homologation. See the repository's
+[boleto operator guide](https://github.com/IDNTEQ/pdfweave/blob/main/docs/printing/boleto.md)
+for the complete contract and supported boundaries.
+
 ### Table (table){#table}
 
 Details: [Tables with Dynamic Data](/tables)
@@ -107,6 +128,21 @@ Details: [Tables with Dynamic Data](/tables)
     - Padding
   - Column
     - Text Align
+- Explicit percentage column widths
+- Cell word wrapping with automatic row-height growth
+- Multi-page reflow with optional repeated headings
+
+### Existing PDF backgrounds
+
+- Render variable schemas over an existing PDF base
+- Preserve MediaBox and CropBox geometry
+- Position authored top-left coordinates relative to the visible CropBox
+- Reuse a single-page stationery PDF across dynamically generated pages
+
+The qualification dashboard includes a boleto over a dark patterned base PDF
+with an asymmetric CropBox. The test checks unchanged surrounding artwork,
+opaque component backing, preserved page boxes, and non-decodable test-mode
+payment-identifier regions.
 
 ### Select (select)
 
@@ -139,8 +175,8 @@ Details: [Tables with Dynamic Data](/tables)
 
 ## Print Imposition
 
-The independent [`@pdfweave/imposition`](/imposition) package currently
-supports simplex n-up output with:
+The independent, release-pending [`@pdfweave/imposition`](/imposition)
+workspace package currently supports simplex n-up output with:
 
 - A2, A3, A4, A5, A6, Letter, Legal, and custom physical sheet sizes;
 - configurable rows, columns, margins, gutters, fill order, alignment,

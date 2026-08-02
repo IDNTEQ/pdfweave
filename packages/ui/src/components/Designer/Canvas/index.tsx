@@ -104,19 +104,15 @@ const Canvas = (props: CanvasProps, ref: Ref<HTMLDivElement>) => {
     setEditing(true);
   };
 
-  const {
-    focusedSchemaIds,
-    schemaPageIndexById,
-    selectContextTargets,
-    toggleShiftClickSelection,
-  } = useSelectionHelpers({
-    activeElements,
-    hoveringSchemaId,
-    schemasList,
-    pageCursor,
-    onEdit,
-    onEditingChange: setEditing,
-  });
+  const { focusedSchemaIds, schemaPageIndexById, selectContextTargets, toggleShiftClickSelection } =
+    useSelectionHelpers({
+      activeElements,
+      hoveringSchemaId,
+      schemasList,
+      pageCursor,
+      onEdit,
+      onEditingChange: setEditing,
+    });
 
   const { onSelectoDragStart, onSelectoSelect } = useMarqueeSelection({
     paperRefs,
@@ -230,7 +226,9 @@ const Canvas = (props: CanvasProps, ref: Ref<HTMLDivElement>) => {
         canGroup={contextSchemas.length > 1}
         canUngroup={contextSchemas.some((schema) => Boolean(schema.group))}
         applyAnchorSourceSchemaName={
-          applyAnchorSource ? applyAnchorSource.schema.name || applyAnchorSource.schema.id : undefined
+          applyAnchorSource
+            ? applyAnchorSource.schema.name || applyAnchorSource.schema.id
+            : undefined
         }
         onAction={onContextMenuAction}
         onClose={() => closeContextMenu()}

@@ -47,12 +47,7 @@
  *    keeps each width inside `[1, 100]` and renormalises to sum to 100.
  */
 
-import type {
-  DesignDataField,
-  Schema,
-  SchemaBinding,
-  SchemaBindingColumn,
-} from './types.js';
+import type { DesignDataField, Schema, SchemaBinding, SchemaBindingColumn } from './types.js';
 import { formatDesignDataValue, getValueByPath } from './dataBinding.js';
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -120,20 +115,20 @@ export const widthPercentages = (columns: SchemaBindingColumn[]): number[] => {
   const missingCount = explicitWidths.filter((width) => typeof width !== 'number').length;
   const fallbackWidth =
     missingCount > 0
-      ? (explicitTotal < 100
+      ? explicitTotal < 100
         ? (100 - explicitTotal) / missingCount
-        : 100 / columns.length)
+        : 100 / columns.length
       : 0;
-  const widths = explicitWidths.map((width) =>
-    typeof width === 'number' ? width : fallbackWidth,
-  );
+  const widths = explicitWidths.map((width) => (typeof width === 'number' ? width : fallbackWidth));
   const total = widths.reduce((sum, width) => sum + width, 0);
   const adjustedWidths =
     total > 100
       ? widths.map((width) => (width / total) * 100)
-      : (missingCount === 0 && total < 100
-        ? widths.map((width, index) => (index === widths.length - 1 ? width + (100 - total) : width))
-        : widths);
+      : missingCount === 0 && total < 100
+        ? widths.map((width, index) =>
+            index === widths.length - 1 ? width + (100 - total) : width,
+          )
+        : widths;
   let assigned = 0;
 
   return adjustedWidths.map((width, index) => {
@@ -353,10 +348,7 @@ export const inferColumns = (
  * If the binding path is missing, returns `[]`. Accepts JSON-encoded
  * arrays as well as native arrays.
  */
-export const resolveTableRows = (
-  schema: Schema,
-  input: Record<string, unknown>,
-): string[][] => {
+export const resolveTableRows = (schema: Schema, input: Record<string, unknown>): string[][] => {
   const binding = schema.binding as SchemaBinding | undefined;
   const value = binding?.path ? getValueByPath(input, binding.path) : undefined;
   const columns = getTableColumns(schema, value);

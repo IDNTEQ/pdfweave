@@ -4,6 +4,8 @@ import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { JSDOM } from 'jsdom';
+import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
+import { PNG } from 'pngjs';
 import ts from 'typescript';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -119,6 +121,15 @@ export const validateCatalog = (catalog) => {
       ) {
         fail(`Feature '${feature.id}' has an invalid test reference`);
       }
+      if (
+        testReference.supportingDefinitions !== undefined &&
+        (!Array.isArray(testReference.supportingDefinitions) ||
+          testReference.supportingDefinitions.some(
+            (name) => typeof name !== 'string' || !/^[A-Za-z_$][\w$]*$/.test(name),
+          ))
+      ) {
+        fail(`Feature '${feature.id}' has invalid supporting test definitions`);
+      }
     }
     if (!Array.isArray(feature.scenarios) || feature.scenarios.length === 0) {
       fail(`Feature '${feature.id}' has no PDF evidence reference`);
@@ -138,6 +149,46 @@ const formatBytes = (bytes) => {
   if (bytes < 1024) return `${String(bytes)} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
+
+const errorMessage = (error) => (error instanceof Error ? error.message : String(error));
+
+const parsePdfPageCount = async (bytes, scenarioId) => {
+  let loadingTask;
+  try {
+    loadingTask = getDocument({
+      data: new Uint8Array(bytes),
+      isEvalSupported: false,
+      stopAtErrors: true,
+      useSystemFonts: false,
+      verbosity: 0,
+    });
+    const document = await loadingTask.promise;
+    if (!Number.isInteger(document.numPages) || document.numPages < 1) {
+      throw new Error('the parsed document has no pages');
+    }
+    for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber += 1) {
+      const page = await document.getPage(pageNumber);
+      await page.getOperatorList();
+      page.cleanup();
+    }
+    return document.numPages;
+  } catch (error) {
+    fail(`Scenario '${scenarioId}' PDF cannot be parsed: ${errorMessage(error)}`);
+  } finally {
+    if (loadingTask) await loadingTask.destroy().catch(() => undefined);
+  }
+};
+
+const decodePng = (bytes, scenarioId, name) => {
+  try {
+    const image = PNG.sync.read(bytes, { checkCRC: true });
+    return { width: image.width, height: image.height };
+  } catch (error) {
+    fail(
+      `Scenario '${scenarioId}' preview '${name}' cannot be decoded as PNG: ${errorMessage(error)}`,
+    );
+  }
 };
 
 const getRevision = () => {
@@ -309,6 +360,51 @@ export const extractTestCallFromSource = (text, file, title) => {
   return definition;
 };
 
+const getTopLevelDefinitionName = (statement) => {
+  if (
+    (ts.isFunctionDeclaration(statement) ||
+      ts.isClassDeclaration(statement) ||
+      ts.isInterfaceDeclaration(statement) ||
+      ts.isTypeAliasDeclaration(statement) ||
+      ts.isEnumDeclaration(statement)) &&
+    statement.name
+  ) {
+    return [statement.name.text];
+  }
+  if (ts.isVariableStatement(statement)) {
+    return statement.declarationList.declarations.flatMap((declaration) =>
+      ts.isIdentifier(declaration.name) ? [declaration.name.text] : [],
+    );
+  }
+  return [];
+};
+
+const extractSupportingDefinition = (text, sourceFile, name) => {
+  const matches = sourceFile.statements.filter((statement) =>
+    getTopLevelDefinitionName(statement).includes(name),
+  );
+  if (matches.length !== 1) {
+    fail(
+      `Expected one top-level definition named '${name}' in ${normalizePath(sourceFile.fileName)}, found ${String(matches.length)}`,
+    );
+  }
+  const node = matches[0];
+  const start = node.getStart(sourceFile);
+  const { line } = sourceFile.getLineAndCharacterOfPosition(start);
+  return { name, line: line + 1, source: text.slice(start, node.getEnd()) };
+};
+
+export const extractSupportingDefinitionFromSource = (text, file, name) => {
+  const sourceFile = ts.createSourceFile(
+    file,
+    text,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TS,
+  );
+  return extractSupportingDefinition(text, sourceFile, name);
+};
+
 const extractTestDefinition = async (testReference) => {
   if (
     !testReference ||
@@ -328,6 +424,9 @@ const extractTestDefinition = async (testReference) => {
   return {
     ...testReference,
     ...definition,
+    supporting: (testReference.supportingDefinitions ?? []).map((name) =>
+      extractSupportingDefinition(text, sourceFile, name),
+    ),
   };
 };
 
@@ -354,14 +453,32 @@ export const loadScenario = async (scenario) => {
       readFile(manifestPath, 'utf8'),
       readdir(directory, { withFileTypes: true }),
     ]);
-    if (!pdf.subarray(0, 5).equals(Buffer.from('%PDF-'))) {
-      fail(`Scenario '${scenario.id}' does not contain a valid PDF header`);
-    }
     let manifest;
     try {
       manifest = JSON.parse(manifestText);
     } catch (error) {
-      fail(`Scenario '${scenario.id}' has invalid manifest JSON: ${error.message}`);
+      fail(`Scenario '${scenario.id}' has invalid manifest JSON: ${errorMessage(error)}`);
+    }
+    const documentPageCount = await parsePdfPageCount(pdf, scenario.id);
+    if (manifest.pageCount !== undefined) {
+      if (!Number.isInteger(manifest.pageCount) || manifest.pageCount < 1) {
+        fail(`Scenario '${scenario.id}' has an invalid pageCount`);
+      }
+      if (manifest.pageCount !== documentPageCount) {
+        fail(
+          `Scenario '${scenario.id}' manifest pageCount ${String(manifest.pageCount)} does not match parsed PDF page count ${String(documentPageCount)}`,
+        );
+      }
+    }
+    if (manifest.sheetCount !== undefined) {
+      if (!Number.isInteger(manifest.sheetCount) || manifest.sheetCount < 1) {
+        fail(`Scenario '${scenario.id}' has an invalid sheetCount`);
+      }
+      if (manifest.sheetCount !== documentPageCount) {
+        fail(
+          `Scenario '${scenario.id}' manifest sheetCount ${String(manifest.sheetCount)} does not match parsed PDF page count ${String(documentPageCount)}`,
+        );
+      }
     }
     const previewNames = directoryEntries
       .filter((entry) => entry.isFile() && entry.name.endsWith('.png'))
@@ -371,15 +488,38 @@ export const loadScenario = async (scenario) => {
     const previews = await Promise.all(
       previewNames.map(async (name) => {
         const bytes = await readFile(path.join(directory, name));
-        const pngSignature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
-        if (!bytes.subarray(0, 8).equals(pngSignature)) {
-          fail(`Scenario '${scenario.id}' preview '${name}' is not a PNG`);
-        }
-        return { name, bytes, base64: bytes.toString('base64') };
+        const dimensions = decodePng(bytes, scenario.id, name);
+        return { name, bytes, base64: bytes.toString('base64'), ...dimensions };
       }),
     );
+    const declaredPreviewCount = manifest.output?.pngCount;
+    const declaredPreviewPages = manifest.output?.previewPages;
+    if (
+      declaredPreviewCount !== undefined &&
+      (!Number.isInteger(declaredPreviewCount) || declaredPreviewCount < 1)
+    ) {
+      fail(`Scenario '${scenario.id}' has an invalid output.pngCount`);
+    }
+    if (
+      declaredPreviewPages !== undefined &&
+      (!Array.isArray(declaredPreviewPages) ||
+        declaredPreviewPages.some((page) => !Number.isInteger(page) || page < 1))
+    ) {
+      fail(`Scenario '${scenario.id}' has invalid output.previewPages`);
+    }
+    if (
+      declaredPreviewCount !== undefined &&
+      declaredPreviewPages !== undefined &&
+      declaredPreviewCount !== declaredPreviewPages.length
+    ) {
+      fail(`Scenario '${scenario.id}' output.pngCount does not match output.previewPages`);
+    }
     const expectedPreviewCount =
-      manifest.pageCount ?? manifest.sheetCount ?? manifest.output?.sheetPngBytes?.length;
+      declaredPreviewCount ??
+      declaredPreviewPages?.length ??
+      manifest.output?.sheetPngBytes?.length ??
+      manifest.pageCount ??
+      manifest.sheetCount;
     if (
       typeof expectedPreviewCount === 'number' &&
       Number.isInteger(expectedPreviewCount) &&
@@ -388,6 +528,10 @@ export const loadScenario = async (scenario) => {
       fail(
         `Scenario '${scenario.id}' expected ${String(expectedPreviewCount)} previews, found ${String(previews.length)}`,
       );
+    }
+    const previewPageNumbers = declaredPreviewPages ?? previews.map((_, index) => index + 1);
+    if (previewPageNumbers.some((page) => page > documentPageCount)) {
+      fail(`Scenario '${scenario.id}' preview page exceeds its PDF page count`);
     }
     const digest = sha256(pdf);
     if (manifest.output?.pdfSha256 && manifest.output.pdfSha256 !== digest) {
@@ -401,6 +545,8 @@ export const loadScenario = async (scenario) => {
       pdfBase64: pdf.toString('base64'),
       manifest,
       manifestText: `${JSON.stringify(manifest, null, 2)}\n`,
+      documentPageCount,
+      previewPageNumbers,
       previews,
     };
   } catch (error) {
@@ -445,6 +591,14 @@ const renderTest = (test) => `
         : '<p class="missing-result">No matching JUnit testcase was collected for this definition.</p>'
     }
     <pre><code>${escapeHtml(test.source)}</code></pre>
+    ${(test.supporting ?? [])
+      .map(
+        (definition) => `<div class="supporting-definition">
+      <div class="source-ref">Supporting definition: ${escapeHtml(definition.name)} at ${escapeHtml(test.file)}:${String(definition.line)}</div>
+      <pre><code>${escapeHtml(definition.source)}</code></pre>
+    </div>`,
+      )
+      .join('')}
   </details>`;
 
 const renderFeature = (feature, scenariosById) => {
@@ -503,7 +657,8 @@ const renderScenario = (scenario) => {
       </div>
     </header>
     <dl class="artifact-meta">
-      <div><dt>Pages</dt><dd>${String(scenario.previews.length)}</dd></div>
+      <div><dt>PDF pages</dt><dd>${String(scenario.documentPageCount ?? scenario.previews.length)}</dd></div>
+      ${scenario.previews.length === (scenario.documentPageCount ?? scenario.previews.length) ? '' : `<div><dt>Previews</dt><dd>${String(scenario.previews.length)}</dd></div>`}
       <div><dt>PDF size</dt><dd>${formatBytes(scenario.pdfBytes)}</dd></div>
       <div class="hash"><dt>SHA-256</dt><dd><code>${scenario.pdfSha256}</code></dd></div>
     </dl>
@@ -512,8 +667,8 @@ const renderScenario = (scenario) => {
         .map(
           (preview, index) => `
         <a href="data:image/png;base64,${preview.base64}" target="_blank" rel="noreferrer" class="preview">
-          <img src="data:image/png;base64,${preview.base64}" alt="${escapeHtml(scenario.title)} page ${String(index + 1)}" loading="lazy">
-          <span>Page ${String(index + 1)}</span>
+          <img src="data:image/png;base64,${preview.base64}" alt="${escapeHtml(scenario.title)} page ${String(scenario.previewPageNumbers?.[index] ?? index + 1)}" loading="lazy">
+          <span>Page ${String(scenario.previewPageNumbers?.[index] ?? index + 1)}</span>
         </a>`,
         )
         .join('')}

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { describe, test } from 'node:test';
 import {
@@ -120,20 +121,36 @@ describe('qualification runner', () => {
     assert.deepEqual(steps.at(-1).args, [
       'scripts/build-qualification-report.mjs',
       '--status=passed',
+      '--junit=packages/schemas/test-results.xml',
       '--junit=packages/generator/test-results.xml',
       '--junit=packages/imposition/test-results.xml',
     ]);
-    assert.equal(qualificationSuites[0].args.includes('__tests__/complex-documents.test.ts'), true);
-    assert.equal(qualificationSuites[0].args.includes('__tests__/embed-once.test.ts'), true);
+    assert.deepEqual(
+      qualificationSuites[0].args.filter((argument) => argument.startsWith('__tests__/')),
+      [
+        '__tests__/boleto.digits.test.ts',
+        '__tests__/boleto.validation.test.ts',
+        '__tests__/boleto.layout.test.ts',
+        '__tests__/boleto.plugin.test.ts',
+        '__tests__/tables.test.ts',
+      ],
+    );
+    assert.equal(qualificationSuites[1].args.includes('__tests__/generate.test.ts'), true);
+    assert.equal(qualificationSuites[1].args.includes('__tests__/complex-documents.test.ts'), true);
+    assert.equal(qualificationSuites[1].args.includes('__tests__/boleto.e2e.test.ts'), true);
+    assert.equal(qualificationSuites[1].args.includes('__tests__/embed-once.test.ts'), true);
     assert.deepEqual(qualificationArtifactPaths, [
       'packages/generator/test-artifacts/complex-documents',
+      'packages/generator/test-artifacts/boleto-book',
       'packages/generator/test-artifacts/resource-reuse',
       'packages/imposition/test-artifacts/n-up',
+      'packages/schemas/test-results.xml',
       'packages/generator/test-results.xml',
       'packages/imposition/test-results.xml',
       'test-artifacts/qualification-report.html',
     ]);
     assert.deepEqual(qualificationJUnitPaths, [
+      'packages/schemas/test-results.xml',
       'packages/generator/test-results.xml',
       'packages/imposition/test-results.xml',
     ]);
@@ -156,8 +173,7 @@ describe('qualification runner', () => {
       steps.map(({ label }) => label),
       [
         qualificationSetup.label,
-        qualificationSuites[0].label,
-        qualificationSuites[1].label,
+        ...qualificationSuites.map(({ label }) => label),
         'Build qualification dashboard',
       ],
     );
@@ -184,8 +200,7 @@ describe('qualification runner', () => {
       steps.map(({ label }) => label),
       [
         qualificationSetup.label,
-        qualificationSuites[0].label,
-        qualificationSuites[1].label,
+        ...qualificationSuites.map(({ label }) => label),
         'Build qualification dashboard',
       ],
     );
@@ -214,5 +229,40 @@ describe('qualification runner', () => {
     );
     assert.equal(steps.at(-1).args[1], '--status=failed');
     assert.match(errors.join('\n'), /Could not resolve npm CLI: npm unavailable/);
+  });
+
+  test('publishes qualification diagnostics while enforcing a separate workflow gate', async () => {
+    const workflow = await readFile(
+      new URL('../.github/workflows/deploy-playground.yml', import.meta.url),
+      'utf8',
+    );
+
+    assert.match(
+      workflow,
+      /id: qualification\n\s+run: npm run qualification\n\s+continue-on-error: true/,
+    );
+    assert.match(workflow, /qualification_outcome: \$\{\{ steps\.qualification\.outcome \}\}/);
+    assert.match(
+      workflow,
+      /qualification_report_present: \$\{\{ steps\.qualification_report\.outputs\.present \}\}/,
+    );
+    assert.match(workflow, /Qualification report unavailable/);
+    assert.match(workflow, /qualification-gate:\n\s+needs: build/);
+    assert.match(workflow, /QUALIFICATION_OUTCOME.*needs\.build\.outputs\.qualification_outcome/);
+    assert.match(
+      workflow,
+      /QUALIFICATION_REPORT_PRESENT.*needs\.build\.outputs\.qualification_report_present/,
+    );
+    assert.doesNotMatch(workflow, /^permissions:/m);
+    assert.match(workflow, /build:\n\s+runs-on: ubuntu-latest\n\s+permissions:\n\s+contents: read/);
+    assert.match(
+      workflow,
+      /qualification-gate:\n\s+needs: build\n\s+runs-on: ubuntu-latest\n\s+permissions: \{\}/,
+    );
+    assert.match(workflow, /deploy:\n\s+needs: \[build, qualification-gate\]/);
+    assert.match(
+      workflow,
+      /deploy:\n\s+needs: \[build, qualification-gate\]\n\s+runs-on: ubuntu-latest\n\s+permissions:\n\s+pages: write\n\s+id-token: write/,
+    );
   });
 });

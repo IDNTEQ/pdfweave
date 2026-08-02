@@ -4,8 +4,13 @@
 
 ## インストール
 
+初回のnpm公開までは、リポジトリのワークスペースを使用してください。依存するPDFweaveパッケージも先にビルドするため、ルートのビルドを実行します。
+
 ```bash
-npm install @pdfweave/imposition
+git clone https://github.com/IDNTEQ/pdfweave.git
+cd pdfweave
+npm install
+npm run build
 ```
 
 ## A4に3面付けする例

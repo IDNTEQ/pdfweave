@@ -126,10 +126,14 @@ const getAnchorIds = (schema: SchemaForUI): string[] =>
   Array.from(new Set([schema.name, schema.id].filter((id): id is string => Boolean(id))));
 
 const isAnchoredLayout = (layout: unknown): layout is AnchoredLayoutRule =>
-  typeof layout === 'object' && layout !== null && (layout as { mode?: unknown }).mode === 'anchored';
+  typeof layout === 'object' &&
+  layout !== null &&
+  (layout as { mode?: unknown }).mode === 'anchored';
 
 const getLayout = (schema: SchemaForUI): SchemaLayoutRule =>
-  ((schema as SchemaForUI & { layout?: SchemaLayoutRule }).layout ?? { mode: 'absolute' }) as SchemaLayoutRule;
+  ((schema as SchemaForUI & { layout?: SchemaLayoutRule }).layout ?? {
+    mode: 'absolute',
+  }) as SchemaLayoutRule;
 
 const getHorizontalTarget = (rule: HorizontalAnchorRule): string | null =>
   rule.mode === 'pageLeft' ? null : rule.ref.schemaId;
@@ -239,7 +243,8 @@ const selectValue = (
   value: string | null,
   mixedFields?: Set<AnchorLayoutField>,
   placeholderFields?: Set<AnchorLayoutField>,
-): string => (hasPlaceholderValue(field, mixedFields, placeholderFields) ? PLACEHOLDER_VALUE : value ?? '');
+): string =>
+  hasPlaceholderValue(field, mixedFields, placeholderFields) ? PLACEHOLDER_VALUE : (value ?? '');
 
 const AnchorLayoutWidget = (props: AnchorLayoutWidgetProps) => {
   const { activeSchema, changeSchemas, schemas, mixedFields, placeholderFields } = props;
@@ -253,9 +258,12 @@ const AnchorLayoutWidget = (props: AnchorLayoutWidgetProps) => {
     getAnchorIds(schema).forEach((id) => targetLookup.set(id, schema));
   });
   const resolveTargetId = (targetId: string | null): string | null =>
-    targetId ? targetLookup.get(targetId)?.id ?? targetId : null;
+    targetId ? (targetLookup.get(targetId)?.id ?? targetId) : null;
   const targetMatchesSchema = (schema: SchemaForUI, targetId: string | null): boolean =>
-    Boolean(targetId && (resolveTargetId(targetId) === schema.id || getAnchorIds(schema).includes(targetId)));
+    Boolean(
+      targetId &&
+      (resolveTargetId(targetId) === schema.id || getAnchorIds(schema).includes(targetId)),
+    );
   const getTargetLabel = (targetId: string): string =>
     targetLookup.get(targetId)?.name || targetLookup.get(targetId)?.id || targetId;
   const rawXTarget = getHorizontalTarget(anchoredLayout.x);
@@ -269,7 +277,11 @@ const AnchorLayoutWidget = (props: AnchorLayoutWidgetProps) => {
     schemas,
     getHorizontalTarget(anchoredLayout.x),
   );
-  const yTargetOptions = buildTargetOptions(activeSchemas, schemas, getVerticalTarget(anchoredLayout.y));
+  const yTargetOptions = buildTargetOptions(
+    activeSchemas,
+    schemas,
+    getVerticalTarget(anchoredLayout.y),
+  );
   const isAnchored = isSharedMode
     ? activeSchemas.every((schema) => getLayout(schema).mode === 'anchored')
     : layout.mode === 'anchored';
@@ -286,8 +298,18 @@ const AnchorLayoutWidget = (props: AnchorLayoutWidgetProps) => {
     mixedFields,
     placeholderFields,
   );
-  const horizontalTargetValue = selectValue('horizontalTarget', xTarget, mixedFields, placeholderFields);
-  const verticalTargetValue = selectValue('verticalTarget', yTarget, mixedFields, placeholderFields);
+  const horizontalTargetValue = selectValue(
+    'horizontalTarget',
+    xTarget,
+    mixedFields,
+    placeholderFields,
+  );
+  const verticalTargetValue = selectValue(
+    'verticalTarget',
+    yTarget,
+    mixedFields,
+    placeholderFields,
+  );
   const showHorizontalTarget =
     anchoredLayout.x.mode !== 'pageLeft' || horizontalModeValue === PLACEHOLDER_VALUE;
   const showVerticalTarget =
@@ -452,8 +474,8 @@ const AnchorLayoutWidget = (props: AnchorLayoutWidgetProps) => {
               Missing anchor target
               {missingXTarget ? ` for X: ${rawXTarget}` : ''}
               {missingXTarget && missingYTarget ? ';' : ''}
-              {missingYTarget ? ` for Y: ${rawYTarget}` : ''}. Choose a new target or switch the axis
-              to the page origin.
+              {missingYTarget ? ` for Y: ${rawYTarget}` : ''}. Choose a new target or switch the
+              axis to the page origin.
             </div>
           ) : null}
 

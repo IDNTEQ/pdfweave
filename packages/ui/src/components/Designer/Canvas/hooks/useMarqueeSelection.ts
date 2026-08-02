@@ -76,8 +76,7 @@ export const useMarqueeSelection = ({
       const added = e.added as HTMLElement[];
       const selected = e.selected as HTMLElement[];
 
-      const isDragStartInput =
-        inputEvent.type === 'mousedown' || inputEvent.type === 'touchstart';
+      const isDragStartInput = inputEvent.type === 'mousedown' || inputEvent.type === 'touchstart';
       const isClick = isDragStartInput && e.isDragStartEnd;
       const mouseEvent = inputEvent as MouseEvent;
       const isShiftClick =

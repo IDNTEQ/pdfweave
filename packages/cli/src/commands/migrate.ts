@@ -65,8 +65,7 @@ function writeOutput(file: string | undefined, content: string): void {
 export default defineCommand({
   meta: {
     name: 'migrate',
-    description:
-      'Migrate a pre-Phase-4 template to anchored-chain layout (RFC 0001).',
+    description: 'Migrate a pre-Phase-4 template to anchored-chain layout (RFC 0001).',
   },
   args: migrateArgs,
   async run({ args, rawArgs }) {

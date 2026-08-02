@@ -34,6 +34,7 @@ export default defineConfig({
   build: {
     lib: {
       entry: {
+        boleto: resolve(__dirname, 'src/boleto.ts'),
         builtins: resolve(__dirname, 'src/builtins.ts'),
         index: resolve(__dirname, 'src/index.ts'),
         tables: resolve(__dirname, 'src/tables.ts'),

@@ -102,9 +102,11 @@ const buildInvoiceInput = (): DocumentInput => {
     const quantity = (index % 5) + 1;
     const unitPrice = 8.75 + (index % 11) * 2.35;
     const description =
-      index % 9 === 0
-        ? `Managed document service ${String(index + 1).padStart(3, '0')} with archival media and verified delivery`
-        : `Print service ${String(index + 1).padStart(3, '0')}`;
+      index === 0
+        ? 'Enterprise-managed document production with archival media, tamper-evident packaging, indexed quality-control records, verified chain-of-custody delivery, and a detailed completion report retained for the customer audit trail'
+        : index % 9 === 0
+          ? `Managed document service ${String(index + 1).padStart(3, '0')} with archival media and verified delivery`
+          : `Print service ${String(index + 1).padStart(3, '0')}`;
     return {
       description,
       quantity,
@@ -476,6 +478,7 @@ const verifyPdfAndArtifacts = async (arg: {
   terminalRowStart: number;
   expectedPageCount: number;
   controlTotals: Record<string, number>;
+  layoutEvidence?: Record<string, unknown>;
 }): Promise<void> => {
   const {
     scenarioName,
@@ -486,6 +489,7 @@ const verifyPdfAndArtifacts = async (arg: {
     terminalRowStart,
     expectedPageCount,
     controlTotals,
+    layoutEvidence,
   } = arg;
   const dynamicTemplate = await measureLayout(template, input);
   const ranges = getRowRanges(dynamicTemplate, tableName);
@@ -515,6 +519,7 @@ const verifyPdfAndArtifacts = async (arg: {
     rowCount,
     terminalRowStart,
     controlTotals,
+    ...(layoutEvidence ? { layoutEvidence } : {}),
     rowRanges: ranges,
   });
 
@@ -553,6 +558,16 @@ describe('complex production document rendering', () => {
       ['TOTAL DUE', '', '', '$4,637.70'],
     ]);
 
+    const measurement = await table.measure!({
+      value: JSON.stringify(resolvedRows),
+      schema: tableSchema,
+      basePdf: template.basePdf,
+      options: {},
+      _cache: new Map(),
+    });
+    const rowHeights = measurement.dynamicHeights!;
+    expect(rowHeights[1]).toBeGreaterThan(rowHeights[2] * 2);
+
     await verifyPdfAndArtifacts({
       scenarioName: 'complex-invoice',
       template,
@@ -565,6 +580,13 @@ describe('complex production document rendering', () => {
         subtotal: input.subtotal as number,
         tax: input.tax as number,
         total: input.total as number,
+      },
+      layoutEvidence: {
+        columnWidthPercentages: [52, 10, 18, 20],
+        wrappedDescription: resolvedRows[0]?.[0],
+        wrappedRowHeightMm: rowHeights[1],
+        normalRowHeightMm: rowHeights[2],
+        heightRatio: rowHeights[1] / rowHeights[2],
       },
     });
   });

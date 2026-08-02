@@ -1,124 +1,116 @@
+import type { Template } from '@pdfweave/common';
+import { pdf2img } from '@pdfweave/converter';
+import { generate } from '@pdfweave/generator';
 import { PDFDocument, StandardFonts, rgb, type PDFPage, type PDFFont } from '@pdfweave/pdf-lib';
+import { boleto, buildBoletoBarcode, type BoletoData, type BoletoSchema } from '@pdfweave/schemas';
 import { impose, MM_TO_PT, type ImpositionPlan } from '../../src/index.js';
 import { pdfToImages, writeArtifacts } from '../helpers.js';
+import { cropMillimeterRegion, decodeItfRaster } from '../itfRaster.js';
 
 const mm = (value: number): number => value * MM_TO_PT;
 
-const drawBarcode = (page: PDFPage, x: number, y: number, width: number, height: number): void => {
-  const pattern = [1, 1, 2, 1, 3, 1, 1, 2, 2, 1, 3, 2, 1, 1, 2, 3, 1, 2, 1, 3, 2, 1];
-  const unit = width / pattern.reduce((sum, value) => sum + value, 0);
-  let cursor = x;
-  for (const [index, barWidth] of pattern.entries()) {
-    const actualWidth = barWidth * unit;
-    if (index % 2 === 0) {
-      page.drawRectangle({
-        x: cursor,
-        y,
-        width: actualWidth,
-        height,
-        color: rgb(0.05, 0.07, 0.08),
-      });
-    }
-    cursor += actualWidth;
-  }
+const BOLETO_WIDTH_MM = 200;
+const BOLETO_HEIGHT_MM = 95;
+const A4_WIDTH_MM = 210;
+const SCAN_DPI = 300;
+const BOLETO_CLIENTS = [
+  'Almeida Comercio Ltda.',
+  'Borges Servicos Digitais',
+  'Costa e Lima Distribuidora',
+  'Duarte Equipamentos',
+  'Estrela Logistica',
+  'Ferreira Materiais',
+  'Gomes Tecnologia',
+] as const;
+
+const createBoletoData = (client: string, index: number): BoletoData => {
+  const dueDate = `2026-09-${String(index + 10).padStart(2, '0')}`;
+  const documentValueCents = 87_535 + index * 14_327;
+  return {
+    version: 1,
+    kind: 'cobranca',
+    registrationStatus: 'test',
+    institution: { name: 'Banco de Teste', code: '001', codeDigit: '9' },
+    beneficiaryMode: 'direct',
+    beneficiary: {
+      name: 'PDFweave Demonstracoes Ltda.',
+      taxId: { type: 'cnpj', number: '11.222.333/0001-81' },
+      address: {
+        street: 'Avenida Paulista',
+        number: '1000',
+        district: 'Bela Vista',
+        city: 'Sao Paulo',
+        state: 'SP',
+        postalCode: '01310-100',
+      },
+    },
+    payer: {
+      name: client,
+      taxId: { type: 'cpf', number: '529.982.247-25' },
+      address: {
+        street: 'Rua das Flores',
+        number: String(index + 100),
+        district: 'Centro',
+        city: 'Curitiba',
+        state: 'PR',
+        postalCode: '80010-000',
+      },
+    },
+    paymentLocation: 'Pagavel em qualquer banco ate o vencimento',
+    dueDate,
+    barcode: buildBoletoBarcode({
+      institutionCode: '001',
+      dueDate,
+      amountMode: 'fixed',
+      documentValueCents,
+      freeField: String(index + 1).padStart(25, '0'),
+    }),
+    amountMode: 'fixed',
+    documentValueCents,
+    agencyBeneficiaryCode: '1234 / 56789-0',
+    documentDate: '2026-08-01',
+    documentNumber: `DOC-${String(index + 1).padStart(4, '0')}`,
+    documentSpecies: 'DM',
+    acceptance: 'N',
+    processingDate: '2026-08-01',
+    ourNumber: `1234567890${String(index + 1)}-2`,
+    portfolio: '17',
+    instructions: ['AMOSTRA SEM VALOR DE PAGAMENTO.'],
+  };
 };
 
-const createBoletoBook = async (): Promise<Uint8Array> => {
-  const document = await PDFDocument.create();
-  const regular = await document.embedFont(StandardFonts.Helvetica);
-  const bold = await document.embedFont(StandardFonts.HelveticaBold);
-  const clients = [
-    'Almeida Comercio Ltda.',
-    'Borges Servicos Digitais',
-    'Costa & Lima Distribuidora',
-    'Duarte Equipamentos',
-    'Estrela Logistica',
-    'Ferreira Materiais',
-    'Gomes Tecnologia',
-  ];
+const createBoletoPdf = async (records: BoletoData[]): Promise<Uint8Array> => {
+  const boletoSchema: BoletoSchema = {
+    name: 'boleto',
+    type: 'boleto',
+    variant: 'ficha-compensacao',
+    content: '',
+    position: { x: 0, y: 0 },
+    width: BOLETO_WIDTH_MM,
+    height: BOLETO_HEIGHT_MM,
+    rotate: 0,
+    opacity: 1,
+    readOnly: false,
+    required: true,
+  };
+  const template: Template = {
+    basePdf: {
+      width: BOLETO_WIDTH_MM,
+      height: BOLETO_HEIGHT_MM,
+      padding: [0, 0, 0, 0],
+    },
+    schemas: [[boletoSchema]],
+  };
 
-  for (const [index, client] of clients.entries()) {
-    const page = document.addPage([mm(190), mm(85)]);
-    // Keep snapshot text independent of the runtime's ICU locale data.
-    const amount = (875.35 + index * 143.27)
-      .toFixed(2)
-      .replace('.', ',')
-      .replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-    page.drawRectangle({ x: 0, y: 0, width: mm(190), height: mm(85), color: rgb(1, 1, 1) });
-    page.drawRectangle({
-      x: 0,
-      y: mm(68),
-      width: mm(190),
-      height: mm(17),
-      color: rgb(0.05, 0.25, 0.32),
-    });
-    page.drawText('BANCO PDFWEAVE', {
-      x: mm(5),
-      y: mm(74),
-      size: 13,
-      font: bold,
-      color: rgb(1, 1, 1),
-    });
-    page.drawText(`00190.00009 01234.567890 0000${index + 1}.000000 1 99990000${index + 1}`, {
-      x: mm(60),
-      y: mm(74.5),
-      size: 7,
-      font: regular,
-      color: rgb(1, 1, 1),
-    });
-    page.drawText('Pagador', {
-      x: mm(5),
-      y: mm(62),
-      size: 6,
-      font: regular,
-      color: rgb(0.3, 0.35, 0.38),
-    });
-    page.drawText(client, {
-      x: mm(5),
-      y: mm(56),
-      size: 10,
-      font: bold,
-      color: rgb(0.08, 0.12, 0.14),
-    });
-    page.drawText('Vencimento', {
-      x: mm(137),
-      y: mm(62),
-      size: 6,
-      font: regular,
-      color: rgb(0.3, 0.35, 0.38),
-    });
-    page.drawText(`15/0${(index % 8) + 1}/2026`, { x: mm(137), y: mm(56), size: 9, font: bold });
-    page.drawText('Valor do documento', {
-      x: mm(160),
-      y: mm(62),
-      size: 6,
-      font: regular,
-      color: rgb(0.3, 0.35, 0.38),
-    });
-    page.drawText(`R$ ${amount}`, { x: mm(160), y: mm(56), size: 9, font: bold });
-    page.drawLine({
-      start: { x: mm(5), y: mm(50) },
-      end: { x: mm(185), y: mm(50) },
-      thickness: 0.6,
-      color: rgb(0.55, 0.6, 0.62),
-    });
-    page.drawText(`Documento ${String(index + 1).padStart(3, '0')}/2026`, {
-      x: mm(5),
-      y: mm(44),
-      size: 8,
-      font: regular,
-    });
-    page.drawText('Autenticacao mecanica', {
-      x: mm(137),
-      y: mm(44),
-      size: 7,
-      font: regular,
-      color: rgb(0.3, 0.35, 0.38),
-    });
-    drawBarcode(page, mm(5), mm(8), mm(180), mm(28));
-  }
-  return document.save();
+  return generate({
+    template,
+    inputs: records.map((record) => ({ boleto: record })),
+    plugins: { boleto },
+  });
 };
+
+const createBoletoBook = (): Promise<Uint8Array> =>
+  createBoletoPdf(BOLETO_CLIENTS.map((client, index) => createBoletoData(client, index)));
 
 const drawInvoiceTable = (
   page: PDFPage,
@@ -244,12 +236,88 @@ const artifactManifest = (scenario: string, plan: ImpositionPlan) => ({
   warnings: plan.warnings,
 });
 
+const assertUnscaledBoletoPlacements = (plan: ImpositionPlan): void => {
+  const placements = plan.sheets.flatMap(({ front }) => front.placements);
+  expect(placements.map(({ sourcePageIndex }) => sourcePageIndex)).toEqual([0, 1, 2, 3, 4, 5, 6]);
+  for (const placement of placements) {
+    expect(placement.scale).toBe(1);
+    expect(placement.rotation).toBe(0);
+    // PDF page boxes serialize point values to limited decimal precision.
+    expect(placement.source.width / MM_TO_PT).toBeCloseTo(BOLETO_WIDTH_MM, 2);
+    expect(placement.source.height / MM_TO_PT).toBeCloseTo(BOLETO_HEIGHT_MM, 2);
+    expect(placement.cell.width / MM_TO_PT).toBeCloseTo(BOLETO_WIDTH_MM, 8);
+    expect(placement.cell.height / MM_TO_PT).toBeCloseTo(BOLETO_HEIGHT_MM, 8);
+    expect(placement.content.width).toBeCloseTo(placement.source.width, 5);
+    expect(placement.content.height).toBeCloseTo(placement.source.height, 5);
+    expect(placement.content.x).toBeGreaterThanOrEqual(placement.cell.x);
+    expect(placement.content.y).toBeGreaterThanOrEqual(placement.cell.y);
+    expect(placement.content.x + placement.content.width).toBeLessThanOrEqual(
+      placement.cell.x + placement.cell.width,
+    );
+    expect(placement.content.y + placement.content.height).toBeLessThanOrEqual(
+      placement.cell.y + placement.cell.height,
+    );
+  }
+};
+
 describe('n-up production artifacts', () => {
-  test('packs seven boleto-style items three-up across three A4 sheets', async () => {
+  test('preserves a registered ITF barcode through exact-size imposition', async () => {
+    const registeredData: BoletoData = {
+      ...createBoletoData('Registered Raster Test', 0),
+      registrationStatus: 'registered',
+    };
+    const result = await impose({
+      source: await createBoletoPdf([registeredData]),
+      sheet: { size: 'A4', margins: 0 },
+      layout: {
+        type: 'n-up',
+        rows: 1,
+        columns: 1,
+        scale: 'none',
+        autoRotate: false,
+        align: { horizontal: 'left', vertical: 'top' },
+      },
+      sourceBox: 'media',
+    });
+    const [scanBytes] = await pdf2img(result.pdf, {
+      imageType: 'png',
+      scale: SCAN_DPI / 72,
+    });
+    if (!scanBytes) throw new Error('Expected an imposed registered boleto raster');
+
+    const barcode = cropMillimeterRegion(scanBytes, A4_WIDTH_MM, {
+      x: 0,
+      y: 74,
+      width: 113,
+      height: 18,
+    });
+    const decoded = decodeItfRaster(barcode, SCAN_DPI);
+
+    expect(result.plan).toMatchObject({ placementCount: 1, sheetCount: 1, warnings: [] });
+    expect(result.plan.sheets[0]?.front.placements[0]).toMatchObject({
+      scale: 1,
+      rotation: 0,
+    });
+    expect(decoded.value).toBe(registeredData.barcode);
+    expect(decoded.quietZoneMillimeters.left).toBeGreaterThanOrEqual(5);
+    expect(decoded.quietZoneMillimeters.right).toBeGreaterThanOrEqual(5);
+  });
+
+  test('packs seven validated boleto pages two-up at exact size across four A4 sheets', async () => {
     const result = await impose({
       source: await createBoletoBook(),
-      sheet: { size: 'A4', margins: 6, gutter: { horizontal: 0, vertical: 3 } },
-      layout: { type: 'n-up', rows: 3, columns: 1 },
+      sheet: {
+        size: 'A4',
+        margins: { top: 48.5, right: 5, bottom: 48.5, left: 5 },
+        gutter: { horizontal: 0, vertical: 10 },
+      },
+      layout: {
+        type: 'n-up',
+        rows: 2,
+        columns: 1,
+        scale: 'none',
+        autoRotate: false,
+      },
       sourceBox: 'media',
     });
     const images = await pdfToImages(result.pdf);
@@ -262,16 +330,65 @@ describe('n-up production artifacts', () => {
 
     expect(result.plan).toMatchObject({
       placementCount: 7,
-      sheetCount: 3,
-      capacity: 3,
+      sheetCount: 4,
+      capacity: 2,
       warnings: [],
     });
-    expect(result.plan.sheets[2].front.emptySlots).toHaveLength(2);
-    expect(images).toHaveLength(3);
+    expect(result.plan.options.layout.scale).toBe('none');
+    expect(result.plan.sheets[3].front.emptySlots).toHaveLength(1);
+    assertUnscaledBoletoPlacements(result.plan);
+    expect(images).toHaveLength(4);
     for (const [index, image] of images.entries()) {
       expect(image.byteLength).toBeGreaterThan(10_000);
       await expect(image).toMatchImage({
-        name: `a4-boleto-booklet-sheet-${index + 1}`,
+        name: `a4-boleto-booklet-sheet-${String(index + 1)}`,
+        allowedPixelRatio: 0.001,
+        includeAA: false,
+      });
+    }
+  });
+
+  test('packs seven validated boleto pages four-up at exact size across two landscape A3 sheets', async () => {
+    const result = await impose({
+      source: await createBoletoBook(),
+      sheet: {
+        size: 'A3',
+        orientation: 'landscape',
+        margins: { top: 48.5, right: 5, bottom: 48.5, left: 5 },
+        gutter: { horizontal: 10, vertical: 10 },
+      },
+      layout: {
+        type: 'n-up',
+        rows: 2,
+        columns: 2,
+        scale: 'none',
+        autoRotate: false,
+      },
+      sourceBox: 'media',
+    });
+    const images = await pdfToImages(result.pdf);
+    writeArtifacts(
+      'a3-boleto-booklet',
+      result.pdf,
+      images,
+      artifactManifest('a3-boleto-booklet', result.plan),
+    );
+
+    expect(result.plan).toMatchObject({
+      placementCount: 7,
+      sheetCount: 2,
+      capacity: 4,
+      warnings: [],
+    });
+    expect(result.plan.options.sheet.orientation).toBe('landscape');
+    expect(result.plan.options.layout.scale).toBe('none');
+    expect(result.plan.sheets[1].front.emptySlots).toHaveLength(1);
+    assertUnscaledBoletoPlacements(result.plan);
+    expect(images).toHaveLength(2);
+    for (const [index, image] of images.entries()) {
+      expect(image.byteLength).toBeGreaterThan(20_000);
+      await expect(image).toMatchImage({
+        name: `a3-boleto-booklet-sheet-${String(index + 1)}`,
         allowedPixelRatio: 0.001,
         includeAA: false,
       });

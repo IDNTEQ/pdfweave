@@ -3,11 +3,11 @@
   "version": "0.1.0",
   "description": "TypeScript base PDF generator and React base UI. Open source, developed by the community, and completely free to use under the MIT license!",
   "keywords": [
-    "pdfweave",
     "pdf",
     "pdf-designer",
     "pdf-generation",
     "pdf-viewer",
+    "pdfweave",
     "react",
     "typescript"
   ],

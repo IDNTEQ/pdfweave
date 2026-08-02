@@ -20,6 +20,7 @@
       "@pdfweave/manipulator": ["packages/manipulator/src/index.ts"],
       "@pdfweave/pdf-lib": ["packages/pdf-lib/src/index.ts"],
       "@pdfweave/schemas": ["packages/schemas/src/index.ts"],
+      "@pdfweave/schemas/boleto": ["packages/schemas/src/boleto.ts"],
       "@pdfweave/schemas/builtins": ["packages/schemas/src/builtins.ts"],
       "@pdfweave/schemas/tables": ["packages/schemas/src/tables.ts"],
       "@pdfweave/schemas/utils": ["packages/schemas/src/utils.ts"],

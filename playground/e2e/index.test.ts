@@ -5,8 +5,7 @@ import { text, table, image, barcodes, select, checkbox, radioGroup } from '@pdf
 import { ChildProcessWithoutNullStreams, spawn } from 'node:child_process';
 import { stripVTControlCharacters } from 'node:util';
 import type { MatchImageOptions } from 'vitest-image-snapshot';
-
-const previewUrlPattern = /https?:\/\/(?:localhost|127\.0\.0\.1):\d+\/?/;
+import { extractPreviewUrl } from './previewUrl';
 
 async function waitForServerReady(
   url: string,
@@ -68,10 +67,10 @@ async function waitForPreviewUrl(
         outputBuffer = outputBuffer.slice(-2048);
       }
 
-      const matchedUrl = outputBuffer.match(previewUrlPattern)?.[0];
+      const matchedUrl = extractPreviewUrl(outputBuffer);
       if (matchedUrl) {
         cleanup();
-        resolve(matchedUrl.replace(/\/$/, ''));
+        resolve(matchedUrl);
       }
     };
 
@@ -157,6 +156,9 @@ const modifiedTemplateFieldNames = {
   radioGroup: 'selected',
 } as const;
 
+const smokeFieldName = 'ciSmoke';
+const smokeInputValue = 'CI base-path binding smoke';
+
 type PlaygroundStorageState = {
   template?: Template;
   inputs?: Record<string, string>[];
@@ -214,6 +216,26 @@ function buildModifiedTemplate(): Template {
         cloneSchema(radioGroup.propPanel.defaultSchema, {
           name: modifiedTemplateFieldNames.radioGroup,
           position: { x: 130, y: 120 },
+        }),
+      ],
+    ],
+  };
+}
+
+function buildSmokeTemplate(): Template {
+  return {
+    basePdf: {
+      width: 210,
+      height: 297,
+      padding: [20, 10, 20, 10],
+    },
+    schemas: [
+      [
+        cloneSchema(text.propPanel.defaultSchema, {
+          name: smokeFieldName,
+          content: 'Fallback value',
+          position: { x: 20, y: 20 },
+          width: 100,
         }),
       ],
     ],
@@ -316,7 +338,9 @@ async function waitForFormReady(page: Page, expectedText?: string) {
         titledSelectables.length > 0 &&
         titledSelectables.every((element) => {
           const content = element.firstElementChild;
-          return !(content instanceof HTMLElement) || content.dataset.pdfweaveRenderReady === 'true';
+          return (
+            !(content instanceof HTMLElement) || content.dataset.pdfweaveRenderReady === 'true'
+          );
         });
       const fontsLoaded = !document.fonts || document.fonts.status === 'loaded';
       return hasExpectedText && renderersReady && fontsLoaded;
@@ -407,7 +431,7 @@ describe('Playground E2E Tests', () => {
     });
 
     baseUrl = await waitForPreviewUrl(previewProcess);
-    const serverReady = await waitForServerReady(baseUrl);
+    const serverReady = await waitForServerReady(`${baseUrl}/`);
     if (!serverReady) {
       throw new Error('Failed to start preview server in time');
     }
@@ -453,6 +477,24 @@ describe('Playground E2E Tests', () => {
     stopPreviewProcess(previewProcess);
   });
 
+  it('loads bound form data under the configured preview base path', async () => {
+    if (!page) throw new Error('Page not initialized');
+
+    await loadRouteWithStorage(page, '/form-viewer', {
+      template: buildSmokeTemplate(),
+      inputs: [{ [smokeFieldName]: smokeInputValue }],
+      mode: 'form',
+    });
+    await waitForFormReady(page, smokeInputValue);
+
+    expect(page.url()).toBe(`${baseUrl}/form-viewer`);
+    const renderedValue = await page.$eval(
+      `[title="${smokeFieldName}"]`,
+      (element) => element.textContent,
+    );
+    expect(renderedValue).toContain(smokeInputValue);
+  });
+
   // CI-skip (same as the deterministic test below): the designer render flow
   // exceeds even a 120s wait on shared GitHub Actions runners — the UI never
   // reaches its render-ready markers in time. Passes locally in ~30s. The
@@ -478,20 +520,23 @@ describe('Playground E2E Tests', () => {
   });
 
   // CI-skip: same environmental timeout as Invoice above (IDNTEQ/pdfweave#45).
-  it.skipIf(process.env.CI)('should select Pedigree template and compare PDF snapshot', async () => {
-    if (!browser || !page) throw new Error('Browser/Page not initialized');
+  it.skipIf(process.env.CI)(
+    'should select Pedigree template and compare PDF snapshot',
+    async () => {
+      if (!browser || !page) throw new Error('Browser/Page not initialized');
 
-    // 5. Load the Pedigree designer directly to avoid flaky list-page navigation in CI
-    await page.goto(`${baseUrl}/?template=pedigree`, { waitUntil: 'networkidle2', timeout });
+      // 5. Load the Pedigree designer directly to avoid flaky list-page navigation in CI
+      await page.goto(`${baseUrl}/?template=pedigree`, { waitUntil: 'networkidle2', timeout });
 
-    await waitForDesignerReady(page, 'Pet Name');
+      await waitForDesignerReady(page, 'Pet Name');
 
-    // 7. Screenshot & compare
-    await captureAndCompareScreenshot(page, 'pedigree-designer');
+      // 7. Screenshot & compare
+      await captureAndCompareScreenshot(page, 'pedigree-designer');
 
-    // 8. Generate PDF & compare
-    await generateAndComparePDF(page, browser, 'pedigree');
-  });
+      // 8. Generate PDF & compare
+      await generateAndComparePDF(page, browser, 'pedigree');
+    },
+  );
 
   // CI-skip: this test consistently exceeds the wait timeout on shared
   // GitHub Actions runners even when bumped to 120s. The render flow
@@ -502,25 +547,28 @@ describe('Playground E2E Tests', () => {
   // before the underlying issue can be fixed. Don't skip individual
   // selectors or shorten the template; the slowness is environmental,
   // not a real bug.
-  it.skipIf(process.env.CI)('should load a deterministic template, generate PDF and compare, then render form inputs', async () => {
-    if (!browser || !page) throw new Error('Browser/Page not initialized');
+  it.skipIf(process.env.CI)(
+    'should load a deterministic template, generate PDF and compare, then render form inputs',
+    async () => {
+      if (!browser || !page) throw new Error('Browser/Page not initialized');
 
-    const template = buildModifiedTemplate();
+      const template = buildModifiedTemplate();
 
-    await loadRouteWithStorage(page, '/designer', { template });
-    await waitForDesignerReady(page, 'Type Something...');
+      await loadRouteWithStorage(page, '/designer', { template });
+      await waitForDesignerReady(page, 'Type Something...');
 
-    await captureAndCompareScreenshot(page, 'modified-template-designer');
+      await captureAndCompareScreenshot(page, 'modified-template-designer');
 
-    await generateAndComparePDF(page, browser, 'modified-template');
+      await generateAndComparePDF(page, browser, 'modified-template');
 
-    await loadRouteWithStorage(page, '/form-viewer', {
-      template,
-      inputs: buildFinalFormInputs(),
-      mode: 'form',
-    });
-    await waitForFormReady(page, 'Filled by CI');
+      await loadRouteWithStorage(page, '/form-viewer', {
+        template,
+        inputs: buildFinalFormInputs(),
+        mode: 'form',
+      });
+      await waitForFormReady(page, 'Filled by CI');
 
-    await generateAndComparePDF(page, browser, 'final-form');
-  });
+      await generateAndComparePDF(page, browser, 'final-form');
+    },
+  );
 });

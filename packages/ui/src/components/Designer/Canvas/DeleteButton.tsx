@@ -19,8 +19,7 @@ const DeleteButton: React.FC<DeleteButtonProps> = ({ id, activeElements: aes }) 
   const { token } = theme.useToken();
   const size = 26;
   const top = Math.min(...aes.map(({ style }) => fmt4Num(style.top)));
-  const left =
-    Math.max(...aes.map(({ style }) => fmt4Num(style.left) + fmt4Num(style.width))) + 10;
+  const left = Math.max(...aes.map(({ style }) => fmt4Num(style.left) + fmt4Num(style.width))) + 10;
 
   return (
     <Button

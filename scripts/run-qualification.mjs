@@ -56,12 +56,14 @@ export const createNpmInvocation = (args, { nodeExecutable, npmCliPath }) => ({
 });
 
 export const qualificationJUnitPaths = [
+  'packages/schemas/test-results.xml',
   'packages/generator/test-results.xml',
   'packages/imposition/test-results.xml',
 ];
 
 export const qualificationArtifactPaths = [
   'packages/generator/test-artifacts/complex-documents',
+  'packages/generator/test-artifacts/boleto-book',
   'packages/generator/test-artifacts/resource-reuse',
   'packages/imposition/test-artifacts/n-up',
   ...qualificationJUnitPaths,
@@ -76,13 +78,32 @@ export const qualificationSetup = {
 
 export const qualificationSuiteDefinitions = [
   {
+    label: 'Schema qualification tests',
+    args: [
+      'test',
+      '-w',
+      'packages/schemas',
+      '--',
+      '__tests__/boleto.digits.test.ts',
+      '__tests__/boleto.validation.test.ts',
+      '__tests__/boleto.layout.test.ts',
+      '__tests__/boleto.plugin.test.ts',
+      '__tests__/tables.test.ts',
+      '--reporter=default',
+      '--reporter=junit',
+      '--outputFile=test-results.xml',
+    ],
+  },
+  {
     label: 'Generator qualification tests',
     args: [
       'test',
       '-w',
       'packages/generator',
       '--',
+      '__tests__/generate.test.ts',
       '__tests__/complex-documents.test.ts',
+      '__tests__/boleto.e2e.test.ts',
       '__tests__/embed-once.test.ts',
       '--reporter=default',
       '--reporter=junit',

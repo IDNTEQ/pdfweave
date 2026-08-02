@@ -108,7 +108,9 @@ const buildRelation = (args: {
   if (!target) return null;
 
   const sourceIsFocused = focusedSchemaIds.has(schema.id);
-  const targetIsFocused = target.targetSchemaId ? focusedSchemaIds.has(target.targetSchemaId) : false;
+  const targetIsFocused = target.targetSchemaId
+    ? focusedSchemaIds.has(target.targetSchemaId)
+    : false;
   if (!sourceIsFocused && !targetIsFocused) return null;
 
   const source = getSourcePoint(schema, axis, target.mode);

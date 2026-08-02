@@ -125,6 +125,10 @@ const pdfmeAliases = usePublishedPdfmeExports
   ? []
   : [
       {
+        find: '@pdfweave/schemas/boleto',
+        replacement: path.resolve(repoRoot, 'packages/schemas/src/boleto.ts'),
+      },
+      {
         find: '@pdfweave/schemas/builtins',
         replacement: path.resolve(repoRoot, 'packages/schemas/src/builtins.ts'),
       },

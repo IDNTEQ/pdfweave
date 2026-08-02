@@ -3,10 +3,10 @@
   "version": "0.1.0",
   "description": "CLI tool for pdfweave - generate PDFs, convert images, validate templates",
   "keywords": [
-    "pdfweave",
     "cli",
     "pdf",
     "pdf-generation",
+    "pdfweave",
     "typescript"
   ],
   "homepage": "https://pdfweave.dev",

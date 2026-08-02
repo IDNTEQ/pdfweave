@@ -11,12 +11,6 @@ While PDFweave is pre-1.0, breaking changes may land on minor releases
 
 ## [Unreleased]
 
-_No unreleased changes yet._
-
----
-
-## [0.4.0] — 2026-08-01
-
 ### Added
 
 - **`@pdfweave/imposition` Phase 1.** New `planImposition()` and `impose()`
@@ -24,14 +18,24 @@ _No unreleased changes yet._
   Letter, Legal, or custom sheets. The package supports page selection,
   copies, collated/uncollated sequencing, source-page boxes, uniform scaling,
   alignment, auto-rotation, slot clipping, explicit limits, and inspectable
-  plans/warnings. Visual integration tests publish A4 boleto-style and
-  landscape A3 client-statement PDFs, PNGs, and JSON manifests. Duplex,
+  plans/warnings. Visual integration tests publish specification-validated,
+  non-payable boleto components packed at exact size on A4 and landscape A3,
+  plus landscape A3 client-statement PDFs, PNGs, and JSON manifests. Duplex,
   booklet signatures, press marks, and creep remain planned.
+- **Validated boleto de cobranca component.** A new output-only `boleto` plugin
+  accepts complete structured records, validates barcode/linha-digitavel,
+  party identifiers, amounts, dates, supported geometry, and render fit, then
+  renders the generic FEBRABAN ficha de compensacao in PDF and browser paths.
+  It includes numeric and uppercase alphanumeric CNPJ validation, a test mode
+  that omits payable identifiers and adds explicit redaction labels plus a
+  watermark, registered-mode 300 DPI renderer checks, and explicit
+  bank/provider homologation boundaries.
 - **Production-shaped render qualification.** Multi-page invoice and bank
-  extract fixtures exercise bound tables, repeated headings, subtotal/tax/
-  grand-total rows, running balances, visual snapshots, PDFs, PNGs, and JSON
-  manifests. A 100-client batch test verifies bounded serialized image/font
-  resources, and CI publishes the render artifacts.
+  extract fixtures exercise fixed-width word wrapping, automatic row-height
+  growth, bound tables, repeated headings, subtotal/tax/grand-total rows,
+  running balances, visual snapshots, PDFs, PNGs, and JSON manifests. Separate
+  100-page statement and boleto batch artifacts prove bounded, shared constant
+  resources, and CI publishes the render evidence.
 - **Self-contained qualification dashboard.** `npm run qualification` now
   produces one offline HTML page mapping supported production features to
   exact executable test definitions, clickable PDFs, raster previews,
@@ -48,6 +52,18 @@ _No unreleased changes yet._
 - Correct nonzero custom-PDF MediaBox embedding and date-only binding values.
 - Configure pdf.js standard-font data for complete, warning-free Node raster
   artifacts.
+- Translate authored top-left schema coordinates through asymmetric CropBox and
+  nonzero MediaBox geometry, preserve both boxes, and qualify opaque boleto
+  overlays without disturbing surrounding PDF stationery.
+- Reconcile fixed boleto discount, interest, and charged values exactly; reject
+  those fields for variable-amount records; fully decode and memoize logos; and
+  stage browser rendering atomically on failure.
+- Reject animated, truncated, structurally malformed, and trailing-data PNGs
+  before shared UPNG decoding; boleto logo preflight applies the same static,
+  exactly bounded PNG policy.
+- Render the boleto header code and digitable line from shared conventional
+  vector glyph paths with measured physical ink and stroke dimensions in PDF
+  and browser output.
 - Preserve source-page transparency groups during embedding, reuse one Form
   XObject resource name per unique imposed page and sheet, and intersect
   effective Crop, Trim, Bleed, and Art boxes with MediaBox geometry.

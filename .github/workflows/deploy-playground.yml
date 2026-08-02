@@ -21,14 +21,14 @@ concurrency:
   group: pages
   cancel-in-progress: true
 
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      qualification_outcome: ${{ steps.qualification.outcome }}
+      qualification_report_present: ${{ steps.qualification_report.outputs.present }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -36,6 +36,7 @@ jobs:
           # latest release version into the bundle (otherwise PDFWEAVE_VERSION
           # falls back to 'x.x.x' and shows that in the playground header).
           fetch-depth: 0
+          persist-credentials: false
 
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
@@ -54,7 +55,37 @@ jobs:
 
       # --- Qualification dashboard (served at /pdfweave/qualification/) --
       - name: Build qualification dashboard
+        id: qualification
         run: npm run qualification
+        continue-on-error: true
+
+      - name: Preserve qualification diagnostic
+        id: qualification_report
+        if: always()
+        shell: bash
+        run: |
+          report='test-artifacts/qualification-report.html'
+          if [[ -f "$report" ]]; then
+            echo 'present=true' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo 'present=false' >> "$GITHUB_OUTPUT"
+          echo '::error::Qualification did not produce test-artifacts/qualification-report.html'
+          mkdir -p test-artifacts
+          cat > "$report" <<'HTML'
+          <!doctype html>
+          <html lang="en">
+            <head><meta charset="utf-8"><title>Qualification report unavailable</title></head>
+            <body>
+              <main>
+                <h1>Qualification report unavailable</h1>
+                <p>The qualification command did not produce its expected diagnostic report.</p>
+                <p>Inspect the Build qualification dashboard step in this workflow run.</p>
+              </main>
+            </body>
+          </html>
+          HTML
 
       # --- Playground (served at /pdfweave/) -----------------------------
       - name: Install playground dependencies
@@ -87,9 +118,32 @@ jobs:
         with:
           path: pages-artifact
 
-  deploy:
+  qualification-gate:
     needs: build
     runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Enforce qualification result
+        env:
+          QUALIFICATION_OUTCOME: ${{ needs.build.outputs.qualification_outcome }}
+          QUALIFICATION_REPORT_PRESENT: ${{ needs.build.outputs.qualification_report_present }}
+        shell: bash
+        run: |
+          if [[ "$QUALIFICATION_OUTCOME" != 'success' ]]; then
+            echo "Qualification command outcome: $QUALIFICATION_OUTCOME" >&2
+            exit 1
+          fi
+          if [[ "$QUALIFICATION_REPORT_PRESENT" != 'true' ]]; then
+            echo 'Qualification report was not produced.' >&2
+            exit 1
+          fi
+
+  deploy:
+    needs: [build, qualification-gate]
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

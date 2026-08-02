@@ -80,7 +80,9 @@ const insert = async (
     const numPages = basePdfDoc.getPageCount();
 
     if (actualPos < 0 || actualPos > numPages) {
-      throw new Error(`[@pdfweave/manipulator] Invalid position: must be between 0 and ${numPages}`);
+      throw new Error(
+        `[@pdfweave/manipulator] Invalid position: must be between 0 and ${numPages}`,
+      );
     }
 
     const newPdfDoc = await PDFDocument.create();

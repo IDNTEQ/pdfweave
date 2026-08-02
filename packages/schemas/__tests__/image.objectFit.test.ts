@@ -6,14 +6,13 @@ import { image } from '../src/index.js';
 import { computeImageFitRect } from '../src/graphics/image.js';
 
 /**
- * 2×1 PNG (2px wide, 1px tall) — natural aspect ratio 2:1. Used as a known
+ * 200×100 PNG — natural aspect ratio 2:1. Used as a known
  * reference image whose natural dimensions can be asserted against the
- * draw rect after applying objectFit. Generated with sharp; kept inline so
- * the test has no asset dependencies.
+ * draw rect after applying objectFit. Kept inline so the test has no asset
+ * dependencies.
  */
 const TWO_BY_ONE_PNG =
-  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAYAAADn' +
-  'EwSWAAAADklEQVQIW2P8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==';
+  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMgAAABkCAYAAADDhn8LAAAA4UlEQVR42u3TMQ0AAAjAMKQgDak4AwO8fD1qYMkiqwe4hQhgEDAIGAQMAgYBg4BBwCBgEMAgYBAwCBgEDAIGAYOAQcAgYBAhwCBgEDAIGAQMAgYBg4BBwCCAQcAgYBAwCBgEDAIGAYOAQcAggEHAIGAQMAgYBAwCBgGDgEEAg4BBwCBgEDAIGAQMAgYBg4BBAIOAQcAgYBAwCBgEDAIGAYMABgGDgEHAIGAQMAgYBAwCBgGDAAYBg4BBwCBgEDAIGAQMAgYBg4gABgGDgEHAIGAQMAgYBAwCBgEMAgYBg8CnBSV2hCJihVqJAAAAAElFTkSuQmCC';
 
 const renderImage = async (
   schemaOverrides: Partial<Schema> & {
@@ -104,7 +103,7 @@ describe('computeImageFitRect (pdfme/pdfme#696)', () => {
 
 /**
  * End-to-end coverage that the pdf render path passes the right
- * width/height to pdf-lib's drawImage based on objectFit. The 2×1 PNG +
+ * width/height to pdf-lib's drawImage based on objectFit. The 200×100 PNG +
  * 100×100 box is the simplest case where fit modes give visibly distinct
  * results: contain keeps width=100mm and height=50mm; fill keeps
  * width=height=100mm. pdfme/pdfme#696.
@@ -112,8 +111,8 @@ describe('computeImageFitRect (pdfme/pdfme#696)', () => {
 describe('image.pdf objectFit integration (pdfme/pdfme#696)', () => {
   it('contain (default) preserves the image aspect ratio', async () => {
     const { call } = await renderImage({ width: 100, height: 100 });
-    // Image is 2px × 1px; natural mm dimensions come via px2mm.
-    const naturalRatio = px2mm(2) / px2mm(1);
+    // Natural millimetre dimensions come via px2mm.
+    const naturalRatio = px2mm(200) / px2mm(100);
     expect(((call.width as number) / (call.height as number)).toFixed(3)).toBe(
       naturalRatio.toFixed(3),
     );

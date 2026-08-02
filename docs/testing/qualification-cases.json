@@ -44,11 +44,43 @@
       "manifest": "manifest.json"
     },
     {
+      "id": "resource-reuse-catalog",
+      "title": "Imposition source-Form resource reuse",
+      "description": "Twelve placements across three sheets reuse exactly two unique embedded source-page Form XObjects, with one source load and one embedPages call.",
+      "artifactDirectory": "packages/imposition/test-artifacts/n-up/resource-reuse-catalog",
+      "pdf": "resource-reuse-catalog.pdf",
+      "manifest": "manifest.json"
+    },
+    {
+      "id": "boleto-book",
+      "title": "Seven-page boleto component book",
+      "description": "Seven distinct, structured cobranca test records rendered as 200 x 95 mm boleto pages. Test mode replaces the barcode and digitable line with explicit redaction labels, adds a non-payable watermark, and is not bank-issued, certified, or homologated.",
+      "artifactDirectory": "packages/generator/test-artifacts/boleto-book",
+      "pdf": "boleto-book.pdf",
+      "manifest": "manifest.json"
+    },
+    {
+      "id": "boleto-asymmetric-cropbox-base",
+      "title": "Boleto over asymmetric CropBox stationery",
+      "description": "A validated boleto is printed at an authored top-left position over a dark patterned base PDF whose visible CropBox is offset asymmetrically inside a nonzero MediaBox. The boleto receives an opaque white backing while the surrounding stationery remains unchanged.",
+      "artifactDirectory": "packages/generator/test-artifacts/boleto-book/asymmetric-cropbox-base",
+      "pdf": "boleto-asymmetric-cropbox-base.pdf",
+      "manifest": "manifest.json"
+    },
+    {
       "id": "a4-boleto-booklet",
-      "title": "A4 boleto-style 3-up job",
-      "description": "Seven boleto-style pages packed three-up across three A4 sheets with a partial final sheet.",
+      "title": "A4 boleto exact-size 2-up job",
+      "description": "Seven validated, payment-identifier-redacted 200 x 95 mm boleto test pages packed without scaling two-up across four A4 sheets, with one explicit empty slot on the final sheet.",
       "artifactDirectory": "packages/imposition/test-artifacts/n-up/a4-boleto-booklet",
       "pdf": "a4-boleto-booklet.pdf",
+      "manifest": "manifest.json"
+    },
+    {
+      "id": "a3-boleto-booklet",
+      "title": "Landscape A3 boleto exact-size 4-up job",
+      "description": "Seven validated, payment-identifier-redacted 200 x 95 mm boleto test pages packed without scaling four-up across two landscape A3 sheets, with one explicit empty slot on the final sheet.",
+      "artifactDirectory": "packages/imposition/test-artifacts/n-up/a3-boleto-booklet",
+      "pdf": "a3-boleto-booklet.pdf",
       "manifest": "manifest.json"
     },
     {
@@ -62,7 +94,7 @@
     {
       "id": "complex-invoice",
       "title": "Multi-page invoice",
-      "description": "A three-page A4 invoice with repeated headings and terminal subtotal, tax, and total rows.",
+      "description": "A three-page A4 invoice with fixed percentage columns, wrapped long descriptions, automatically enlarged rows, repeated headings, and terminal subtotal, tax, and total rows.",
       "artifactDirectory": "packages/generator/test-artifacts/complex-documents/complex-invoice",
       "pdf": "complex-invoice.pdf",
       "manifest": "manifest.json"
@@ -81,6 +113,14 @@
       "description": "One 100-page A4 PDF with unique client, invoice, date, service, and amount data while the constant logo and font are embedded once.",
       "artifactDirectory": "packages/generator/test-artifacts/resource-reuse/100-client-statements",
       "pdf": "100-client-statements.pdf",
+      "manifest": "manifest.json"
+    },
+    {
+      "id": "100-boleto-records",
+      "title": "100 boleto records with one shared logo",
+      "description": "One 100-page PDF receives 100 distinct validated boleto inputs while embedding the constant institution logo once. Every test-mode page redacts its barcode and digitable line and carries a non-payable watermark.",
+      "artifactDirectory": "packages/generator/test-artifacts/resource-reuse/100-boleto-records",
+      "pdf": "100-boleto-records.pdf",
       "manifest": "manifest.json"
     }
   ],
@@ -120,7 +160,7 @@
       "definition": "Given explicit rows, columns, asymmetric margins, and gutters, every slot has deterministic top-to-bottom physical coordinates.",
       "assertions": [
         "Exact cell rectangles are asserted numerically.",
-        "3-up A4 and 4-up landscape A3 jobs are rasterized and snapshot-tested.",
+        "Exact-size 2-up A4 and 4-up landscape A3 boleto jobs are rasterized and snapshot-tested.",
         "Partial final sheets expose every empty slot."
       ],
       "tests": [
@@ -130,14 +170,28 @@
         },
         {
           "file": "packages/imposition/__tests__/e2e/n-up.e2e.test.ts",
-          "title": "packs seven boleto-style items three-up across three A4 sheets"
+          "title": "packs seven validated boleto pages two-up at exact size across four A4 sheets",
+          "supportingDefinitions": [
+            "createBoletoData",
+            "createBoletoBook",
+            "assertUnscaledBoletoPlacements"
+          ]
+        },
+        {
+          "file": "packages/imposition/__tests__/e2e/n-up.e2e.test.ts",
+          "title": "packs seven validated boleto pages four-up at exact size across two landscape A3 sheets",
+          "supportingDefinitions": [
+            "createBoletoData",
+            "createBoletoBook",
+            "assertUnscaledBoletoPlacements"
+          ]
         },
         {
           "file": "packages/imposition/__tests__/e2e/n-up.e2e.test.ts",
           "title": "packs five A5 client statements four-up across two landscape A3 sheets"
         }
       ],
-      "scenarios": ["a4-boleto-booklet", "a3-client-statements"]
+      "scenarios": ["a4-boleto-booklet", "a3-boleto-booklet", "a3-client-statements"]
     },
     {
       "id": "fill-order",
@@ -262,6 +316,43 @@
       "scenarios": ["source-box-catalog"]
     },
     {
+      "id": "base-pdf-overlay",
+      "category": "Document rendering",
+      "name": "Variable data over existing PDF stationery",
+      "evidenceKind": "visual",
+      "definition": "Schemas use top-left coordinates relative to the visible CropBox of an existing PDF page while the generator preserves the source MediaBox, CropBox, and surrounding stationery.",
+      "assertions": [
+        "An asymmetric CropBox and nonzero MediaBox origin are preserved exactly in the output PDF.",
+        "The authored boleto coordinates are translated into source-page space and the component remains wholly inside the visible CropBox.",
+        "The boleto's opaque white backing covers the dark pattern only inside the ficha while sampled regions outside it remain unchanged.",
+        "The controlled 300 DPI raster verifier confirms that the test-mode barcode acquisition region is not decodable after the overlay is rendered."
+      ],
+      "tests": [
+        {
+          "file": "packages/generator/__tests__/generate.test.ts",
+          "title": "translates top-left schema coordinates into asymmetric CropBox and MediaBox space"
+        },
+        {
+          "file": "packages/generator/__tests__/boleto.e2e.test.ts",
+          "title": "stamps an opaque boleto onto an asymmetric CropBox base PDF",
+          "supportingDefinitions": [
+            "CROP_BOX_WIDTH_MM",
+            "CROP_BOX_HEIGHT_MM",
+            "CROP_BOX_BOLETO_POSITION",
+            "decodeItfRaster",
+            "tryDecodeItfRaster",
+            "buildPatternedCropBoxBasePdf",
+            "getRegionMatchRatio",
+            "cropMillimeterRegion",
+            "boletoSchema",
+            "template",
+            "buildBoletoData"
+          ]
+        }
+      ],
+      "scenarios": ["boleto-asymmetric-cropbox-base"]
+    },
+    {
       "id": "collation",
       "category": "Sequencing",
       "name": "Copies with collated and uncollated ordering",
@@ -325,7 +416,7 @@
           "title": "rejects a non-finite final draw scale from adversarial source geometry"
         }
       ],
-      "scenarios": ["a4-boleto-booklet"]
+      "scenarios": ["paper-size-catalog"]
     },
     {
       "id": "warnings",
@@ -376,13 +467,15 @@
     {
       "id": "resource-reuse",
       "category": "Performance",
-      "name": "Shared resources across 100 client statements",
+      "name": "Shared resources across 100-document batches",
       "evidenceKind": "hybrid",
-      "definition": "A single 100-page PDF repeats variable invoice-statement data for 100 clients while embedding the constant logo and font once; imposition likewise reuses every unique source page Form.",
+      "definition": "Single 100-page PDFs repeat variable statement or boleto data while embedding constant image resources once; imposition likewise reuses every unique source page Form.",
       "assertions": [
         "One source load and one embedPages call are asserted.",
         "Only two Form XObjects exist for twelve placements of two source pages.",
-        "The generator emits 100 client pages with one image embed and one font embed, bounded PDF size, exact client coverage, and inspectable page renders."
+        "The generator emits 100 client statement pages with one image embed and one font embed, bounded PDF size, exact client coverage, and inspectable page renders.",
+        "A separate 100-page boleto batch validates all 100 distinct input barcodes in order, redacts payable identifiers from test-mode output and manifests, embeds its constant institution logo once, and remains below the configured size bound.",
+        "Repeated logo preflight reuses a bounded exact-source fingerprint and structural decode instead of retaining the data URI in a Map key or hashing it for every record."
       ],
       "tests": [
         {
@@ -390,27 +483,438 @@
           "title": "loads once, embeds each unique source page once, and reuses forms across sheets"
         },
         {
+          "file": "packages/imposition/__tests__/e2e/qualification.e2e.test.ts",
+          "title": "publishes twelve placements with two reused source Form XObjects",
+          "supportingDefinitions": ["countFormXObjects", "writeCatalog", "placementSummary"]
+        },
+        {
           "file": "packages/generator/__tests__/embed-once.test.ts",
           "title": "shares constant image and font resources across 100 statement pages"
+        },
+        {
+          "file": "packages/schemas/__tests__/boleto.plugin.test.ts",
+          "title": "embeds one shared logo resource across repeated boleto renders",
+          "supportingDefinitions": ["ONE_PIXEL_PNG", "createData", "schema"]
+        },
+        {
+          "file": "packages/schemas/__tests__/boleto.plugin.test.ts",
+          "title": "uses a compact key and decodes a valid logo once per shared cache",
+          "supportingDefinitions": ["ONE_PIXEL_PNG"]
+        },
+        {
+          "file": "packages/schemas/__tests__/boleto.plugin.test.ts",
+          "title": "reuses one exact-source memo throughout a large repeated-record batch",
+          "supportingDefinitions": ["ONE_PIXEL_PNG"]
+        },
+        {
+          "file": "packages/generator/__tests__/boleto.e2e.test.ts",
+          "title": "embeds one constant institution logo across 100 variable boleto pages",
+          "supportingDefinitions": [
+            "batchArtifactDirectory",
+            "fixedMetadataDate",
+            "REPRESENTATIVE_PAGE_INDEXES",
+            "CONSTANT_INSTITUTION_LOGO",
+            "boletoSchema",
+            "template",
+            "buildBoletoData",
+            "renderRepresentativePages"
+          ]
         }
       ],
-      "scenarios": ["100-client-statements", "a4-boleto-booklet"]
+      "scenarios": ["100-client-statements", "100-boleto-records", "resource-reuse-catalog"]
+    },
+    {
+      "id": "boleto-data-validation",
+      "category": "Document validation",
+      "name": "Boleto cobranca data and check-digit validation",
+      "evidenceKind": "hybrid",
+      "definition": "Structured boleto cobranca input is validated before rendering, including barcode and digitable-line check digits, institution identity, due-date factor, amount mode, party identifiers, and required fields.",
+      "assertions": [
+        "Published Itau and Banco do Brasil barcode vectors derive and format to their expected 47-digit lines.",
+        "Corrupt check digits and cross-field mismatches fail with stable boleto-prefixed errors.",
+        "Numeric and uppercase alphanumeric CNPJ values have executable check-digit coverage.",
+        "Known institution display suffixes include Sicredi's uppercase X and are cross-checked before rendering.",
+        "Fixed and variable amount modes, the 2025 due-factor reset, and factor 0000 without an encoded due date have executable boundary coverage.",
+        "Fixed discounts and interest reconcile exactly to the charged amount; impossible totals and adjustment fields on variable-amount records fail closed.",
+        "Third-party collection rejects a final-beneficiary CPF/CNPJ equal to the payer after punctuation normalization.",
+        "Every displayed boleto in the linked PDF is generated from a distinct structured input object, not from decorative fixture drawing."
+      ],
+      "tests": [
+        {
+          "file": "packages/schemas/__tests__/boleto.digits.test.ts",
+          "title": "derives and formats the official Itau vector",
+          "supportingDefinitions": ["ITAU_BARCODE", "ITAU_FORMATTED_LINE", "ITAU_RAW_LINE"]
+        },
+        {
+          "file": "packages/schemas/__tests__/boleto.digits.test.ts",
+          "title": "derives and formats the official Banco do Brasil vector",
+          "supportingDefinitions": ["BB_BARCODE", "BB_FORMATTED_LINE", "BB_RAW_LINE"]
+        },
+        {
+          "file": "packages/schemas/__tests__/boleto.digits.test.ts",
+          "title": "rejects corrupted barcode and line check digits with stable errors"
+        },
+        {
+          "file": "packages/schemas/__tests__/boleto.digits.test.ts",
+          "title": "accepts uppercase X and cross-checks verified institution display suffixes"
+        },
+        {
+          "file": "packages/schemas/__tests__/boleto.digits.test.ts",
+          "title": "implements the CAIXA-documented 2025 factor reset and range"
+        },
+        {
+          "file": "packages/schemas/__tests__/boleto.validation.test.ts",
+          "title": "validates CPF, numeric and alphanumeric CNPJ, CEP, and real ISO dates",
+          "supportingDefinitions": ["createValidBoleto"]
+        },
+        {
+          "file": "packages/schemas/__tests__/boleto.validation.test.ts",
+          "title": "cross-checks institution, due factor, fixed amount, and supplied line",
+          "supportingDefinitions": ["createValidBoleto"]
+        },
+        {
+          "file": "packages/schemas/__tests__/boleto.validation.test.ts",
+          "title": "supports verified institution display suffixes, including uppercase X",
+          "supportingDefinitions": ["createValidBoleto"]
+        },
+        {
+          "file": "packages/schemas/__tests__/boleto.validation.test.ts",
+          "title": "accepts factor 0000 as no encoded due-date factor but still requires a printed date",
+          "supportingDefinitions": ["createValidBoleto", "buildBarcodeWithFactor"]
+        },
+        {
+          "file": "packages/schemas/__tests__/boleto.validation.test.ts",
+          "title": "supports variable amounts only when the barcode amount field is zero"
+        },
+        {
+          "file": "packages/schemas/__tests__/boleto.validation.test.ts",
+          "title": "requires fixed-amount adjustments to reconcile exactly",
+          "supportingDefinitions": ["createValidBoleto"]
+        },
+        {
+          "file": "packages/schemas/__tests__/boleto.validation.test.ts",
+          "title": "rejects impossible fixed-amount adjustment totals",
+          "supportingDefinitions": ["createValidBoleto"]
+        },
+        {
+          "file": "packages/schemas/__tests__/boleto.validation.test.ts",
+          "title": "accepts chargedAmountCents alone only when it equals the document value",
+          "supportingDefinitions": ["createValidBoleto"]
+        },
+        {
+          "file": "packages/schemas/__tests__/boleto.validation.test.ts",
+          "title": "rejects %s for variable-amount boletos",
+          "supportingDefinitions": ["createValidBoleto", "buildBarcodeWithFactor"]
+        },
+        {
+          "file": "packages/schemas/__tests__/boleto.validation.test.ts",
+          "title": "rejects the same normalized payer and final-beneficiary tax ID with %s",
+          "supportingDefinitions": ["createValidBoleto", "payer"]
+        }
+      ],
+      "scenarios": ["boleto-book"]
+    },
+    {
+      "id": "boleto-component",
+      "category": "Document rendering",
+      "name": "Boleto ficha de compensacao component",
+      "evidenceKind": "visual",
+      "definition": "One structured boleto value renders the supported ficha de compensacao layout. Registered mode renders the formatted line and specification-shaped ITF barcode; test mode omits both payable identifiers, replaces them with explicit redaction labels, and adds an unavoidable non-payable watermark.",
+      "assertions": [
+        "The component draws one exact 103 x 13 mm ITF barcode and produces a reloadable PDF.",
+        "Shared conventional vector paths render the institution code at 5 mm outer ink height with 1.2 mm strokes, the digitable line at PDFweave's deterministic 4 mm height with 0.3 mm strokes, and the mechanical-authentication caption at the 2 mm maximum with 0.3 mm strokes in both PDF and browser paths.",
+        "PDFweave's deterministic 0.3 mm project grid keeps outer ink inside the ficha and merges shared internal cell edges; this regression choice is not presented as a separately mandated FEBRABAN dimension.",
+        "Every text, image, line, and barcode primitive stays within the supported minimum and maximum ficha dimensions.",
+        "The layout uses the three Annex III adjustment rows, a dedicated final-beneficiary line, and the accented Portuguese field labels.",
+        "The plugin is output-only and requires a complete structured value supplied through binding.",
+        "The seven-page book contains distinct payer, document, and amount values while omitting barcode and digitable-line values from test-mode PDF output and manifests.",
+        "A private registered-mode 300 DPI verifier recovers the ITF payload and checks guards, run clusters, wide-to-narrow ratio, quiet zones, and digitable-line geometry without publishing a scannable payment artifact.",
+        "Synthetic qualification pages carry explicit identifier-redaction labels and an unavoidable non-payable watermark and are not represented as bank-certified output."
+      ],
+      "tests": [
+        {
+          "file": "packages/schemas/__tests__/boleto.plugin.test.ts",
+          "title": "draws one exact 103 x 13 mm SVG barcode and saves a reloadable PDF"
+        },
+        {
+          "file": "packages/schemas/__tests__/boleto.layout.test.ts",
+          "title": "keeps every primitive within a %d x %d mm ficha",
+          "supportingDefinitions": ["createData", "createSchema", "expectWithin"]
+        },
+        {
+          "file": "packages/schemas/__tests__/boleto.layout.test.ts",
+          "title": "keeps grid ink inside the ficha and merges shared cell borders",
+          "supportingDefinitions": ["createData", "createSchema"]
+        },
+        {
+          "file": "packages/schemas/__tests__/boleto.layout.test.ts",
+          "title": "suppresses payable identifiers and watermarks test boletos"
+        },
+        {
+          "file": "packages/schemas/__tests__/boleto.layout.test.ts",
+          "title": "uses the required shared vector metrics and alignment",
+          "supportingDefinitions": ["createData", "createSchema", "getOuterInkBounds"]
+        },
+        {
+          "file": "packages/schemas/__tests__/boleto.layout.test.ts",
+          "title": "draws an uppercase X institution suffix without relying on a font glyph",
+          "supportingDefinitions": ["createData", "createSchema"]
+        },
+        {
+          "file": "packages/schemas/__tests__/boleto.layout.test.ts",
+          "title": "uses the three Annex III adjustment rows and a dedicated final-beneficiary line",
+          "supportingDefinitions": ["createData", "createSchema"]
+        },
+        {
+          "file": "packages/schemas/__tests__/boleto.layout.test.ts",
+          "title": "uses the accented Annex III field labels and literal authentication caption",
+          "supportingDefinitions": ["createData", "createSchema"]
+        },
+        {
+          "file": "packages/schemas/__tests__/boleto.plugin.test.ts",
+          "title": "is output-only and requires a complete bound boleto value"
+        },
+        {
+          "file": "packages/generator/__tests__/boleto.e2e.test.ts",
+          "title": "renders seven distinct specification-validated test boletos as inspectable artifacts",
+          "supportingDefinitions": [
+            "PAGE_WIDTH_MM",
+            "PAGE_HEIGHT_MM",
+            "PAGE_COUNT",
+            "SCAN_DPI",
+            "ITF_PATTERNS",
+            "ItfRasterResult",
+            "DarkRasterBounds",
+            "median",
+            "cropBarcodeAcquisitionRegion",
+            "decodeItfRaster",
+            "tryDecodeItfRaster",
+            "measureDarkRasterBounds",
+            "boletoSchema",
+            "template",
+            "buildBoletoData",
+            "data"
+          ]
+        },
+        {
+          "file": "packages/generator/__tests__/boleto.e2e.test.ts",
+          "title": "renders registered barcode and digitable-line mechanics in memory",
+          "supportingDefinitions": [
+            "SCAN_DPI",
+            "ITF_PATTERNS",
+            "median",
+            "cropBarcodeAcquisitionRegion",
+            "decodeItfRaster",
+            "measureDarkRasterBounds",
+            "boletoSchema",
+            "template",
+            "buildBoletoData"
+          ]
+        },
+        {
+          "file": "packages/generator/__tests__/boleto.e2e.test.ts",
+          "title": "uses the public default schema as an input-bound required field",
+          "supportingDefinitions": ["boletoSchema", "template"]
+        }
+      ],
+      "scenarios": ["boleto-book"]
+    },
+    {
+      "id": "boleto-render-preflight",
+      "category": "Safety",
+      "name": "Boleto fail-closed render preflight",
+      "evidenceKind": "hybrid",
+      "definition": "Invalid structured values, unsafe ficha geometry, unrenderable text, and malformed or oversized embedded logos are rejected by preflight before any PDF page drawing operation.",
+      "assertions": [
+        "Ficha size, rotation, opacity, variant, and non-negative position constraints fail with stable errors.",
+        "A ficha extending beyond the physical PDF page is rejected before lines or barcode graphics are drawn.",
+        "Text that cannot fit at the minimum font size is rejected rather than silently clipped.",
+        "Institution logo bytes are fully decoded before rendering; animated PNG control chunks are rejected before UPNG or PngEmbedder, and truncated PNG data, truncated JPEG scan data, and JPEG metadata without a scan are rejected before PDF page drawing.",
+        "Logo preflight enforces 2,048-pixel edge and 4-megapixel limits before structural decode, plus an 8,000,000-character data-URI limit and a 64 MiB JPEG decoder allocation cap.",
+        "Only the tested PDF preflight rejection paths are draw-free; callers must discard the document after a later embedding or drawing rejection.",
+        "Browser rendering validates before staging and atomically commits either a complete component or one stable error marker.",
+        "The linked book is the valid visual boundary; rejection cases intentionally produce no PDF."
+      ],
+      "tests": [
+        {
+          "file": "packages/schemas/__tests__/boleto.layout.test.ts",
+          "title": "rejects %s",
+          "supportingDefinitions": ["createSchema"]
+        },
+        {
+          "file": "packages/schemas/__tests__/boleto.plugin.test.ts",
+          "title": "fails closed before drawing anything when structured data is invalid",
+          "supportingDefinitions": ["createData", "schema"]
+        },
+        {
+          "file": "packages/schemas/__tests__/boleto.plugin.test.ts",
+          "title": "rejects a ficha outside the physical page %s before drawing anything",
+          "supportingDefinitions": ["createData", "schema"]
+        },
+        {
+          "file": "packages/schemas/__tests__/boleto.plugin.test.ts",
+          "title": "rejects data that cannot fit at the minimum font size before drawing",
+          "supportingDefinitions": ["createData", "withData", "schema"]
+        },
+        {
+          "file": "packages/schemas/__tests__/boleto.plugin.test.ts",
+          "title": "fully decodes logos before drawing and fails closed after a valid PNG header",
+          "supportingDefinitions": ["TRUNCATED_AFTER_PNG_HEADER", "createData", "schema"]
+        },
+        {
+          "file": "packages/schemas/__tests__/boleto.plugin.test.ts",
+          "title": "rejects animated PNG logos before structural decode or drawing",
+          "supportingDefinitions": ["TWO_FRAME_APNG", "createData", "schema"]
+        },
+        {
+          "file": "packages/schemas/__tests__/boleto.plugin.test.ts",
+          "title": "fully decodes JPEG logos and rejects %s before drawing",
+          "supportingDefinitions": [
+            "TRUNCATED_JPEG_SCAN",
+            "SOI_APP_SOF_ONLY_JPEG",
+            "createData",
+            "schema"
+          ]
+        },
+        {
+          "file": "packages/schemas/__tests__/boleto.plugin.test.ts",
+          "title": "rejects a logo with %s before decode or drawing",
+          "supportingDefinitions": ["toPngHeaderDataUri"]
+        },
+        {
+          "file": "packages/schemas/__tests__/boleto.plugin.test.ts",
+          "title": "accepts %s boundary"
+        },
+        {
+          "file": "packages/schemas/__tests__/boleto.plugin.test.ts",
+          "title": "fully decodes and embeds a valid JPEG logo",
+          "supportingDefinitions": ["ONE_PIXEL_JPEG", "createData", "schema"]
+        },
+        {
+          "file": "packages/schemas/__tests__/boleto.plugin.test.ts",
+          "title": "fully decodes a valid JPEG once per shared cache",
+          "supportingDefinitions": ["ONE_PIXEL_JPEG"]
+        },
+        {
+          "file": "packages/schemas/__tests__/boleto.plugin.test.ts",
+          "title": "rejects SOI/APP/SOF-only JPEG data that passes the PDF embedder metadata parser",
+          "supportingDefinitions": ["SOI_APP_SOF_ONLY_JPEG"]
+        },
+        {
+          "file": "packages/schemas/__tests__/boleto.plugin.test.ts",
+          "title": "does not cache a failed full JPEG decode",
+          "supportingDefinitions": ["TRUNCATED_JPEG_SCAN"]
+        },
+        {
+          "file": "packages/schemas/__tests__/boleto.plugin.test.ts",
+          "title": "atomically replaces prior content with only an error for a corrupt logo",
+          "supportingDefinitions": ["TRUNCATED_AFTER_PNG_HEADER"]
+        },
+        {
+          "file": "packages/schemas/__tests__/boleto.plugin.test.ts",
+          "title": "rejects %s before staging any UI primitives",
+          "supportingDefinitions": ["TRUNCATED_JPEG_SCAN", "SOI_APP_SOF_ONLY_JPEG"]
+        },
+        {
+          "file": "packages/schemas/__tests__/boleto.plugin.test.ts",
+          "title": "renders a fully decoded JPEG after browser image decoding succeeds",
+          "supportingDefinitions": ["ONE_PIXEL_JPEG"]
+        },
+        {
+          "file": "packages/schemas/__tests__/boleto.plugin.test.ts",
+          "title": "waits for browser logo decoding before atomically committing the UI",
+          "supportingDefinitions": ["ONE_PIXEL_PNG"]
+        },
+        {
+          "file": "packages/schemas/__tests__/boleto.plugin.test.ts",
+          "title": "renders output-only child plugins without editable controls in %s mode"
+        },
+        {
+          "file": "packages/schemas/__tests__/boleto.validation.test.ts",
+          "title": "bounds institution logo data URIs at the nearest valid base64 lengths",
+          "supportingDefinitions": ["createValidBoleto"]
+        },
+        {
+          "file": "packages/schemas/__tests__/boleto.validation.test.ts",
+          "title": "rejects free text that exceeds conservative rendering limits",
+          "supportingDefinitions": ["createValidBoleto"]
+        }
+      ],
+      "scenarios": ["boleto-book"]
+    },
+    {
+      "id": "boleto-imposition",
+      "category": "Placement",
+      "name": "Exact-size boleto booklet imposition",
+      "evidenceKind": "visual",
+      "definition": "A seven-page boleto book is mounted without scaling into deterministic A4 2-up and landscape A3 4-up print sheets.",
+      "assertions": [
+        "Every placement remains 200 x 95 mm with scale 1 and rotation 0.",
+        "A4 output contains four sheets at capacity two; A3 output contains two sheets at capacity four.",
+        "Source order is preserved, content stays within each slot, and the final unused slot is explicit.",
+        "A private registered-mode check imposes one boleto at scale 1, rasterizes the A4 sheet at 300 DPI, and recovers the exact 44-digit ITF payload without publishing that payable fixture.",
+        "Every physical sheet is rasterized and snapshot-tested."
+      ],
+      "tests": [
+        {
+          "file": "packages/imposition/__tests__/e2e/n-up.e2e.test.ts",
+          "title": "preserves a registered ITF barcode through exact-size imposition",
+          "supportingDefinitions": [
+            "A4_WIDTH_MM",
+            "SCAN_DPI",
+            "createBoletoData",
+            "createBoletoPdf"
+          ]
+        },
+        {
+          "file": "packages/imposition/__tests__/e2e/n-up.e2e.test.ts",
+          "title": "packs seven validated boleto pages two-up at exact size across four A4 sheets",
+          "supportingDefinitions": [
+            "createBoletoData",
+            "createBoletoBook",
+            "assertUnscaledBoletoPlacements"
+          ]
+        },
+        {
+          "file": "packages/imposition/__tests__/e2e/n-up.e2e.test.ts",
+          "title": "packs seven validated boleto pages four-up at exact size across two landscape A3 sheets",
+          "supportingDefinitions": [
+            "createBoletoData",
+            "createBoletoBook",
+            "assertUnscaledBoletoPlacements"
+          ]
+        }
+      ],
+      "scenarios": ["a4-boleto-booklet", "a3-boleto-booklet"]
     },
     {
       "id": "invoice-totals",
       "category": "Document rendering",
-      "name": "Multi-page invoice with terminal total rows",
+      "name": "Wrapped multi-page invoice with terminal total rows",
       "evidenceKind": "visual",
-      "definition": "A bound invoice table flows across three A4 pages with repeated headings and exactly one subtotal, tax, and total group at the end.",
+      "definition": "A bound invoice table uses explicit percentage columns, wraps long descriptions to the assigned width, automatically grows each row to its tallest cell, and flows across three A4 pages with repeated headings and exactly one terminal totals group.",
       "assertions": [
+        "The first description wraps across multiple lines and its measured row is more than twice the height of a normal row.",
+        "The 52/10/18/20 column percentages remain fixed rather than resizing around cell content.",
         "All source rows have contiguous, nonduplicated page ranges.",
         "Control totals and the terminal page are asserted.",
         "Every rendered page is snapshot-tested."
       ],
       "tests": [
         {
+          "file": "packages/schemas/__tests__/tables.test.ts",
+          "title": "keeps explicit percentage widths independent of cell content",
+          "supportingDefinitions": ["baseTableSchema"]
+        },
+        {
+          "file": "packages/schemas/__tests__/tables.test.ts",
+          "title": "subtracts horizontal padding from text-fit width so wrapped rows are tall enough",
+          "supportingDefinitions": ["baseTableSchema"]
+        },
+        {
           "file": "packages/generator/__tests__/complex-documents.test.ts",
-          "title": "renders a bound invoice table with terminal total rows across multiple A4 pages"
+          "title": "renders a bound invoice table with terminal total rows across multiple A4 pages",
+          "supportingDefinitions": ["buildInvoiceInput", "buildInvoiceTemplate"]
         }
       ],
       "scenarios": ["complex-invoice"]

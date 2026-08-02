@@ -56,7 +56,12 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@pdfweave/common": "0.1.0",
     "@pdfweave/converter": "0.1.0",
+    "@pdfweave/generator": "0.1.0",
+    "@pdfweave/schemas": "0.1.0",
+    "@types/pngjs": "^6.0.2",
+    "pngjs": "^7.0.0",
     "vitest-image-snapshot": "^0.6.51"
   }
 }

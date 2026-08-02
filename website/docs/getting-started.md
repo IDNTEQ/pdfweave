@@ -30,10 +30,15 @@ npm i @pdfweave/ui @pdfweave/common
 
 `@pdfweave/ui` ships as a standalone bundle, so you do not need to install `react` or `react-dom` separately just to use Designer, Form, or Viewer.
 
-Physical-sheet imposition can be installed independently:
+Physical-sheet imposition is currently available from the repository workspace
+and will be installable independently after its first npm release. It is not
+yet present in the public registry:
 
 ```
-npm i @pdfweave/imposition
+git clone https://github.com/IDNTEQ/pdfweave.git
+cd pdfweave
+npm install
+npm run build
 ```
 
 Package manifests declare their own runtime dependencies. Applications do not
@@ -59,6 +64,11 @@ The following type, function and classes are available in PDFweave.
 `@pdfweave/imposition`
 
 - [impose and planImposition](/imposition)
+
+`@pdfweave/schemas`
+
+- Built-in field plugins, including tables, barcodes, images, and the validated
+  boleto de cobranca component
 
 If your environment uses webpack, import the necessary items as shown below.
 
@@ -93,7 +103,6 @@ The **basePdf** property accepts PDF data as a `string` (base64 encoded), an `Ar
 ```json
 basePdf: { "width": 210, "height": 297, "padding": [10, 10, 10, 10] }
 ```
-
 
 **schemas** can only utilize text by default. The default plugin registry used by `generate`, `Designer`, `Form`, and `Viewer` intentionally includes only the `text` schema.  
 For images, signatures, tables, barcodes such as QR codes, or any other schema type, import those plugins explicitly from the `@pdfweave/schemas` package and pass them through the `plugins` option.  
@@ -272,10 +281,10 @@ const template: Template = {
 };
 
 // configure some or all of the UI state (optional, defaults shown below)
- const options = {
-   zoomLevel: 1,
-   sidebarOpen: true
- };
+const options = {
+  zoomLevel: 1,
+  sidebarOpen: true,
+};
 
 const designer = new Designer({ domContainer, template, options });
 ```

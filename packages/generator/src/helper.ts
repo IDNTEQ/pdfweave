@@ -326,17 +326,15 @@ export const insertPage = (arg: {
   return insertedPage;
 };
 
-/**
- * Returns the lower-left origin (in PDF points) of the visible content region
- * for an embedded base page. When the source PDF has an explicit CropBox
- * distinct from its MediaBox, schema coordinates from the editor/designer are
- * authored against the CropBox (the visible area), so the renderer must
- * translate them by the CropBox origin to land them inside the visible region
- * rather than at the MediaBox origin. When no explicit CropBox is set, this
- * falls back to the MediaBox origin — which keeps the historical behavior for
- * the common case where MediaBox == CropBox. See pdfme/pdfme#623.
- */
+/** Returns additive offsets from visible-box top-left schema space to PDF page space. */
 export const getPageContentOffset = (embedPdfBox: EmbedPdfBox): { x: number; y: number } => {
-  const box = embedPdfBox.cropBox ?? embedPdfBox.mediaBox;
-  return { x: box.x, y: box.y };
+  const { mediaBox } = embedPdfBox;
+  const contentBox = embedPdfBox.cropBox ?? mediaBox;
+  return {
+    x: contentBox.x,
+    // Renderers use page.getHeight() as their top origin. Unlike an absolute
+    // PDF top coordinate, that value excludes MediaBox.y, so an inherited
+    // MediaBox with a nonzero y correctly produces a negative schema offset.
+    y: mediaBox.height - contentBox.y - contentBox.height,
+  };
 };

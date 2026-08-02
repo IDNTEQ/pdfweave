@@ -1,4 +1,5 @@
-import { PDFDocument, StandardFonts, rgb } from '@pdfweave/pdf-lib';
+import { PDFDocument, PDFName, PDFStream, StandardFonts, rgb } from '@pdfweave/pdf-lib';
+import { vi } from 'vitest';
 import {
   impose,
   MM_TO_PT,
@@ -11,6 +12,16 @@ import {
 import { createSourcePdf, pdfToImages, writeArtifacts } from '../helpers.js';
 
 const mm = (value: number): number => value * MM_TO_PT;
+
+const countFormXObjects = (document: PDFDocument): number =>
+  document.context
+    .enumerateIndirectObjects()
+    .map(([, object]) => object)
+    .filter(
+      (object) =>
+        object instanceof PDFStream &&
+        object.dict.get(PDFName.of('Subtype')) === PDFName.of('Form'),
+    ).length;
 
 interface CatalogEntry {
   label: string;
@@ -69,6 +80,51 @@ const placementSummary = (plan: ImpositionPlan) => ({
 });
 
 describe('imposition qualification artifacts', () => {
+  test('publishes twelve placements with two reused source Form XObjects', async () => {
+    const source = await createSourcePdf([
+      { width: 100, height: 150, label: 'CONSTANT SOURCE ONE' },
+      { width: 100, height: 150, label: 'CONSTANT SOURCE TWO' },
+    ]);
+    const loadSpy = vi.spyOn(PDFDocument, 'load');
+    const embedSpy = vi.spyOn(PDFDocument.prototype, 'embedPages');
+    const result = await (async () => {
+      try {
+        const imposed = await impose({
+          source,
+          unit: 'pt',
+          sheet: { size: { width: 220, height: 320 }, margins: 10, gutter: 5 },
+          layout: { type: 'n-up', rows: 2, columns: 2 },
+          sourceBox: 'media',
+          pages: [0, 1, 0, 1],
+          sequence: { copies: 3, collation: 'collated' },
+        });
+
+        expect(loadSpy).toHaveBeenCalledTimes(1);
+        expect(embedSpy).toHaveBeenCalledTimes(1);
+        expect(embedSpy.mock.calls[0]?.[0]).toHaveLength(2);
+        return imposed;
+      } finally {
+        loadSpy.mockRestore();
+        embedSpy.mockRestore();
+      }
+    })();
+
+    const output = await PDFDocument.load(result.pdf);
+    const formXObjectCount = countFormXObjects(output);
+    expect(result.plan).toMatchObject({ placementCount: 12, sheetCount: 3, capacity: 4 });
+    expect(formXObjectCount).toBe(2);
+
+    await writeCatalog('resource-reuse-catalog', result.pdf, {
+      scenario: 'resource-reuse-catalog',
+      definition: 'Twelve placements reuse two unique embedded source-page Forms',
+      sourceLoadCount: 1,
+      embedPagesCallCount: 1,
+      embeddedSourcePageCount: 2,
+      formXObjectCount,
+      plan: placementSummary(result.plan),
+    });
+  });
+
   test('renders every named paper preset and a custom millimeter sheet', async () => {
     const cases: Array<{
       label: string;

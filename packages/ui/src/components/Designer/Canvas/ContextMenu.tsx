@@ -85,7 +85,12 @@ const ContextMenu = ({
     { action: 'paste', label: 'Paste', disabled: !canPaste, icon: <Clipboard size={iconSize} /> },
     { action: 'duplicate', label: 'Duplicate', icon: <CopyPlus size={iconSize} /> },
     { action: 'group', label: 'Group', disabled: !canGroup, icon: <Group size={iconSize} /> },
-    { action: 'ungroup', label: 'Ungroup', disabled: !canUngroup, icon: <Ungroup size={iconSize} /> },
+    {
+      action: 'ungroup',
+      label: 'Ungroup',
+      disabled: !canUngroup,
+      icon: <Ungroup size={iconSize} />,
+    },
     ...(applyAnchorSourceSchemaName
       ? [
           {
@@ -144,7 +149,10 @@ const ContextMenu = ({
             textAlign: 'left',
           }}
         >
-          <span aria-hidden="true" style={{ display: 'inline-flex', width: iconSize, height: iconSize }}>
+          <span
+            aria-hidden="true"
+            style={{ display: 'inline-flex', width: iconSize, height: iconSize }}
+          >
             {icon}
           </span>
           <span>{label}</span>

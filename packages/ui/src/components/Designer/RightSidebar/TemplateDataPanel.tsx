@@ -40,7 +40,9 @@ const widthPercentages = (columns: SchemaBindingColumn[]) => {
       typeof column.widthPercentage === 'number' ? sum + column.widthPercentage : sum,
     0,
   );
-  const missingCount = columns.filter((column) => typeof column.widthPercentage !== 'number').length;
+  const missingCount = columns.filter(
+    (column) => typeof column.widthPercentage !== 'number',
+  ).length;
   const fallbackWidth =
     missingCount > 0 ? Number(Math.max(0, (100 - explicitTotal) / missingCount).toFixed(4)) : 0;
   let assigned = 0;
@@ -55,7 +57,10 @@ const widthPercentages = (columns: SchemaBindingColumn[]) => {
   });
 };
 
-const withPosition = (schema: Schema, props: Pick<SidebarProps, 'schemas' | 'pageSize'>): Schema => ({
+const withPosition = (
+  schema: Schema,
+  props: Pick<SidebarProps, 'schemas' | 'pageSize'>,
+): Schema => ({
   ...schema,
   position: nextPosition(props.schemas, props.pageSize),
 });

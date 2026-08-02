@@ -8,4 +8,5 @@ export * from './base64';
 export * from './objects';
 export * from './validators';
 export * from './pdfDocEncoding';
+export { assertStaticPng } from './png';
 export { default as Cache } from './Cache';

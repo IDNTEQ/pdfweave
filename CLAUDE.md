@@ -40,8 +40,8 @@ npm run fmt            # oxfmt write across packages, playground, meta files
 npm run fmt:check      # oxfmt verify (no writes)
 npm run coverage       # per-package v8 coverage + aggregate
 npm run coverage:check # coverage + CRAP gate (scripts/crap.mjs)
-npm run check          # full local quality gate + playground test
-npm run ci             # check + build + playground build
+npm run check          # full local gate, package/playground builds, browser test
+npm run ci             # alias for the complete check gate
 npm run size           # size-limit bundle budgets (.size-limit.json)
 ```
 
@@ -140,10 +140,17 @@ viewer, form, and designer modes.
 
 - Branch from and open PRs against `main`; use `feature/...` or `fix/...`.
 - Use conventional commits: `type(scope): description`.
+- Do not leave completed work only in the local checkout. Commit and push it;
+  create the corresponding release when repository gates and publishing
+  credentials are available, and document any external release blocker.
 - Run `npm run check` before pushing, or at minimum strict lint, typecheck,
   tests, and qualification for rendering changes.
 - Every PR is reviewed by Greptile and CodeRabbit. Wait for both to comment,
   then address findings or respond with technical reasoning before merging.
+- For substantial changes, run periodic independent, read-only reviews through
+  Claude Code with the `fable` model, including one before the final push.
+  Verify each finding against current code and record material fixes or
+  reasoned rejections in the PR.
 
 ## Fork Relationship
 

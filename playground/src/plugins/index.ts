@@ -15,6 +15,7 @@ import {
   select,
   checkbox,
   radioGroup,
+  boleto,
 } from '@pdfweave/schemas';
 
 export const getPlugins = () => {
@@ -22,6 +23,7 @@ export const getPlugins = () => {
     Text: text,
     'Multi-Variable Text': multiVariableText,
     Table: table,
+    Boleto: boleto,
     Line: line,
     Rectangle: rectangle,
     Ellipse: ellipse,

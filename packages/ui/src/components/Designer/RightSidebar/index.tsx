@@ -37,7 +37,8 @@ const Sidebar = (props: SidebarProps) => {
     if (activeGroups.size === 0) return selectedSchemas;
 
     return schemas.filter(
-      (schema) => activeIds.has(schema.id) || Boolean(schema.group && activeGroups.has(schema.group)),
+      (schema) =>
+        activeIds.has(schema.id) || Boolean(schema.group && activeGroups.has(schema.group)),
     );
   };
   const activeSchemas = getActiveSchemas();
@@ -79,7 +80,8 @@ const Sidebar = (props: SidebarProps) => {
     ) : (
       <DetailView {...props} activeSchema={getLastActiveSchema()} activeSchemas={activeSchemas} />
     );
-  const sampleData = (props.template as typeof props.template & { sampleData?: unknown }).sampleData;
+  const sampleData = (props.template as typeof props.template & { sampleData?: unknown })
+    .sampleData;
   const tabs: { key: SidebarTab; label: string }[] = [
     { key: 'properties', label: i18n('designer.properties') },
     { key: 'sample-data', label: i18n('designer.sampleData') },

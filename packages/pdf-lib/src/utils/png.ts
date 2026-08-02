@@ -30,6 +30,87 @@ const resolveUPNG = (value: unknown): UPNGApi => {
 
 const UPNG = resolveUPNG(UPNGModule);
 
+const PNG_SIGNATURE = Uint8Array.of(137, 80, 78, 71, 13, 10, 26, 10);
+const PNG_CHUNK_HEADER_LENGTH = 8;
+const PNG_CHUNK_CRC_LENGTH = 4;
+const PNG_MAX_CHUNK_COUNT = 10_000;
+
+const hasChunkType = (pngData: Uint8Array, offset: number, type: string) =>
+  pngData[offset + 4] === type.charCodeAt(0) &&
+  pngData[offset + 5] === type.charCodeAt(1) &&
+  pngData[offset + 6] === type.charCodeAt(2) &&
+  pngData[offset + 7] === type.charCodeAt(3);
+
+const readChunkLength = (pngData: Uint8Array, offset: number) =>
+  pngData[offset] * 0x1000000 +
+  pngData[offset + 1] * 0x10000 +
+  pngData[offset + 2] * 0x100 +
+  pngData[offset + 3];
+
+/**
+ * Rejects animated or structurally malformed PNG data before raster decoding.
+ *
+ * This validates chunk boundaries, not chunk CRC values or the complete PNG
+ * semantic model. The decoder remains responsible for those details.
+ */
+export const assertStaticPng = (pngData: Uint8Array): void => {
+  if (
+    pngData.length < PNG_SIGNATURE.length ||
+    PNG_SIGNATURE.some((value, index) => pngData[index] !== value)
+  ) {
+    throw new Error('Invalid PNG: missing or invalid signature');
+  }
+
+  let offset = PNG_SIGNATURE.length;
+  let chunkCount = 0;
+  let hasHeader = false;
+
+  while (offset < pngData.length) {
+    chunkCount += 1;
+    if (chunkCount > PNG_MAX_CHUNK_COUNT) {
+      throw new Error(`Invalid PNG: exceeds the ${PNG_MAX_CHUNK_COUNT} chunk safety limit`);
+    }
+    if (pngData.length - offset < PNG_CHUNK_HEADER_LENGTH + PNG_CHUNK_CRC_LENGTH) {
+      throw new Error('Invalid PNG: truncated chunk header');
+    }
+
+    const chunkLength = readChunkLength(pngData, offset);
+    if (chunkLength > pngData.length - offset - PNG_CHUNK_HEADER_LENGTH - PNG_CHUNK_CRC_LENGTH) {
+      throw new Error('Invalid PNG: truncated chunk data');
+    }
+
+    const nextOffset = offset + PNG_CHUNK_HEADER_LENGTH + chunkLength + PNG_CHUNK_CRC_LENGTH;
+    if (hasChunkType(pngData, offset, 'acTL')) {
+      throw new Error('Animated PNGs are not supported');
+    }
+
+    const isHeader = hasChunkType(pngData, offset, 'IHDR');
+    if (chunkCount === 1 && (!isHeader || chunkLength !== 13)) {
+      throw new Error('Invalid PNG: first chunk must be a 13-byte IHDR');
+    }
+    if (isHeader) {
+      if (hasHeader) {
+        throw new Error('Invalid PNG: duplicate IHDR chunk');
+      }
+      hasHeader = true;
+    }
+
+    if (hasChunkType(pngData, offset, 'IEND')) {
+      if (chunkLength !== 0) {
+        throw new Error('Invalid PNG: IEND chunk must be empty');
+      }
+      if (nextOffset !== pngData.length) {
+        throw new Error('Invalid PNG: trailing data after IEND chunk');
+      }
+      return;
+    }
+
+    offset = nextOffset;
+  }
+
+  throw new Error('Invalid PNG: missing IEND chunk');
+};
+
 const getImageType = (ctype: number) => {
   if (ctype === 0) return PngType.Greyscale;
   if (ctype === 2) return PngType.Truecolour;
@@ -78,7 +159,13 @@ export class PNG {
   readonly bitsPerComponent: number;
 
   private constructor(pngData: Uint8Array) {
-    const upng = UPNG.decode(pngData.buffer as ArrayBuffer);
+    assertStaticPng(pngData);
+
+    const exactPngData =
+      pngData.byteOffset === 0 && pngData.byteLength === pngData.buffer.byteLength
+        ? pngData.buffer
+        : pngData.slice().buffer;
+    const upng = UPNG.decode(exactPngData as ArrayBuffer);
     const frames = UPNG.toRGBA8(upng);
 
     if (frames.length > 1) throw new Error(`Animated PNGs are not supported`);

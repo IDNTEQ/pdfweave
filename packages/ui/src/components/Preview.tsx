@@ -112,7 +112,7 @@ const Preview = ({
       },
     })
       .then(async (dynamicTemplate) => {
-        const sl = await template2SchemasList(dynamicTemplate);
+        const sl = await template2SchemasList(dynamicTemplate, 'preview');
         if (!isMountedRef.current || requestId !== initRequestIdRef.current) {
           return;
         }

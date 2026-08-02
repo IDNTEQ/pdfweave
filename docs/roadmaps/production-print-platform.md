@@ -26,7 +26,8 @@ The repository already has a capable composition core:
 
 - JSON templates, nested data binding, formatting, and safe expressions;
 - anchor-based layout and dynamic multi-page tables;
-- custom base PDFs and repeating stationery;
+- custom base PDFs and repeating stationery, with asymmetric CropBox overlay
+  evidence and preserved surrounding artwork;
 - built-in text, image, barcode, table, and form-oriented plugins;
 - one-call multi-record generation with shared image, font, and base-PDF
   resources;
@@ -159,9 +160,13 @@ is possible across the tested matrix.
 
 ### P1.2 Stationery and master pages
 
+- Preserve custom-PDF MediaBox/CropBox geometry and place authored schemas
+  relative to the visible CropBox. This baseline is implemented and qualified.
 - Support selecting stationery pages instead of repeating only source page 1.
 - Define first, continuation, last, odd, and even master-page rules.
 - Make Designer, preview, and generator behavior identical.
+- Preserve editable/read-only and required schema metadata through Designer
+  open/save round trips.
 - Cache stationery resources across all records in a batch.
 
 **Acceptance:** a multi-page statement can use distinct first/continuation/last
@@ -210,8 +215,9 @@ unencrypted output remains byte-compatible when security options are absent.
 - Embed each source page once and reuse it for every placement.
 - Return deterministic PDF bytes and an inspectable placement manifest.
 
-**Acceptance:** seven boleto-style items packed three-up on A4 and five A5
-client statements packed four-up on landscape A3 pass geometry assertions,
+**Acceptance:** seven specification-validated 200 x 95 mm boleto components
+packed without scaling two-up on A4 and four-up on landscape A3, plus five A5
+client statements packed four-up on landscape A3, pass geometry assertions,
 resource-count checks, PDF parsing, and committed visual snapshots. CI
 publishes the PDFs, PNGs, and manifests. Independent text-order extraction and
 a 100-page imposition stress fixture remain follow-up hardening tasks.
@@ -307,16 +313,18 @@ RSS, Node version, platform, and renderer version.
 
 ## Milestone completion record
 
-| Milestone | State | Evidence |
-| --- | --- | --- |
-| Complex multi-page invoice and bank artifacts | Complete | `packages/generator/__tests__/complex-documents.test.ts` |
-| 100-record shared-resource generation | Complete | `packages/generator/__tests__/embed-once.test.ts` |
-| A2/A3 populated and blank page sizes | Complete | `packages/generator/__tests__/page-sizes.test.ts` |
-| P0 release integrity | Planned | Acceptance criteria above |
-| P1 document semantics | Planned | RFC required |
-| P2.1 n-up imposition | Complete locally; release pending | RFC 0002, 66 package tests, and qualification dashboard |
-| P2.2-P2.4 production finishing | Planned | P2.1 dependency |
-| P3 workflow platform | Planned | P0-P2 dependency |
+| Milestone                                     | State                             | Evidence                                                                 |
+| --------------------------------------------- | --------------------------------- | ------------------------------------------------------------------------ |
+| Complex multi-page invoice and bank artifacts | Complete                          | `packages/generator/__tests__/complex-documents.test.ts`                 |
+| 100-record shared-resource generation         | Complete                          | `packages/generator/__tests__/embed-once.test.ts`                        |
+| A2/A3 populated and blank page sizes          | Complete                          | `packages/generator/__tests__/page-sizes.test.ts`                        |
+| Custom base PDF/CropBox overlay               | Complete                          | Generator base-PDF and boleto artifact tests                             |
+| P0 release integrity                          | Planned                           | Acceptance criteria above                                                |
+| P1 document semantics                         | Planned                           | RFC required                                                             |
+| Validated boleto ficha component              | Complete locally; release pending | RFC 0003, schema/generator/imposition tests, and qualification dashboard |
+| P2.1 n-up imposition                          | Complete locally; release pending | RFC 0002, package tests, and qualification dashboard                     |
+| P2.2-P2.4 production finishing                | Planned                           | P2.1 dependency                                                          |
+| P3 workflow platform                          | Planned                           | P0-P2 dependency                                                         |
 
 ## Explicit non-goals
 

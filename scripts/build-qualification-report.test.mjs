@@ -1,10 +1,13 @@
 import assert from 'node:assert/strict';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import path from 'node:path';
 import { describe, test } from 'node:test';
 import { JSDOM } from 'jsdom';
 import {
   assertQualificationGate,
   buildHtml,
   deriveFeatureStatus,
+  extractSupportingDefinitionFromSource,
   extractTestCallFromSource,
   loadScenario,
   mapTestReference,
@@ -15,6 +18,63 @@ import {
   serializeInlineScriptData,
   validateCatalog,
 } from './build-qualification-report.mjs';
+
+const validOnePixelPng = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+  'base64',
+);
+
+const createMinimalPdf = (pageCount) => {
+  const objects = [
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    `<< /Type /Pages /Count ${String(pageCount)} /Kids [${Array.from(
+      { length: pageCount },
+      (_, index) => `${String(index + 3)} 0 R`,
+    ).join(' ')}] >>`,
+    ...Array.from(
+      { length: pageCount },
+      () => '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 10 10] /Resources << >> >>',
+    ),
+  ];
+  let body = '%PDF-1.4\n';
+  const offsets = [];
+  for (const [index, object] of objects.entries()) {
+    offsets.push(Buffer.byteLength(body, 'ascii'));
+    body += `${String(index + 1)} 0 obj\n${object}\nendobj\n`;
+  }
+  const xrefOffset = Buffer.byteLength(body, 'ascii');
+  body += `xref\n0 ${String(objects.length + 1)}\n0000000000 65535 f \n`;
+  body += offsets.map((offset) => `${String(offset).padStart(10, '0')} 00000 n \n`).join('');
+  body += `trailer\n<< /Size ${String(objects.length + 1)} /Root 1 0 R >>\nstartxref\n${String(xrefOffset)}\n%%EOF\n`;
+  return Buffer.from(body, 'ascii');
+};
+
+const createArtifactFixture = async ({
+  pdf = createMinimalPdf(1),
+  manifest = { pageCount: 1, output: { pngCount: 1, previewPages: [1] } },
+  previews = [['page-001.png', validOnePixelPng]],
+} = {}) => {
+  const repositoryRoot = resolveRepositoryPath('.');
+  const artifactRoot = resolveRepositoryPath('test-artifacts');
+  await mkdir(artifactRoot, { recursive: true });
+  const directory = await mkdtemp(path.join(artifactRoot, 'scenario-validation-test-'));
+  await Promise.all([
+    writeFile(path.join(directory, 'artifact.pdf'), pdf),
+    writeFile(path.join(directory, 'manifest.json'), JSON.stringify(manifest)),
+    ...previews.map(([name, bytes]) => writeFile(path.join(directory, name), bytes)),
+  ]);
+  return {
+    directory,
+    scenario: {
+      id: 'artifact-validation',
+      title: 'Artifact validation',
+      description: 'Parser-backed artifact validation',
+      artifactDirectory: path.relative(repositoryRoot, directory),
+      pdf: 'artifact.pdf',
+      manifest: 'manifest.json',
+    },
+  };
+};
 
 const scenario = (overrides = {}) => ({
   id: 'evidence-one',
@@ -154,6 +214,101 @@ describe('qualification catalog validation', () => {
     assert.equal(loaded.available, false);
     assert.match(loaded.error, /Path escapes the repository/);
   });
+
+  test('loads a large PDF with manifest-declared representative previews', async () => {
+    const fixture = await createArtifactFixture({
+      pdf: createMinimalPdf(100),
+      manifest: {
+        pageCount: 100,
+        output: { pngCount: 3, previewPages: [1, 50, 100] },
+      },
+      previews: ['001', '050', '100'].map((page) => [`page-${page}.png`, validOnePixelPng]),
+    });
+
+    try {
+      const loaded = await loadScenario(fixture.scenario);
+
+      assert.equal(loaded.available, true);
+      assert.equal(loaded.documentPageCount, 100);
+      assert.deepEqual(loaded.previewPageNumbers, [1, 50, 100]);
+      assert.equal(loaded.previews.length, 3);
+      assert.deepEqual(
+        loaded.previews.map(({ width, height }) => ({ width, height })),
+        Array.from({ length: 3 }, () => ({ width: 1, height: 1 })),
+      );
+    } finally {
+      await rm(fixture.directory, { recursive: true, force: true });
+    }
+  });
+
+  test('rejects a PDF that only has a valid-looking header', async () => {
+    const fixture = await createArtifactFixture({ pdf: Buffer.from('%PDF-1.7\n') });
+
+    try {
+      const loaded = await loadScenario(fixture.scenario);
+
+      assert.equal(loaded.available, false);
+      assert.match(loaded.error, /PDF cannot be parsed/);
+    } finally {
+      await rm(fixture.directory, { recursive: true, force: true });
+    }
+  });
+
+  test('rejects a PNG that only has a valid signature', async () => {
+    const fixture = await createArtifactFixture({
+      previews: [['page-001.png', Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])]],
+    });
+
+    try {
+      const loaded = await loadScenario(fixture.scenario);
+
+      assert.equal(loaded.available, false);
+      assert.match(loaded.error, /cannot be decoded as PNG/);
+    } finally {
+      await rm(fixture.directory, { recursive: true, force: true });
+    }
+  });
+
+  for (const countName of ['pageCount', 'sheetCount']) {
+    test(`rejects a manifest ${countName} that differs from the parsed PDF`, async () => {
+      const fixture = await createArtifactFixture({
+        pdf: createMinimalPdf(2),
+        manifest: {
+          [countName]: 3,
+          output: { pngCount: 1, previewPages: [1] },
+        },
+      });
+
+      try {
+        const loaded = await loadScenario(fixture.scenario);
+
+        assert.equal(loaded.available, false);
+        assert.match(loaded.error, new RegExp(`manifest ${countName} 3`));
+        assert.match(loaded.error, /parsed PDF page count 2/);
+      } finally {
+        await rm(fixture.directory, { recursive: true, force: true });
+      }
+    });
+  }
+
+  test('rejects a representative preview page outside the parsed PDF', async () => {
+    const fixture = await createArtifactFixture({
+      pdf: createMinimalPdf(2),
+      manifest: {
+        pageCount: 2,
+        output: { pngCount: 1, previewPages: [3] },
+      },
+    });
+
+    try {
+      const loaded = await loadScenario(fixture.scenario);
+
+      assert.equal(loaded.available, false);
+      assert.match(loaded.error, /preview page exceeds its PDF page count/);
+    } finally {
+      await rm(fixture.directory, { recursive: true, force: true });
+    }
+  });
 });
 
 describe('test definition extraction', () => {
@@ -175,6 +330,62 @@ describe('test definition extraction', () => {
     );
     assert.equal(parameterized.line, 2);
     assert.match(parameterized.source, /^test\.each/);
+  });
+
+  test('extracts explicitly named top-level fixture definitions', () => {
+    const source = `const other = 1;\nconst createFixture = () => ({ pages: 7 });\ntest('renders evidence', () => createFixture());`;
+    const definition = extractSupportingDefinitionFromSource(
+      source,
+      'packages/example/fixture.test.ts',
+      'createFixture',
+    );
+
+    assert.equal(definition.line, 2);
+    assert.match(definition.source, /^const createFixture/);
+    assert.throws(
+      () =>
+        extractSupportingDefinitionFromSource(
+          source,
+          'packages/example/fixture.test.ts',
+          'missingFixture',
+        ),
+      /Expected one top-level definition named 'missingFixture'/,
+    );
+  });
+
+  test('resolves every supporting definition in the real qualification catalog', async () => {
+    const catalogPath = resolveRepositoryPath('docs/testing/qualification-cases.json');
+    const realCatalog = validateCatalog(JSON.parse(await readFile(catalogPath, 'utf8')));
+    const references = realCatalog.features.flatMap((feature) =>
+      feature.tests
+        .filter((testReference) => testReference.supportingDefinitions)
+        .map((testReference) => ({ featureId: feature.id, testReference })),
+    );
+    const sourceFiles = [...new Set(references.map(({ testReference }) => testReference.file))];
+    const sourceCache = new Map(
+      await Promise.all(
+        sourceFiles.map(async (file) => [
+          file,
+          await readFile(resolveRepositoryPath(file), 'utf8'),
+        ]),
+      ),
+    );
+    const failures = [];
+
+    for (const { featureId, testReference } of references) {
+      const source = sourceCache.get(testReference.file);
+      for (const name of testReference.supportingDefinitions) {
+        try {
+          extractSupportingDefinitionFromSource(source, testReference.file, name);
+        } catch (error) {
+          failures.push(
+            `${featureId} -> ${testReference.file} -> ${name}: ${error instanceof Error ? error.message : String(error)}`,
+          );
+        }
+      }
+    }
+
+    assert.deepEqual(failures, []);
   });
 });
 

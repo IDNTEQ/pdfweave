@@ -306,8 +306,9 @@ leaking internal stack traces.
 
 ### Inspectable artifacts
 
-- seven boleto-style items packed three-up onto three A4 sheets, including a
-  partial final sheet;
+- seven specification-validated 200 x 95 mm boleto components packed without
+  scaling two-up onto four A4 sheets and four-up onto two landscape A3 sheets,
+  including partial final sheets;
 - five A5 client statements with line-item tables and totals packed four-up
   onto two landscape A3 sheets.
 
@@ -315,11 +316,10 @@ Each scenario writes the imposed PDF, one PNG per sheet, and the normalized
 placement plan before image-snapshot assertions. Pull-request CI uploads these
 files even when a later assertion fails.
 
-Phase 1 currently has 66 package tests and 95.41% line, 87.91% branch, 98.18%
-function, and 94.98% statement coverage. A larger 100-page imposition stress
-fixture and independent text-order extraction remain hardening work; the
-generator separately verifies a 100-record invoice batch with shared image and
-font resources embedded once and bounded serialized resource counts.
+Phase 1 has package-level geometry, renderer, and visual integration coverage.
+A larger 100-page imposition stress fixture and independent text-order
+extraction remain hardening work; the generator separately verifies 100-record
+invoice and boleto batches with shared resources embedded once.
 
 ## Evolution
 

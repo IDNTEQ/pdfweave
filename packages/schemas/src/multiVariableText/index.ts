@@ -4,10 +4,7 @@ import { propPanel } from './propPanel.js';
 import { uiRender } from './uiRender.js';
 import type { MultiVariableTextSchema } from './types.js';
 import { measure as measureText } from '../text/measure.js';
-import {
-  substituteVariables,
-  substituteVariablesAsInlineMarkdownLiterals,
-} from './helper.js';
+import { substituteVariables, substituteVariablesAsInlineMarkdownLiterals } from './helper.js';
 import { isInlineMarkdownTextSchema } from '../text/richText.js';
 import { Type } from 'lucide';
 import { createSvgStr } from '../utils.js';

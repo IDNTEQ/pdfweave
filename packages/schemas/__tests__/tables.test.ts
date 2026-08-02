@@ -134,6 +134,34 @@ describe('table styling × binding composition', () => {
 });
 
 describe('table cell padding (pdfme/pdfme#1422)', () => {
+  it('keeps explicit percentage widths independent of cell content', async () => {
+    const schema = baseTableSchema();
+    schema.width = 186;
+    schema.head = ['Description', 'Qty', 'Unit price', 'Amount'];
+    schema.headWidthPercentages = [52, 10, 18, 20];
+
+    const createTable = (description: string) =>
+      createSingleTable([[description, '1', '$8.75', '$8.75']], {
+        schema,
+        basePdf: BLANK_A4_PDF,
+        options: {},
+        _cache: new Map(),
+      });
+    const shortTable = await createTable('Print service');
+    const longTable = await createTable(
+      'Enterprise-managed document production with archival media, tamper-evident packaging, indexed quality-control records, and verified delivery',
+    );
+    const expectedWidths = schema.headWidthPercentages.map(
+      (percentage) => schema.width * (percentage / 100),
+    );
+
+    for (const table of [shortTable, longTable]) {
+      expect(table.columns.map(({ width }) => width)).toEqual(expectedWidths);
+    }
+    expect(longTable.body[0].cells[0].text.length).toBeGreaterThan(1);
+    expect(longTable.body[0].height).toBeGreaterThan(shortTable.body[0].height);
+  });
+
   it('subtracts horizontal padding from text-fit width so wrapped rows are tall enough', async () => {
     // A narrow table (width 60mm, two equal columns => ~30mm/cell) with heavy left/right
     // padding. With the bug, splitTextToSize is given the full cell width, so a long string

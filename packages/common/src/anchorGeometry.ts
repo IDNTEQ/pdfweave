@@ -85,9 +85,7 @@ export const ANCHOR_EPSILON = 0.01;
  */
 export const getSchemaAnchorIds = (schema: Schema): string[] => [
   ...new Set(
-    [schema.name, schema.id].filter(
-      (id): id is string => typeof id === 'string' && id.length > 0,
-    ),
+    [schema.name, schema.id].filter((id): id is string => typeof id === 'string' && id.length > 0),
   ),
 ];
 

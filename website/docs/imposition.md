@@ -6,8 +6,15 @@ a PDF created by PDFweave or another system.
 
 ## Installation
 
+Until the first npm publication, use the repository workspace. The root build
+is required because imposition consumes declarations from upstream PDFweave
+packages:
+
 ```bash
-npm install @pdfweave/imposition
+git clone https://github.com/IDNTEQ/pdfweave.git
+cd pdfweave
+npm install
+npm run build
 ```
 
 ## Three-up A4 Example
