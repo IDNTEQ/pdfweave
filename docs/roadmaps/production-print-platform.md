@@ -184,6 +184,13 @@ once per output document.
 - Add a reproducible benchmark harness, separate from correctness tests, that
   captures cold/warm latency, throughput, peak RSS/heap, and output size as
   versioned JSON artifacts with explicit regression budgets.
+- Pin each benchmark to named 100-record and 10,000-record fixtures and record
+  their hashes, Node and renderer versions, OS/architecture, CPU and memory
+  profile, cache state, warm-up count, measured iterations, and aggregation
+  method. Compare results only within the same documented runner class.
+- Make the release gate fail when a workload exceeds its latency, throughput,
+  peak-memory, or output-size budget, while retaining the JSON result as a CI
+  diagnostic artifact.
 
 **Acceptance:** 100 and 10,000-record qualification jobs meet documented time,
 memory, and output-size budgets; cancellation releases resources; retries do
@@ -280,6 +287,13 @@ delivery protocols to the composition engine.
   versioned Terraform reference modules for its queues, workers, object
   storage, secrets, observability, and least-privilege identities. Keep the
   static Pages deployment and local runtime usable without that cloud stack.
+- Keep secret values outside versioned Terraform and `.tfvars` files: inject
+  them from the target secret manager or approved CI identity, expose only
+  secret references to modules, and prevent values from entering plans, logs,
+  or published artifacts.
+- Require encrypted, versioned, and locked remote state with narrowly scoped
+  read/write identities, access logging, and documented recovery. Treat state
+  as sensitive even when Terraform outputs are marked `sensitive`.
 
 ### P3.3 Output and delivery adapters
 
