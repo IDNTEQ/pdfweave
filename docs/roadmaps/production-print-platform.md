@@ -181,6 +181,9 @@ once per output document.
 - Add chunked execution and temporary-spool strategies for bounded memory.
 - Define retry and idempotency behavior at record and job boundaries.
 - Record page count, resource count, bytes, duration, and peak RSS.
+- Add a reproducible benchmark harness, separate from correctness tests, that
+  captures cold/warm latency, throughput, peak RSS/heap, and output size as
+  versioned JSON artifacts with explicit regression budgets.
 
 **Acceptance:** 100 and 10,000-record qualification jobs meet documented time,
 memory, and output-size budgets; cancellation releases resources; retries do
@@ -273,6 +276,10 @@ delivery protocols to the composition engine.
   idempotency keys, secrets, and role-based access.
 - Add job/record state, logs, traces, metrics, audit history, and replay.
 - Keep the runtime deployable separately from the browser Designer.
+- Select the first managed deployment target through an ADR, then ship
+  versioned Terraform reference modules for its queues, workers, object
+  storage, secrets, observability, and least-privilege identities. Keep the
+  static Pages deployment and local runtime usable without that cloud stack.
 
 ### P3.3 Output and delivery adapters
 

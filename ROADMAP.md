@@ -47,7 +47,9 @@ security, preflight, and workflow automation is maintained in
   - OSV-scanner workflow → SARIF
   - `npm audit --audit-level=high` gate
 - [ ] **Phase 4** _(ongoing)_ — walk packages flipping lint warns to
-      errors as code is cleaned.
+      errors as code is cleaned. The inherited CRAP allowlist has a temporary
+      renewal through **2026-09-01**; burn down or explicitly re-justify every
+      remaining entry before that date.
 
 ### Backports from upstream pdfme
 
