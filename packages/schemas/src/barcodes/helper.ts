@@ -17,6 +17,7 @@ import { BARCODE_TYPES, DEFAULT_BARCODE_INCLUDETEXT } from './constants.js';
 import type { BarcodeSchema, BarcodeTypes } from './types.js';
 
 type BwipModule = {
+  raw?: (options: RenderOptions) => Array<{ pixx?: number; pixy?: number }>;
   toCanvas?: (
     canvas: HTMLCanvasElement | OffscreenCanvas,
     options: RenderOptions,
@@ -63,6 +64,29 @@ export const getBwipJs = (): Promise<BwipModule> => {
     })();
   }
   return bwipjsPromise;
+};
+
+export const getQrCodeModuleCount = async (
+  input: string,
+  eclevel: 'L' | 'M' | 'Q' | 'H' = 'M',
+): Promise<number> => {
+  const mod = await getBwipJs();
+  if (typeof mod.raw !== 'function') {
+    throw new Error('[@pdfweave/schemas] bwip-js raw QR output is unavailable');
+  }
+  const symbol = mod
+    .raw({ bcid: 'qrcode', text: input, eclevel } as unknown as RenderOptions)
+    .at(0);
+  if (
+    symbol?.pixx === undefined ||
+    symbol.pixy === undefined ||
+    symbol.pixx !== symbol.pixy ||
+    !Number.isInteger(symbol.pixx) ||
+    symbol.pixx < 21
+  ) {
+    throw new Error('[@pdfweave/schemas] bwip-js returned invalid QR module geometry');
+  }
+  return symbol.pixx;
 };
 
 // GTIN-13, GTIN-8, GTIN-12, GTIN-14

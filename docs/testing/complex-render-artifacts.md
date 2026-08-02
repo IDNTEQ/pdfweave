@@ -4,12 +4,16 @@ The artifact suite includes production-shaped, multi-page render cases for:
 
 - an invoice with fixed percentage columns, a multi-line wrapped description, automatic row-height growth, repeated table headings, and subtotal, tax, and total rows;
 - a bank extract with bound transactions, repeated table headings, running balances, and a closing-balance row;
-- seven distinct structured boleto test records rendered as a logical 200 x 95 mm page book, with the barcode and digitable line replaced by explicit test-mode redaction labels and every former barcode region confirmed non-decodable at 300 DPI;
+- seven distinct structured boleto test records rendered as a logical 200 x 95
+  mm page book, with visible synthetic barcodes, linhas digitáveis, and Pix QR
+  Codes decoded from 300 DPI rasters while the non-payable watermark remains;
 - a boleto printed over dark patterned PDF stationery with a nonzero MediaBox
   and asymmetric CropBox, proving position translation, opaque backing, page-box
-  preservation, unchanged surrounding artwork, and payment-identifier
-  suppression;
-- those seven boleto pages packed without scaling two-up over four A4 sheets and four-up over two landscape A3 sheets;
+  preservation, unchanged surrounding artwork, and decodable test payment
+  identifiers;
+- seven boleto pages with visible synthetic ITF and Pix QR symbols packed
+  without scaling two-up over four A4 sheets and four-up over two landscape A3
+  sheets;
 - five A5 client statements packed four-up over two landscape A3 sheets;
 - one hundred client invoice statements in one PDF with one shared logo/font resource;
 - every named paper preset and a custom millimeter sheet;
@@ -21,10 +25,11 @@ The artifact suite includes production-shaped, multi-page render cases for:
 The generator qualification suite also includes two 100-document batch tests.
 The statement case verifies every client value and constant logo reaches the
 renderer while its shared image and font are embedded once. The boleto case
-validates 100 distinct barcode inputs while redacting them from the test-mode
-PDF and manifest, embedding one constant institution logo once, and enforcing a
-PDF size bound. Both full 100-page PDFs have their own manifest and
-representative raster previews in the dashboard.
+validates 100 distinct barcode inputs, renders the explicitly enabled test
+identifiers and Pix QR Codes while omitting their values from the manifest,
+embeds one constant institution logo once, and enforces a PDF size bound. Both
+full 100-page PDFs have their own manifest and representative raster previews
+in the dashboard.
 
 Build the complete qualification dashboard from the repository root:
 
@@ -74,15 +79,21 @@ containing the normalized sheet options and every placement and empty slot.
 The PNGs are also compared with committed image snapshots, so render changes
 fail the test unless the visual baseline is deliberately updated.
 
-The boleto artifacts are synthetic qualification fixtures. They omit their
-barcode and digitable line, show explicit redaction labels, carry a prominent
+The boleto artifacts are standards-aligned synthetic qualification specimens.
+They explicitly opt into test payment-identifier rendering, carry a prominent
 non-payable sample watermark, and are not bank-issued, certified, homologated,
-or suitable for payment. Their dashboard entries link the structured-data and
-check-digit tests, registered-mode in-memory barcode mechanics, component
-layout and fail-closed preflight tests, test-mode 300 DPI non-decodability, and
-exact-size imposition tests in one place. These executable checks and image
-snapshots are regression evidence, not independent scanner acceptance,
-hard-copy qualification, bank homologation, or certification.
+or suitable for payment. The seven-page book uses dynamic Pix BR Codes with a
+reserved `.test` location. Its 44-digit barcodes and Pix payloads are recovered
+from 300 DPI raster output and compared with the in-memory fixtures; manifests
+intentionally omit those values. A separate 170 x 95 mm specimen exposes the
+minimum-width normal-text line transform and its 300 DPI printed-height bounds.
+The dashboard links these scans with
+structured-data, check-digit, structural Pix EMV/CRC, measured four-module QR
+quiet-zone, three-lane instruction boundary, component layout, fail-closed
+preflight, and exact-size imposition tests in one place.
+These executable checks and image snapshots are regression evidence, not
+independent scanner acceptance, hard-copy qualification, bank homologation, or
+certification.
 
 Pull-request CI publishes the consolidated page as the
 `pdfweave-qualification-report` artifact for 14 days and adds its download URL

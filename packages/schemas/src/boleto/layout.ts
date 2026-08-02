@@ -1,22 +1,16 @@
 import type { BoletoData, BoletoParty, BrazilianAddress, BrazilianTaxId } from './types.js';
 import type { BoletoSchema } from './schema.js';
-import {
-  BOLETO_DIGITABLE_LINE_GLYPH_HEIGHT_MM,
-  BOLETO_DIGITABLE_LINE_STROKE_MM,
-  BOLETO_INSTITUTION_CODE_GLYPH_HEIGHT_MM,
-  BOLETO_INSTITUTION_CODE_STROKE_MM,
-  BOLETO_MECHANICAL_AUTHENTICATION_GLYPH_HEIGHT_MM,
-  BOLETO_MECHANICAL_AUTHENTICATION_LABEL,
-  BOLETO_MECHANICAL_AUTHENTICATION_STROKE_MM,
-  createBoletoVectorDisplay,
-  type BoletoVectorDisplayPrimitive,
-} from './vectorDisplay.js';
 
 export const BOLETO_BARCODE_WIDTH_MM = 103;
 export const BOLETO_BARCODE_HEIGHT_MM = 13;
 export const BOLETO_BARCODE_LEFT_MM = 5;
 export const BOLETO_BARCODE_CENTER_FROM_BOTTOM_MM = 12;
 export const BOLETO_GRID_STROKE_MM = 0.3;
+export const BOLETO_PIX_QR_SIZE_MM = 20.7;
+export const BOLETO_PIX_QR_GAP_MM = 1.5;
+export const BOLETO_DIGITABLE_LINE_LOGICAL_WIDTH_MM = 143;
+export const BOLETO_MECHANICAL_AUTHENTICATION_LABEL =
+  'Autenticação Mecânica - Ficha de Compensação' as const;
 
 export type BoletoTextAlignment = 'left' | 'center' | 'right';
 
@@ -29,6 +23,8 @@ export interface BoletoTextPrimitive {
   height: number;
   fontSize: number;
   minimumFontSize?: number;
+  /** Horizontal text transform used to preserve the required printed height on narrow fichas. */
+  horizontalScale?: number;
   bold?: boolean;
   alignment?: BoletoTextAlignment;
   color?: string;
@@ -66,12 +62,20 @@ export interface BoletoBarcodePrimitive {
   height: typeof BOLETO_BARCODE_HEIGHT_MM;
 }
 
+export interface BoletoQrCodePrimitive {
+  value: string;
+  x: number;
+  y: number;
+  width: typeof BOLETO_PIX_QR_SIZE_MM;
+  height: typeof BOLETO_PIX_QR_SIZE_MM;
+}
+
 export interface BoletoLayout {
   texts: BoletoTextPrimitive[];
   lines: BoletoLinePrimitive[];
-  vectorDisplays: BoletoVectorDisplayPrimitive[];
   images: BoletoImagePrimitive[];
   barcode?: BoletoBarcodePrimitive;
+  pixQrCode?: BoletoQrCodePrimitive;
 }
 
 const formatTaxId = ({ type, number }: BrazilianTaxId): string => {
@@ -306,12 +310,20 @@ export const buildBoletoLayout = (
   const height = schema.height;
   const rightWidth = 50;
   const leftWidth = width - rightWidth;
+  const institutionNameWidth = 34;
+  const institutionCodeWidth = 21;
+  const digitableLineX = institutionNameWidth + institutionCodeWidth;
+  const digitableLineWidth = width - digitableLineX - 2;
+  const digitableLineHorizontalScale = Math.min(
+    1,
+    digitableLineWidth / BOLETO_DIGITABLE_LINE_LOGICAL_WIDTH_MM,
+  );
   const barcodeY = height - BOLETO_BARCODE_CENTER_FROM_BOTTOM_MM - BOLETO_BARCODE_HEIGHT_MM / 2;
-  const showPaymentIdentifiers = data.registrationStatus === 'registered';
+  const showPaymentIdentifiers =
+    data.registrationStatus === 'registered' || data.testPaymentIdentifiers === 'render';
   const layout: BoletoLayout = {
     texts: [],
     lines: [],
-    vectorDisplays: [],
     images: [],
     ...(showPaymentIdentifiers
       ? {
@@ -330,42 +342,51 @@ export const buildBoletoLayout = (
   if (data.institution.logo) {
     layout.images.push({ value: data.institution.logo, x: 1, y: 1, width: 12, height: 7 });
   }
-  addRectangle(layout.lines, 0, 0, 34, 9);
-  addRectangle(layout.lines, 34, 0, 15, 9);
-  addRectangle(layout.lines, 49, 0, width - 49, 9);
-  const institutionCode = createBoletoVectorDisplay({
-    id: 'institution-code',
-    value: `${data.institution.code}-${data.institution.codeDigit}`,
-    x: 0,
-    y: (9 - BOLETO_INSTITUTION_CODE_GLYPH_HEIGHT_MM) / 2,
-    glyphHeight: BOLETO_INSTITUTION_CODE_GLYPH_HEIGHT_MM,
-    glyphWidth: 2.8,
-    strokeWidth: BOLETO_INSTITUTION_CODE_STROKE_MM,
-    characterGap: 0.08,
-  });
-  institutionCode.x = 34 + (15 - institutionCode.width) / 2;
-  layout.vectorDisplays.push(institutionCode);
+  addRectangle(layout.lines, 0, 0, institutionNameWidth, 9);
+  addRectangle(layout.lines, institutionNameWidth, 0, institutionCodeWidth, 9);
+  addRectangle(layout.lines, digitableLineX, 0, width - digitableLineX, 9);
+  layout.texts.push(
+    createText(
+      'institution-code',
+      `${data.institution.code}-${data.institution.codeDigit}`,
+      institutionNameWidth + 0.5,
+      0.1,
+      institutionCodeWidth - 1,
+      8.8,
+      {
+        fontSize: 20,
+        minimumFontSize: 18,
+        bold: true,
+        alignment: 'center',
+      },
+    ),
+  );
   if (showPaymentIdentifiers) {
-    layout.vectorDisplays.push(
-      createBoletoVectorDisplay({
-        id: 'digitable-line',
-        value: formattedDigitableLine,
-        x: 50,
-        y: (9 - BOLETO_DIGITABLE_LINE_GLYPH_HEIGHT_MM) / 2,
-        glyphHeight: BOLETO_DIGITABLE_LINE_GLYPH_HEIGHT_MM,
-        glyphWidth: 2,
-        strokeWidth: BOLETO_DIGITABLE_LINE_STROKE_MM,
-        characterGap: 0.2,
-      }),
+    layout.texts.push(
+      createText(
+        'digitable-line',
+        formattedDigitableLine,
+        digitableLineX + 1,
+        1.25,
+        digitableLineWidth,
+        6.5,
+        {
+          fontSize: 14,
+          minimumFontSize: 14,
+          bold: true,
+          alignment: 'left',
+          horizontalScale: digitableLineHorizontalScale,
+        },
+      ),
     );
   } else {
     layout.texts.push(
       createText(
         'test-digitable-line-redaction',
         'LINHA DIGITÁVEL SUPRIMIDA - AMOSTRA',
-        50,
+        digitableLineX + 1,
         1.2,
-        width - 51,
+        width - digitableLineX - 2,
         6.5,
         {
           fontSize: 5,
@@ -481,17 +502,54 @@ export const buildBoletoLayout = (
     { bold: true, alignment: 'right' },
   );
 
-  addCell(
-    layout,
-    'instructions',
-    'Informações de responsabilidade do Beneficiário',
-    data.instructions?.join('\n'),
-    0,
-    45,
-    leftWidth,
-    21,
-    { fontSize: 5.7 },
+  const instructionsX = 0;
+  const instructionsY = 45;
+  const instructionsHeight = 21;
+  const instructionsInnerX = instructionsX + 0.8;
+  const instructionsContentY = instructionsY + 2.7;
+  const instructionsContentHeight = instructionsHeight - 3.1;
+  addRectangle(layout.lines, instructionsX, instructionsY, leftWidth, instructionsHeight);
+  if (data.pix && showPaymentIdentifiers) {
+    const pixInset = (instructionsHeight - BOLETO_PIX_QR_SIZE_MM) / 2;
+    layout.pixQrCode = {
+      value: data.pix.emvPayload,
+      x: leftWidth - pixInset - BOLETO_PIX_QR_SIZE_MM,
+      y: instructionsY + pixInset,
+      width: BOLETO_PIX_QR_SIZE_MM,
+      height: BOLETO_PIX_QR_SIZE_MM,
+    };
+  }
+
+  const instructionsWidth = layout.pixQrCode
+    ? layout.pixQrCode.x - BOLETO_PIX_QR_GAP_MM - instructionsInnerX
+    : leftWidth - 1.6;
+  layout.texts.push(
+    createText(
+      'instructions-label',
+      'Informações de responsabilidade do Beneficiário',
+      instructionsInnerX,
+      instructionsY + 0.5,
+      instructionsWidth,
+      2.3,
+      { fontSize: 4 },
+    ),
   );
+  const instructionLines = data.instructions ?? [];
+  const instructionLaneCount = Math.max(1, instructionLines.length);
+  const instructionLaneHeight = instructionsContentHeight / instructionLaneCount;
+  for (let index = 0; index < instructionLaneCount; index += 1) {
+    layout.texts.push(
+      createText(
+        `instructions-value-${String(index + 1)}`,
+        instructionLines[index],
+        instructionsInnerX,
+        instructionsContentY + index * instructionLaneHeight,
+        instructionsWidth,
+        Math.max(0.1, instructionLaneHeight - 0.15),
+        { fontSize: 5.7, minimumFontSize: 4 },
+      ),
+    );
+  }
   const fixedAmountData = data.amountMode === 'fixed' ? data : undefined;
   const adjustmentRows: Array<[string, string, number | undefined]> = [
     ['discount-deduction', '(-) Desconto/Abatimento', fixedAmountData?.discountDeductionCents],
@@ -542,36 +600,39 @@ export const buildBoletoLayout = (
     ),
   );
 
-  const mechanicalAuthentication = createBoletoVectorDisplay({
-    id: 'mechanical-authentication',
-    value: BOLETO_MECHANICAL_AUTHENTICATION_LABEL,
-    x: 0,
-    y: barcodeY + 1,
-    glyphHeight: BOLETO_MECHANICAL_AUTHENTICATION_GLYPH_HEIGHT_MM,
-    glyphWidth: 1,
-    strokeWidth: BOLETO_MECHANICAL_AUTHENTICATION_STROKE_MM,
-    characterGap: 0.1,
-  });
-  mechanicalAuthentication.x = width - 1 - mechanicalAuthentication.width;
-  layout.vectorDisplays.push(mechanicalAuthentication);
+  layout.texts.push(
+    createText(
+      'mechanical-authentication',
+      BOLETO_MECHANICAL_AUTHENTICATION_LABEL,
+      width - 91,
+      barcodeY + 0.7,
+      90,
+      3.2,
+      { fontSize: 6.5, minimumFontSize: 5, alignment: 'right' },
+    ),
+  );
 
   if (data.registrationStatus === 'test') {
+    if (!showPaymentIdentifiers) {
+      layout.texts.push(
+        createText(
+          'test-barcode-redaction',
+          'CÓDIGO DE BARRAS SUPRIMIDO - AMOSTRA',
+          BOLETO_BARCODE_LEFT_MM,
+          barcodeY + 4,
+          BOLETO_BARCODE_WIDTH_MM,
+          5,
+          {
+            fontSize: 5,
+            minimumFontSize: 4,
+            bold: true,
+            alignment: 'center',
+            color: '#a00000',
+          },
+        ),
+      );
+    }
     layout.texts.push(
-      createText(
-        'test-barcode-redaction',
-        'CÓDIGO DE BARRAS SUPRIMIDO - AMOSTRA',
-        BOLETO_BARCODE_LEFT_MM,
-        barcodeY + 4,
-        BOLETO_BARCODE_WIDTH_MM,
-        5,
-        {
-          fontSize: 5,
-          minimumFontSize: 4,
-          bold: true,
-          alignment: 'center',
-          color: '#a00000',
-        },
-      ),
       createText('test-watermark', 'AMOSTRA - NÃO PAGÁVEL', 1, 58, leftWidth - 2, 6, {
         fontSize: 11,
         bold: true,

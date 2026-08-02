@@ -5,7 +5,9 @@ import image from '../graphics/image.js';
 import text from '../text/index.js';
 import { createErrorElm } from '../utils.js';
 import { formatDigitableLine } from './digits.js';
-import { buildBoletoLayout, type BoletoLayout } from './layout.js';
+import { BOLETO_PIX_QR_SIZE_MM, buildBoletoLayout } from './layout.js';
+import { BOLETO_PIX_QR_PADDING_POINTS } from './pix.js';
+import { inspectBoletoPixQrDensity } from './pixQr.js';
 import {
   getBoletoTextValue,
   preflightBoletoLayout,
@@ -71,46 +73,6 @@ const createLine = (
   root.appendChild(element);
 };
 
-const createVectorDisplay = (
-  root: HTMLDivElement,
-  schema: BoletoSchema,
-  display: BoletoLayout['vectorDisplays'][number],
-): void => {
-  const child = createChildRoot(root, schema, display.x, display.y, display.width, display.height);
-  child.style.overflow = 'visible';
-  child.dataset.boletoPrimitive = display.id;
-  child.dataset.boletoVectorDisplay = display.id;
-  child.dataset.boletoVectorValue = display.value;
-  child.dataset.glyphHeightMm = String(display.glyphHeight);
-  child.dataset.strokeWidthMm = String(display.strokeWidth);
-
-  const namespace = 'http://www.w3.org/2000/svg';
-  const svg = document.createElementNS(namespace, 'svg');
-  svg.setAttribute('viewBox', `0 0 ${String(display.width)} ${String(display.height)}`);
-  svg.setAttribute('width', '100%');
-  svg.setAttribute('height', '100%');
-  svg.setAttribute('role', 'img');
-  svg.setAttribute('aria-label', display.value);
-  svg.style.display = 'block';
-  svg.style.overflow = 'visible';
-
-  const title = document.createElementNS(namespace, 'title');
-  title.textContent = display.value;
-  svg.appendChild(title);
-  for (const segment of display.segments) {
-    const line = document.createElementNS(namespace, 'line');
-    line.setAttribute('x1', String(segment.x1));
-    line.setAttribute('y1', String(segment.y1));
-    line.setAttribute('x2', String(segment.x2));
-    line.setAttribute('y2', String(segment.y2));
-    line.setAttribute('stroke', '#000000');
-    line.setAttribute('stroke-width', String(display.strokeWidth));
-    line.setAttribute('stroke-linecap', display.lineCap);
-    svg.appendChild(line);
-  }
-  child.appendChild(svg);
-};
-
 const asViewerArgs = <T extends Schema>(
   arg: UIRenderProps<BoletoSchema>,
   rootElement: HTMLDivElement,
@@ -157,6 +119,9 @@ export const uiRender = async (arg: UIRenderProps<BoletoSchema>): Promise<void> 
     validateBoletoSchema(schema);
     const data = parseBoletoData(arg.value);
     const layout = buildBoletoLayout(data, schema, formatDigitableLine(data.barcode));
+    if (layout.pixQrCode) {
+      await inspectBoletoPixQrDensity(layout.pixQrCode.value);
+    }
     for (const primitive of layout.images) {
       await preflightBoletoLogo(primitive.value, arg._cache);
     }
@@ -170,10 +135,6 @@ export const uiRender = async (arg: UIRenderProps<BoletoSchema>): Promise<void> 
     for (const line of layout.lines) {
       createLine(stagedRoot, schema, line);
     }
-    for (const display of layout.vectorDisplays) {
-      createVectorDisplay(stagedRoot, schema, display);
-    }
-
     for (const primitive of layout.texts) {
       const resolvedSchema = resolvedTextSchemas.get(primitive.id);
       if (!resolvedSchema) {
@@ -191,7 +152,25 @@ export const uiRender = async (arg: UIRenderProps<BoletoSchema>): Promise<void> 
       );
       child.style.opacity = String(primitive.opacity ?? 1);
       child.dataset.boletoPrimitive = primitive.id;
-      await text.ui(asViewerArgs(arg, child, resolvedSchema, getBoletoTextValue(primitive)));
+      const horizontalScale = primitive.horizontalScale ?? 1;
+      const textRoot =
+        horizontalScale === 1
+          ? child
+          : (() => {
+              const scaledRoot = document.createElement('div');
+              Object.assign(scaledRoot.style, {
+                position: 'absolute',
+                inset: '0 auto auto 0',
+                width: `${String(100 / horizontalScale)}%`,
+                height: '100%',
+                transform: `scaleX(${String(horizontalScale)})`,
+                transformOrigin: 'left top',
+              });
+              scaledRoot.dataset.boletoHorizontalScale = String(horizontalScale);
+              child.appendChild(scaledRoot);
+              return scaledRoot;
+            })();
+      await text.ui(asViewerArgs(arg, textRoot, resolvedSchema, getBoletoTextValue(primitive)));
     }
 
     for (const primitive of layout.images) {
@@ -260,6 +239,41 @@ export const uiRender = async (arg: UIRenderProps<BoletoSchema>): Promise<void> 
         readOnly: true,
       };
       await barcodes.itf.ui(asViewerArgs(arg, barcodeRoot, barcodeSchema, layout.barcode.value));
+    }
+    if (layout.pixQrCode) {
+      const qrCodeRoot = createChildRoot(
+        stagedRoot,
+        schema,
+        layout.pixQrCode.x,
+        layout.pixQrCode.y,
+        layout.pixQrCode.width,
+        layout.pixQrCode.height,
+      );
+      qrCodeRoot.dataset.boletoPrimitive = 'pix-qrcode';
+      const qrCodeSchema: BarcodeSchema = {
+        ...(barcodes.qrcode.propPanel.defaultSchema as BarcodeSchema),
+        name: '__boleto-pix-qrcode',
+        type: 'qrcode',
+        content: '',
+        position: { x: 0, y: 0 },
+        width: BOLETO_PIX_QR_SIZE_MM,
+        height: BOLETO_PIX_QR_SIZE_MM,
+        rotate: 0,
+        opacity: 1,
+        backgroundColor: '#ffffff',
+        barColor: '#000000',
+        includetext: false,
+        padding: BOLETO_PIX_QR_PADDING_POINTS,
+        paddingtop: BOLETO_PIX_QR_PADDING_POINTS,
+        paddingleft: BOLETO_PIX_QR_PADDING_POINTS,
+        paddingright: BOLETO_PIX_QR_PADDING_POINTS,
+        paddingbottom: BOLETO_PIX_QR_PADDING_POINTS,
+        eclevel: 'M',
+        showBorder: false,
+        format: 'svg',
+        readOnly: true,
+      };
+      await barcodes.qrcode.ui(asViewerArgs(arg, qrCodeRoot, qrCodeSchema, layout.pixQrCode.value));
     }
     rootElement.replaceChildren(...stagedRoot.childNodes);
   } catch (error) {

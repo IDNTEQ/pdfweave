@@ -91,18 +91,24 @@ For using schemas other than the Text schema, please refer to the following docu
 - Numeric and uppercase alphanumeric CNPJ validation
 - Fixed and variable amounts, direct and third-party beneficiary display
 - Reconciled fixed-amount discount, interest, and charged-value fields
-- Test mode omits the barcode and digitable line, adds explicit redaction
-  labels and a non-payable watermark
+- Test mode redacts payment identifiers by default or explicitly renders them
+  for qualification while always retaining a non-payable watermark
+- Optional structural validation of a complete bank/PSP-supplied Pix BR Code
+  and a fixed 20.7 mm QR placement with at least four quiet modules and a
+  version-8 density ceiling to the right of the instructions when the issuer
+  profile permits it
+- Up to three independent 180-character instruction lanes, with wrapping and
+  shrink-to-fit that do not move later logical lines
 - Fail-closed geometry/text/static-logo preflight, including animated-PNG
   rejection before raster decode
-- Conventional vector header digits with physical stroke and ink dimensions
-- Vector mechanical-authentication caption at the 2 mm height ceiling and 0.3
-  mm stroke width
+- Ordinary shared text primitives for the institution code, linha digitável,
+  and mechanical-authentication caption; no bitmap or custom stroke alphabet
 - Exact-size A4 two-up and landscape A3 four-up qualification artifacts
 
 The component does not derive a complete boleto from a barcode, invent a
-bank-specific free field, register a title, or replace bank/provider
-homologation. See the repository's
+bank-specific free field, generate a Pix payload from a URL/key, register a
+title or Pix charge, choose a universal issuer QR placement, or replace
+bank/provider homologation. See the repository's
 [boleto operator guide](https://github.com/IDNTEQ/pdfweave/blob/main/docs/printing/boleto.md)
 for the complete contract and supported boundaries.
 
@@ -141,8 +147,8 @@ Details: [Tables with Dynamic Data](/tables)
 
 The qualification dashboard includes a boleto over a dark patterned base PDF
 with an asymmetric CropBox. The test checks unchanged surrounding artwork,
-opaque component backing, preserved page boxes, and non-decodable test-mode
-payment-identifier regions.
+opaque component backing, preserved page boxes, and a decode-valid synthetic
+test barcode under the non-payable watermark.
 
 ### Select (select)
 

@@ -8,6 +8,12 @@ import type { BoletoData, BoletoParty, BoletoPartyIdentity } from '../src/boleto
 
 const ITAU_BARCODE = '34196166700000123451101234567880057123457000';
 const ITAU_FORMATTED_LINE = '34191.10121 34567.880058 71234.570001 6 16670000012345';
+const DYNAMIC_PIX_PAYLOAD =
+  '00020101021226480014br.gov.bcb.pix2526pix.example.test/cobv/00015204000053039865802BR5913PDFWEAVE LTDA6009SAO PAULO62070503***6304160F';
+const DYNAMIC_PIX_WITH_IGNORED_AMOUNT_PAYLOAD =
+  '00020101021226480014br.gov.bcb.pix2526pix.example.test/cobv/00015204000053039865406999.995802BR5913PDFWEAVE LTDA6009SAO PAULO62070503***63049B6B';
+const FIXED_PIX_PAYLOAD =
+  '00020101021126440014br.gov.bcb.pix0122financeiro@example.com5204000053039865406123.455802BR5913PDFWEAVE LTDA6009SAO PAULO62090505INV-16304F52B';
 
 const beneficiary: BoletoParty = {
   name: 'Empresa Exemplo Ltda.',
@@ -105,6 +111,70 @@ describe('boleto structured data validation', () => {
     };
 
     expect(parseBoletoData(input)).toEqual(input);
+  });
+
+  test('supports explicit test identifier rendering without weakening registered data', () => {
+    const visibleTest: BoletoData = {
+      ...createValidBoleto(),
+      testPaymentIdentifiers: 'render',
+    };
+    expect(parseBoletoData(visibleTest)).toEqual(visibleTest);
+
+    expect(() =>
+      parseBoletoData({
+        ...visibleTest,
+        registrationStatus: 'registered',
+      }),
+    ).toThrow(
+      '[@pdfweave/schemas/boleto] Invalid boleto data at testPaymentIdentifiers: must be omitted when registrationStatus is registered',
+    );
+  });
+
+  test('accepts validated Pix payloads and reconciles an encoded amount', () => {
+    const dynamic: BoletoData = {
+      ...createValidBoleto(),
+      testPaymentIdentifiers: 'render',
+      pix: { emvPayload: DYNAMIC_PIX_PAYLOAD, placement: 'instructions-right' },
+    };
+    const fixed: BoletoData = {
+      ...createValidBoleto(),
+      testPaymentIdentifiers: 'render',
+      pix: { emvPayload: FIXED_PIX_PAYLOAD, placement: 'instructions-right' },
+    };
+
+    expect(parseBoletoData(dynamic)).toEqual(dynamic);
+    expect(parseBoletoData(fixed)).toEqual(fixed);
+    expect(
+      parseBoletoData({
+        ...dynamic,
+        pix: {
+          ...dynamic.pix!,
+          emvPayload: DYNAMIC_PIX_WITH_IGNORED_AMOUNT_PAYLOAD,
+        },
+      }),
+    ).toMatchObject({ pix: { emvPayload: DYNAMIC_PIX_WITH_IGNORED_AMOUNT_PAYLOAD } });
+    expect(() =>
+      parseBoletoData({
+        ...dynamic,
+        testPaymentIdentifiers: undefined,
+      }),
+    ).toThrow(
+      'Invalid boleto data at testPaymentIdentifiers: must be render when a test boleto includes a Pix payload',
+    );
+    expect(() =>
+      parseBoletoData({
+        ...fixed,
+        pix: { ...fixed.pix!, emvPayload: `${FIXED_PIX_PAYLOAD.slice(0, -1)}0` },
+      }),
+    ).toThrow('Invalid boleto data at pix.emvPayload: Pix payload CRC');
+    expect(() =>
+      parseBoletoData({
+        ...fixed,
+        documentValueCents: 12_346,
+      }),
+    ).toThrow(
+      'Invalid boleto data at pix.emvPayload: transaction amount 12345 does not match documentValueCents',
+    );
   });
 
   test('requires fixed-amount adjustments to reconcile exactly', () => {
@@ -437,6 +507,22 @@ describe('boleto structured data validation', () => {
     ).toThrow('[@pdfweave/schemas/boleto] Invalid boleto data at institution.logo');
   });
 
+  test('accepts three maximum-length instruction lanes with and without Pix', () => {
+    const instructions = Array.from(
+      { length: 3 },
+      (_, index) => `${String(index + 1)}${'W'.repeat(179)}`,
+    );
+    const withoutPix: BoletoData = { ...createValidBoleto(), instructions };
+    const withPix: BoletoData = {
+      ...withoutPix,
+      testPaymentIdentifiers: 'render',
+      pix: { emvPayload: DYNAMIC_PIX_PAYLOAD, placement: 'instructions-right' },
+    };
+
+    expect(parseBoletoData(withoutPix).instructions).toEqual(instructions);
+    expect(parseBoletoData(withPix).instructions).toEqual(instructions);
+  });
+
   test('rejects free text that exceeds conservative rendering limits', () => {
     expect(() =>
       parseBoletoData({ ...createValidBoleto(), paymentLocation: 'P'.repeat(181) }),
@@ -445,17 +531,15 @@ describe('boleto structured data validation', () => {
     expect(() =>
       parseBoletoData({
         ...createValidBoleto(),
-        instructions: Array.from({ length: 9 }, () => 'Instrucao'),
+        instructions: Array.from({ length: 4 }, () => 'Instrucao'),
       }),
     ).toThrow('[@pdfweave/schemas/boleto] Invalid boleto data at instructions');
 
     expect(() =>
       parseBoletoData({
         ...createValidBoleto(),
-        instructions: Array.from({ length: 5 }, () => 'I'.repeat(150)),
+        instructions: ['I'.repeat(181)],
       }),
-    ).toThrow(
-      '[@pdfweave/schemas/boleto] Invalid boleto data at instructions: combined length must not exceed 720 characters',
-    );
+    ).toThrow('[@pdfweave/schemas/boleto] Invalid boleto data at instructions.0');
   });
 });

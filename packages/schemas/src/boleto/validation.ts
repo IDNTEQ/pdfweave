@@ -7,6 +7,7 @@ import {
   validateBoletoBarcode,
   validateInstitutionCodeDigit,
 } from './digits.js';
+import { parsePixPayload } from './pix.js';
 import { BOLETO_DATA_VERSION, BOLETO_ERROR_PREFIX, type BoletoData } from './types.js';
 
 const MAX_BARCODE_AMOUNT_CENTS = 9_999_999_999;
@@ -44,8 +45,7 @@ const MAX_PARTY_NAME_LENGTH = 150;
 const MAX_STREET_LENGTH = 150;
 const MAX_PAYMENT_LOCATION_LENGTH = 180;
 const MAX_INSTRUCTION_LENGTH = 180;
-const MAX_INSTRUCTION_COUNT = 8;
-const MAX_INSTRUCTIONS_TOTAL_LENGTH = 720;
+const MAX_INSTRUCTION_COUNT = 3;
 export const BOLETO_LOGO_MAX_DATA_URI_LENGTH = 8_000_000;
 
 const nonBlankString = (maximumLength = 200) =>
@@ -190,10 +190,20 @@ const BoletoInstitutionSchema = z
   })
   .strict();
 
+const BoletoPixDataSchema = z
+  .object({
+    // parsePixPayload applies the exact Unicode code-point limit. Zod's max()
+    // counts UTF-16 code units and would reject valid supplementary characters.
+    emvPayload: z.string().min(1),
+    placement: z.literal('instructions-right'),
+  })
+  .strict();
+
 const baseShape = {
   version: z.literal(BOLETO_DATA_VERSION),
   kind: z.literal('cobranca'),
   registrationStatus: z.enum(['registered', 'test']),
+  testPaymentIdentifiers: z.enum(['redact', 'render']).optional(),
   institution: BoletoInstitutionSchema,
   beneficiaryMode: z.enum(['direct', 'third-party']),
   beneficiary: BoletoPartySchema,
@@ -218,6 +228,7 @@ const baseShape = {
     .array(nonBlankString(MAX_INSTRUCTION_LENGTH))
     .max(MAX_INSTRUCTION_COUNT)
     .optional(),
+  pix: BoletoPixDataSchema.optional(),
 };
 
 const FixedAmountBoletoDataSchema = z
@@ -349,17 +360,55 @@ const validateBeneficiaryMode = (data: BoletoData, context: z.RefinementCtx): vo
   }
 };
 
-const validateInstructionLength = (data: BoletoData, context: z.RefinementCtx): void => {
-  const totalLength = data.instructions?.reduce(
-    (total, instruction) => total + instruction.length,
-    0,
-  );
-  if (totalLength !== undefined && totalLength > MAX_INSTRUCTIONS_TOTAL_LENGTH) {
+const validateTestPaymentIdentifiers = (data: BoletoData, context: z.RefinementCtx): void => {
+  if (data.registrationStatus === 'registered' && data.testPaymentIdentifiers !== undefined) {
     addIssue(
       context,
-      ['instructions'],
-      `combined length must not exceed ${String(MAX_INSTRUCTIONS_TOTAL_LENGTH)} characters`,
+      ['testPaymentIdentifiers'],
+      'must be omitted when registrationStatus is registered',
     );
+  }
+  if (
+    data.registrationStatus === 'test' &&
+    data.pix !== undefined &&
+    data.testPaymentIdentifiers !== 'render'
+  ) {
+    addIssue(
+      context,
+      ['testPaymentIdentifiers'],
+      'must be render when a test boleto includes a Pix payload',
+    );
+  }
+};
+
+const validatePix = (data: BoletoData, context: z.RefinementCtx): void => {
+  if (data.pix === undefined) {
+    return;
+  }
+
+  try {
+    const parsed = parsePixPayload(data.pix.emvPayload);
+    if (parsed.payloadType === 'dynamic' || parsed.amountCents === undefined) {
+      return;
+    }
+    const { amountCents } = parsed;
+    if (data.documentValueCents === undefined) {
+      addIssue(
+        context,
+        ['pix', 'emvPayload'],
+        'transaction amount requires documentValueCents on the boleto',
+      );
+      return;
+    }
+    if (amountCents !== data.documentValueCents) {
+      addIssue(
+        context,
+        ['pix', 'emvPayload'],
+        `transaction amount ${String(amountCents)} does not match documentValueCents`,
+      );
+    }
+  } catch (error) {
+    addIssue(context, ['pix', 'emvPayload'], issueMessage(error));
   }
 };
 
@@ -409,7 +458,8 @@ export const BoletoDataSchema = z
   .discriminatedUnion('amountMode', [FixedAmountBoletoDataSchema, VariableAmountBoletoDataSchema])
   .superRefine((data, context) => {
     validateBeneficiaryMode(data, context);
-    validateInstructionLength(data, context);
+    validateTestPaymentIdentifiers(data, context);
+    validatePix(data, context);
     validateAdjustments(data, context);
     const barcodeIsValid = validateBarcodeIdentity(data, context);
     if (!barcodeIsValid) {

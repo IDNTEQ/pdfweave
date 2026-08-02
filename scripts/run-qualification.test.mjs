@@ -129,6 +129,7 @@ describe('qualification runner', () => {
       qualificationSuites[0].args.filter((argument) => argument.startsWith('__tests__/')),
       [
         '__tests__/boleto.digits.test.ts',
+        '__tests__/boleto.pix.test.ts',
         '__tests__/boleto.validation.test.ts',
         '__tests__/boleto.layout.test.ts',
         '__tests__/boleto.plugin.test.ts',

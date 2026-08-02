@@ -4,7 +4,11 @@ import {
   BOLETO_BARCODE_HEIGHT_MM,
   BOLETO_BARCODE_LEFT_MM,
   BOLETO_BARCODE_WIDTH_MM,
+  BOLETO_DIGITABLE_LINE_LOGICAL_WIDTH_MM,
   BOLETO_GRID_STROKE_MM,
+  BOLETO_MECHANICAL_AUTHENTICATION_LABEL,
+  BOLETO_PIX_QR_GAP_MM,
+  BOLETO_PIX_QR_SIZE_MM,
   buildBoletoLayout,
   getBoletoLineInkBounds,
 } from '../src/boleto/layout.js';
@@ -17,16 +21,6 @@ import {
   validateBoletoSchema,
 } from '../src/boleto/schema.js';
 import type { BoletoData } from '../src/boleto/types.js';
-import {
-  BOLETO_DIGITABLE_LINE_GLYPH_HEIGHT_MM,
-  BOLETO_DIGITABLE_LINE_STROKE_MM,
-  BOLETO_INSTITUTION_CODE_GLYPH_HEIGHT_MM,
-  BOLETO_INSTITUTION_CODE_STROKE_MM,
-  BOLETO_MECHANICAL_AUTHENTICATION_GLYPH_HEIGHT_MM,
-  BOLETO_MECHANICAL_AUTHENTICATION_LABEL,
-  BOLETO_MECHANICAL_AUTHENTICATION_STROKE_MM,
-  type BoletoVectorDisplayPrimitive,
-} from '../src/boleto/vectorDisplay.js';
 
 const ITAU_BARCODE = '34196166700000123451101234567880057123457000';
 
@@ -90,18 +84,6 @@ const expectWithin = (start: number, extent: number, limit: number): void => {
   expect(start + extent).toBeLessThanOrEqual(limit);
 };
 
-const getOuterInkBounds = (display: BoletoVectorDisplayPrimitive) => {
-  const halfStroke = display.strokeWidth / 2;
-  const xCoordinates = display.segments.flatMap(({ x1, x2 }) => [x1, x2]);
-  const yCoordinates = display.segments.flatMap(({ y1, y2 }) => [y1, y2]);
-  return {
-    left: Math.min(...xCoordinates) - halfStroke,
-    top: Math.min(...yCoordinates) - halfStroke,
-    right: Math.max(...xCoordinates) + halfStroke,
-    bottom: Math.max(...yCoordinates) + halfStroke,
-  };
-};
-
 describe('boleto ficha layout geometry', () => {
   it.each([
     [BOLETO_FICHA_MIN_WIDTH_MM, BOLETO_FICHA_MIN_HEIGHT_MM],
@@ -109,6 +91,10 @@ describe('boleto ficha layout geometry', () => {
   ])('keeps every primitive within a %d x %d mm ficha', (width, height) => {
     const schema = createSchema(width, height);
     const data = createData('registered');
+    data.pix = {
+      emvPayload: '00020101021226820014br.gov.bcb.pix6304FFFF',
+      placement: 'instructions-right',
+    };
 
     validateBoletoSchema(schema);
     const layout = buildBoletoLayout(data, schema, formatDigitableLine(data.barcode));
@@ -126,6 +112,9 @@ describe('boleto ficha layout geometry', () => {
     );
     expectWithin(layout.barcode.x, layout.barcode.width, width);
     expectWithin(layout.barcode.y, layout.barcode.height, height);
+    if (!layout.pixQrCode) throw new Error('Expected a Pix QR primitive');
+    expectWithin(layout.pixQrCode.x, layout.pixQrCode.width, width);
+    expectWithin(layout.pixQrCode.y, layout.pixQrCode.height, height);
 
     for (const primitive of layout.texts) {
       expectWithin(primitive.x, primitive.width, width);
@@ -134,20 +123,6 @@ describe('boleto ficha layout geometry', () => {
     for (const primitive of layout.images) {
       expectWithin(primitive.x, primitive.width, width);
       expectWithin(primitive.y, primitive.height, height);
-    }
-    for (const display of layout.vectorDisplays) {
-      expectWithin(display.x, display.width, width);
-      expectWithin(display.y, display.height, height);
-      for (const segment of display.segments) {
-        expect(segment.x1).toBeGreaterThanOrEqual(0);
-        expect(segment.x1).toBeLessThanOrEqual(display.width);
-        expect(segment.x2).toBeGreaterThanOrEqual(0);
-        expect(segment.x2).toBeLessThanOrEqual(display.width);
-        expect(segment.y1).toBeGreaterThanOrEqual(0);
-        expect(segment.y1).toBeLessThanOrEqual(display.glyphHeight);
-        expect(segment.y2).toBeGreaterThanOrEqual(0);
-        expect(segment.y2).toBeLessThanOrEqual(display.glyphHeight);
-      }
     }
     for (const line of layout.lines) {
       expect(line.thickness).toBeGreaterThan(0);
@@ -225,81 +200,54 @@ describe('boleto ficha layout geometry', () => {
     expect(getBoletoLineInkBounds(right).right).toBe(width);
   });
 
-  it('uses the required shared vector metrics and alignment', () => {
+  it('renders institution, digitable-line, and authentication labels as normal text', () => {
     const schema = createSchema(BOLETO_FICHA_MIN_WIDTH_MM, BOLETO_FICHA_MIN_HEIGHT_MM);
     const data = createData('registered');
     const layout = buildBoletoLayout(data, schema, formatDigitableLine(data.barcode));
-    const display = (id: string) => layout.vectorDisplays.find((primitive) => primitive.id === id);
-    const institutionCode = display('institution-code');
-    const digitableLine = display('digitable-line');
-    const mechanicalAuthentication = display('mechanical-authentication');
+    const text = (id: string) => layout.texts.find((primitive) => primitive.id === id);
+    const institutionCode = text('institution-code');
+    const digitableLine = text('digitable-line');
+    const mechanicalAuthentication = text('mechanical-authentication');
 
-    expect(layout.texts.find(({ id }) => id === 'institution-code')).toBeUndefined();
-    expect(layout.texts.find(({ id }) => id === 'digitable-line')).toBeUndefined();
-    expect(layout.texts.find(({ id }) => id === 'mechanical-authentication')).toBeUndefined();
     expect(institutionCode).toMatchObject({
       value: '341-7',
-      y: 2,
-      height: BOLETO_INSTITUTION_CODE_GLYPH_HEIGHT_MM,
-      glyphHeight: BOLETO_INSTITUTION_CODE_GLYPH_HEIGHT_MM,
-      strokeWidth: BOLETO_INSTITUTION_CODE_STROKE_MM,
-      lineCap: 'round',
+      x: 34.5,
+      width: 20,
+      fontSize: 20,
+      minimumFontSize: 18,
+      bold: true,
+      alignment: 'center',
     });
-    expect((institutionCode?.x ?? 0) + (institutionCode?.width ?? 0) / 2).toBe(41.5);
     expect(digitableLine).toMatchObject({
       value: formatDigitableLine(data.barcode),
-      x: 50,
-      y: 2.5,
-      height: BOLETO_DIGITABLE_LINE_GLYPH_HEIGHT_MM,
-      glyphHeight: BOLETO_DIGITABLE_LINE_GLYPH_HEIGHT_MM,
-      strokeWidth: BOLETO_DIGITABLE_LINE_STROKE_MM,
-      lineCap: 'round',
+      x: 56,
+      fontSize: 14,
+      minimumFontSize: 14,
+      bold: true,
+      horizontalScale: (BOLETO_FICHA_MIN_WIDTH_MM - 57) / BOLETO_DIGITABLE_LINE_LOGICAL_WIDTH_MM,
     });
     expect(mechanicalAuthentication).toMatchObject({
       value: BOLETO_MECHANICAL_AUTHENTICATION_LABEL,
-      glyphHeight: BOLETO_MECHANICAL_AUTHENTICATION_GLYPH_HEIGHT_MM,
-      height: BOLETO_MECHANICAL_AUTHENTICATION_GLYPH_HEIGHT_MM,
-      strokeWidth: BOLETO_MECHANICAL_AUTHENTICATION_STROKE_MM,
-      lineCap: 'round',
+      fontSize: 6.5,
+      minimumFontSize: 5,
+      alignment: 'right',
     });
-    if (!institutionCode || !digitableLine || !mechanicalAuthentication) {
-      throw new Error('Expected all three specification-sized vector displays');
-    }
-    const institutionInk = getOuterInkBounds(institutionCode);
-    const digitableLineInk = getOuterInkBounds(digitableLine);
-    expect(institutionInk.left).toBeCloseTo(0, 10);
-    expect(institutionInk.top).toBeCloseTo(0, 10);
-    expect(institutionInk.right).toBeCloseTo(institutionCode.width, 10);
-    expect(institutionInk.bottom).toBeCloseTo(BOLETO_INSTITUTION_CODE_GLYPH_HEIGHT_MM, 10);
-    expect(
-      institutionCode.segments.some(
-        ({ x1, y1, x2, y2 }) => Math.abs(x2 - x1) > 0.01 && Math.abs(y2 - y1) > 0.01,
-      ),
-    ).toBe(true);
-    expect(digitableLineInk.left).toBeCloseTo(0, 10);
-    expect(digitableLineInk.top).toBeCloseTo(0, 10);
-    expect(digitableLineInk.right).toBeCloseTo(digitableLine.width, 10);
-    expect(digitableLineInk.bottom).toBeCloseTo(BOLETO_DIGITABLE_LINE_GLYPH_HEIGHT_MM, 10);
-    expect(digitableLine.x + digitableLineInk.left).toBe(50);
-    expect(digitableLine.x + digitableLine.width).toBeLessThanOrEqual(schema.width);
-    const mechanicalAuthenticationInk = getOuterInkBounds(mechanicalAuthentication);
-    expect(mechanicalAuthenticationInk.left).toBeCloseTo(0, 10);
-    expect(mechanicalAuthenticationInk.top).toBeCloseTo(0, 10);
-    expect(mechanicalAuthenticationInk.right).toBeCloseTo(mechanicalAuthentication.width, 10);
-    expect(mechanicalAuthenticationInk.bottom).toBeCloseTo(
-      BOLETO_MECHANICAL_AUTHENTICATION_GLYPH_HEIGHT_MM,
-      10,
-    );
-    expect(mechanicalAuthentication.x).toBeGreaterThanOrEqual(112);
-    expect(mechanicalAuthentication.x + mechanicalAuthentication.width).toBeCloseTo(
+    expect((institutionCode?.x ?? 0) + (institutionCode?.width ?? 0) / 2).toBe(44.5);
+    expect((digitableLine?.x ?? 0) + (digitableLine?.width ?? 0)).toBeLessThanOrEqual(schema.width);
+    expect((mechanicalAuthentication?.x ?? 0) + (mechanicalAuthentication?.width ?? 0)).toBe(
       schema.width - 1,
-      10,
     );
-    expect(mechanicalAuthentication.segments.length).toBeGreaterThan(0);
     expect(layout.lines.every(({ thickness }) => thickness === BOLETO_GRID_STROKE_MM)).toBe(true);
+
+    const wideLayout = buildBoletoLayout(
+      data,
+      createSchema(200, BOLETO_FICHA_MIN_HEIGHT_MM),
+      formatDigitableLine(data.barcode),
+    );
+    expect(wideLayout.texts.find(({ id }) => id === 'digitable-line')?.horizontalScale).toBe(1);
   });
 
-  it('draws an uppercase X institution suffix without relying on a font glyph', () => {
+  it('renders an uppercase X institution suffix as text', () => {
     const data = createData('registered');
     data.institution = { ...data.institution, code: '748', codeDigit: 'X' };
     const layout = buildBoletoLayout(
@@ -307,23 +255,9 @@ describe('boleto ficha layout geometry', () => {
       createSchema(200, 95),
       formatDigitableLine(data.barcode),
     );
-    const institutionCode = layout.vectorDisplays.find(({ id }) => id === 'institution-code');
+    const institutionCode = layout.texts.find(({ id }) => id === 'institution-code');
 
-    expect(institutionCode?.value).toBe('748-X');
-    const xSegments = institutionCode?.segments.slice(-2) ?? [];
-    expect(xSegments).toHaveLength(2);
-    expect(xSegments[0]?.y1).toBeCloseTo(BOLETO_INSTITUTION_CODE_STROKE_MM / 2, 10);
-    expect(xSegments[0]?.y2).toBeCloseTo(
-      BOLETO_INSTITUTION_CODE_GLYPH_HEIGHT_MM - BOLETO_INSTITUTION_CODE_STROKE_MM / 2,
-      10,
-    );
-    expect(xSegments[1]?.y1).toBeCloseTo(BOLETO_INSTITUTION_CODE_STROKE_MM / 2, 10);
-    expect(xSegments[1]?.y2).toBeCloseTo(
-      BOLETO_INSTITUTION_CODE_GLYPH_HEIGHT_MM - BOLETO_INSTITUTION_CODE_STROKE_MM / 2,
-      10,
-    );
-    expect((xSegments[0]?.x2 ?? 0) - (xSegments[0]?.x1 ?? 0)).toBeGreaterThan(0);
-    expect((xSegments[1]?.x2 ?? 0) - (xSegments[1]?.x1 ?? 0)).toBeLessThan(0);
+    expect(institutionCode).toMatchObject({ value: '748-X', bold: true, alignment: 'center' });
   });
 
   it('suppresses payable identifiers and watermarks test boletos', () => {
@@ -334,12 +268,11 @@ describe('boleto ficha layout geometry', () => {
     const registeredLayout = buildBoletoLayout(createData('registered'), schema, formattedLine);
     const testValues = [
       ...testLayout.texts.map(({ value }) => value),
-      ...testLayout.vectorDisplays.map(({ value }) => value),
       testLayout.barcode?.value ?? '',
     ].join('\n');
 
     expect(testLayout.barcode).toBeUndefined();
-    expect(testLayout.vectorDisplays.find(({ id }) => id === 'digitable-line')).toBeUndefined();
+    expect(testLayout.texts.find(({ id }) => id === 'digitable-line')).toBeUndefined();
     expect(testValues).not.toContain(ITAU_BARCODE);
     expect(testValues).not.toContain(formattedLine);
     expect(testValues).not.toContain(normalizedLine);
@@ -363,7 +296,7 @@ describe('boleto ficha layout geometry', () => {
       }),
     );
     expect(registeredLayout.barcode?.value).toBe(ITAU_BARCODE);
-    expect(registeredLayout.vectorDisplays.find(({ id }) => id === 'digitable-line')?.value).toBe(
+    expect(registeredLayout.texts.find(({ id }) => id === 'digitable-line')?.value).toBe(
       formattedLine,
     );
     expect(registeredLayout.texts.find(({ id }) => id === 'test-watermark')).toBeUndefined();
@@ -373,6 +306,92 @@ describe('boleto ficha layout geometry', () => {
     expect(
       registeredLayout.texts.find(({ id }) => id === 'test-barcode-redaction'),
     ).toBeUndefined();
+  });
+
+  it('renders synthetic test identifiers only when explicitly requested', () => {
+    const data: BoletoData = {
+      ...createData('test'),
+      testPaymentIdentifiers: 'render',
+    };
+    const formattedLine = formatDigitableLine(data.barcode);
+    const layout = buildBoletoLayout(data, createSchema(200, 95), formattedLine);
+
+    expect(layout.barcode?.value).toBe(data.barcode);
+    expect(layout.texts.find(({ id }) => id === 'digitable-line')?.value).toBe(formattedLine);
+    expect(layout.texts.find(({ id }) => id === 'test-watermark')).toBeDefined();
+    expect(layout.texts.find(({ id }) => id === 'test-barcode-redaction')).toBeUndefined();
+    expect(layout.texts.find(({ id }) => id === 'test-digitable-line-redaction')).toBeUndefined();
+  });
+
+  it('bounds maximum-length instruction lanes at minimum width with and without Pix', () => {
+    const instructions = Array.from(
+      { length: 3 },
+      (_, index) => `${String(index + 1)}${'W'.repeat(179)}`,
+    );
+    const baseData: BoletoData = {
+      ...createData('test'),
+      testPaymentIdentifiers: 'render',
+      instructions,
+    };
+    const pixData: BoletoData = {
+      ...baseData,
+      pix: {
+        emvPayload: '00020101021226820014br.gov.bcb.pix6304FFFF',
+        placement: 'instructions-right',
+      },
+    };
+    const minimumSchema = createSchema(BOLETO_FICHA_MIN_WIDTH_MM, BOLETO_FICHA_MIN_HEIGHT_MM);
+    const layoutWithoutPix = buildBoletoLayout(
+      baseData,
+      minimumSchema,
+      formatDigitableLine(baseData.barcode),
+    );
+    const layoutWithPix = buildBoletoLayout(
+      pixData,
+      minimumSchema,
+      formatDigitableLine(pixData.barcode),
+    );
+    const getLanes = (layout: typeof layoutWithPix) =>
+      layout.texts.filter(({ id }) => id.startsWith('instructions-value-'));
+    const lanesWithoutPix = getLanes(layoutWithoutPix);
+    const lanesWithPix = getLanes(layoutWithPix);
+
+    expect(layoutWithoutPix.pixQrCode).toBeUndefined();
+    expect(layoutWithPix.pixQrCode).toMatchObject({
+      value: pixData.pix?.emvPayload,
+      width: BOLETO_PIX_QR_SIZE_MM,
+      height: BOLETO_PIX_QR_SIZE_MM,
+    });
+    expect(lanesWithPix).toHaveLength(3);
+    expect(lanesWithPix.map(({ value }) => value)).toEqual(instructions);
+    expect(lanesWithPix.map(({ y }) => y)).toEqual(lanesWithoutPix.map(({ y }) => y));
+    expect(lanesWithPix.map(({ height }) => height)).toEqual(
+      lanesWithoutPix.map(({ height }) => height),
+    );
+    expect(lanesWithPix.every(({ width }) => width === lanesWithPix[0]?.width)).toBe(true);
+    expect(lanesWithoutPix.every(({ width }) => width === lanesWithoutPix[0]?.width)).toBe(true);
+    expect(lanesWithPix[0]?.width).toBeLessThan(lanesWithoutPix[0]?.width ?? 0);
+    expect((lanesWithPix[0]?.x ?? 0) + (lanesWithPix[0]?.width ?? 0) + BOLETO_PIX_QR_GAP_MM).toBe(
+      layoutWithPix.pixQrCode?.x,
+    );
+    expect(
+      lanesWithPix.every(
+        ({ x, y, width, height }) =>
+          x >= 0 &&
+          y >= 45 &&
+          x + width <= (layoutWithPix.pixQrCode?.x ?? 0) - BOLETO_PIX_QR_GAP_MM &&
+          y + height <= 66,
+      ),
+    ).toBe(true);
+    expect(
+      lanesWithoutPix.every(
+        ({ x, y, width, height }) =>
+          x >= 0 && y >= 45 && x + width <= BOLETO_FICHA_MIN_WIDTH_MM - 50 && y + height <= 66,
+      ),
+    ).toBe(true);
+    const [firstLane, secondLane, thirdLane] = lanesWithPix;
+    expect(firstLane.y).toBeLessThan(secondLane.y);
+    expect(secondLane.y).toBeLessThan(thirdLane.y);
   });
 
   it('uses the three Annex III adjustment rows and a dedicated final-beneficiary line', () => {
@@ -423,10 +442,7 @@ describe('boleto ficha layout geometry', () => {
     expect(values).toContain('Nome do Beneficiário / CNPJ/CPF / Endereço');
     expect(values).toContain('Agência / Código do Beneficiário');
     expect(values).toContain('Informações de responsabilidade do Beneficiário');
-    expect(values).not.toContain(BOLETO_MECHANICAL_AUTHENTICATION_LABEL);
-    expect(layout.vectorDisplays.find(({ id }) => id === 'mechanical-authentication')?.value).toBe(
-      BOLETO_MECHANICAL_AUTHENTICATION_LABEL,
-    );
+    expect(values).toContain(BOLETO_MECHANICAL_AUTHENTICATION_LABEL);
   });
 });
 

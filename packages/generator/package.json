@@ -61,6 +61,7 @@
     "@pdfweave/converter": "0.1.0",
     "@pdfweave/schemas": "0.1.0",
     "@types/pngjs": "^6.0.2",
+    "jsqr": "^1.4.0",
     "pngjs": "^7.0.0"
   },
   "peerDependencies": {

@@ -1,4 +1,4 @@
-import { getDefaultFont, type Font } from '@pdfweave/common';
+import { getDefaultFont, getFallbackFontName, type Font } from '@pdfweave/common';
 import { assertStaticPng, JpegEmbedder, PngEmbedder, toUint8Array } from '@pdfweave/pdf-lib';
 import jpeg from 'jpeg-js';
 import text from '../text/index.js';
@@ -175,7 +175,7 @@ export const createBoletoTextSchema = (
   type: 'text',
   content: '',
   position,
-  width: primitive.width,
+  width: primitive.width / (primitive.horizontalScale ?? 1),
   height: primitive.height,
   rotate: 0,
   opacity: primitive.opacity ?? 1,
@@ -298,9 +298,14 @@ export const preflightBoletoLayout = async ({
     await preflightBoletoLogo(primitive.value, _cache);
   }
 
+  const resolvedFont = font ?? getDefaultFont();
+  const fallbackFontName = getFallbackFontName(resolvedFont);
   const resolvedSchemas = new Map<string, TextSchema>();
   for (const primitive of layout.texts) {
-    const schema = createBoletoTextSchema(primitive, { x: 0, y: 0 });
+    const schema = {
+      ...createBoletoTextSchema(primitive, { x: 0, y: 0 }),
+      fontName: fallbackFontName,
+    };
     if (!primitive.value) {
       resolvedSchemas.set(primitive.id, { ...schema, dynamicFontSize: undefined });
       continue;
@@ -309,7 +314,7 @@ export const preflightBoletoLayout = async ({
     const { measuredHeight, fontSize } = await measureTextLines({
       value: getBoletoTextValue(primitive),
       schema,
-      font: font ?? getDefaultFont(),
+      font: resolvedFont,
       _cache,
     });
     if (measuredHeight > primitive.height + TEXT_FIT_EPSILON_MM) {

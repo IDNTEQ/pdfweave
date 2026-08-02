@@ -7,14 +7,21 @@ import {
   BOLETO_BARCODE_HEIGHT_MM,
   BOLETO_BARCODE_LEFT_MM,
   BOLETO_BARCODE_WIDTH_MM,
+  BOLETO_PIX_QR_SIZE_MM,
   boleto,
   buildBoletoBarcode,
   type BoletoData,
   type BoletoSchema,
 } from '@pdfweave/schemas';
-import { impose, MM_TO_PT, type ImpositionPlan } from '../../src/index.js';
+import {
+  impose,
+  MM_TO_PT,
+  type ImpositionPlacement,
+  type ImpositionPlan,
+} from '../../src/index.js';
 import { pdfToImages, writeArtifacts } from '../helpers.js';
 import { cropMillimeterRegion, decodeItfRaster } from '../itfRaster.js';
+import { decodeQrRaster } from '../qrRaster.js';
 
 const mm = (value: number): number => value * MM_TO_PT;
 
@@ -23,6 +30,13 @@ const BOLETO_HEIGHT_MM = 95;
 const A4_WIDTH_MM = 210;
 const SCAN_DPI = 300;
 const BARCODE_ACQUISITION_PADDING_MM = { top: 2, right: 5, bottom: 3, left: 5 } as const;
+const PIX_QR_ACQUISITION_PADDING_MM = 2;
+const PIX_QR_LOCAL_REGION_MM = {
+  x: BOLETO_WIDTH_MM - 50 - (21 - BOLETO_PIX_QR_SIZE_MM) / 2 - BOLETO_PIX_QR_SIZE_MM,
+  y: 45 + (21 - BOLETO_PIX_QR_SIZE_MM) / 2,
+  width: BOLETO_PIX_QR_SIZE_MM,
+  height: BOLETO_PIX_QR_SIZE_MM,
+} as const;
 const BOLETO_CLIENTS = [
   'Almeida Comercio Ltda.',
   'Borges Servicos Digitais',
@@ -33,6 +47,41 @@ const BOLETO_CLIENTS = [
   'Gomes Tecnologia',
 ] as const;
 
+const textEncoder = new TextEncoder();
+const tlv = (tag: string, value: string): string =>
+  `${tag}${String([...value].length).padStart(2, '0')}${value}`;
+
+const calculatePixCrc = (value: string): string => {
+  let crc = 0xffff;
+  for (const byte of textEncoder.encode(value)) {
+    crc ^= byte << 8;
+    for (let bit = 0; bit < 8; bit += 1) {
+      crc = (crc & 0x8000) === 0 ? (crc << 1) & 0xffff : ((crc << 1) ^ 0x1021) & 0xffff;
+    }
+  }
+  return crc.toString(16).toUpperCase().padStart(4, '0');
+};
+
+const buildSyntheticPixPayload = (sequence: number): string => {
+  const merchantAccount = tlv(
+    '26',
+    tlv('00', 'br.gov.bcb.pix') +
+      tlv('25', `pix.example.test/cobv/${String(sequence).padStart(4, '0')}`),
+  );
+  const body =
+    tlv('00', '01') +
+    tlv('01', '12') +
+    merchantAccount +
+    tlv('52', '0000') +
+    tlv('53', '986') +
+    tlv('58', 'BR') +
+    tlv('59', 'PDFWEAVE LTDA') +
+    tlv('60', 'SAO PAULO') +
+    tlv('62', tlv('05', '***'));
+  const throughCrcHeader = `${body}6304`;
+  return `${throughCrcHeader}${calculatePixCrc(throughCrcHeader)}`;
+};
+
 const createBoletoData = (client: string, index: number): BoletoData => {
   const dueDate = `2026-09-${String(index + 10).padStart(2, '0')}`;
   const documentValueCents = 87_535 + index * 14_327;
@@ -40,6 +89,7 @@ const createBoletoData = (client: string, index: number): BoletoData => {
     version: 1,
     kind: 'cobranca',
     registrationStatus: 'test',
+    testPaymentIdentifiers: 'render',
     institution: { name: 'Banco de Teste', code: '001', codeDigit: '9' },
     beneficiaryMode: 'direct',
     beneficiary: {
@@ -85,7 +135,15 @@ const createBoletoData = (client: string, index: number): BoletoData => {
     processingDate: '2026-08-01',
     ourNumber: `1234567890${String(index + 1)}-2`,
     portfolio: '17',
-    instructions: ['AMOSTRA SEM VALOR DE PAGAMENTO.'],
+    instructions: [
+      'AMOSTRA SEM VALOR DE PAGAMENTO.',
+      'Nao receber apos o vencimento.',
+      `Referencia: DOC-${String(index + 1).padStart(4, '0')}.`,
+    ],
+    pix: {
+      emvPayload: buildSyntheticPixPayload(index + 1),
+      placement: 'instructions-right',
+    },
   };
 };
 
@@ -121,6 +179,56 @@ const createBoletoPdf = async (records: BoletoData[]): Promise<Uint8Array> => {
 
 const createBoletoBook = (): Promise<Uint8Array> =>
   createBoletoPdf(BOLETO_CLIENTS.map((client, index) => createBoletoData(client, index)));
+
+const renderOutputPageAtScanDpi = async (
+  pdf: Uint8Array,
+  outputPageIndex: number,
+): Promise<ArrayBuffer> => {
+  const source = await PDFDocument.load(pdf);
+  const scanDocument = await PDFDocument.create({ updateMetadata: false });
+  const copiedPages = await scanDocument.copyPages(source, [outputPageIndex]);
+  const page = copiedPages.at(0);
+  if (!page) throw new Error(`Expected imposed output page ${String(outputPageIndex)}`);
+  scanDocument.addPage(page);
+  const scanImages = await pdf2img(await scanDocument.save(), {
+    imageType: 'png',
+    scale: SCAN_DPI / 72,
+  });
+  const scanBytes = scanImages.at(0);
+  if (!scanBytes) throw new Error('Expected a 300 DPI imposed-sheet raster');
+  return scanBytes;
+};
+
+const getPlacedQrAcquisitionRegion = (
+  plan: ImpositionPlan,
+  placement: ImpositionPlacement,
+): { x: number; y: number; width: number; height: number } => {
+  if (placement.rotation !== 0) {
+    throw new Error('The boleto QR acquisition helper expects an unrotated placement');
+  }
+  const scaledMillimeters = (value: number): number => value * placement.scale;
+  const contentTop = plan.options.sheet.height - placement.content.y - placement.content.height;
+  return {
+    x:
+      placement.content.x / MM_TO_PT +
+      scaledMillimeters(PIX_QR_LOCAL_REGION_MM.x - PIX_QR_ACQUISITION_PADDING_MM),
+    y:
+      contentTop / MM_TO_PT +
+      scaledMillimeters(PIX_QR_LOCAL_REGION_MM.y - PIX_QR_ACQUISITION_PADDING_MM),
+    width: scaledMillimeters(PIX_QR_LOCAL_REGION_MM.width + PIX_QR_ACQUISITION_PADDING_MM * 2),
+    height: scaledMillimeters(PIX_QR_LOCAL_REGION_MM.height + PIX_QR_ACQUISITION_PADDING_MM * 2),
+  };
+};
+
+const decodeFirstPlacedPixQr = async (pdf: Uint8Array, plan: ImpositionPlan): Promise<string> => {
+  const firstSheet = plan.sheets.at(0);
+  const placement = firstSheet?.front.placements.at(0);
+  if (!firstSheet || !placement) throw new Error('Expected a first imposed boleto placement');
+  const scanBytes = await renderOutputPageAtScanDpi(pdf, firstSheet.front.outputPageIndex);
+  const acquisitionRegion = getPlacedQrAcquisitionRegion(plan, placement);
+  const sheetWidthMillimeters = plan.options.sheet.width / MM_TO_PT;
+  return decodeQrRaster(cropMillimeterRegion(scanBytes, sheetWidthMillimeters, acquisitionRegion));
+};
 
 const drawInvoiceTable = (
   page: PDFPage,
@@ -275,6 +383,7 @@ describe('n-up production artifacts', () => {
     const registeredData: BoletoData = {
       ...createBoletoData('Registered Raster Test', 0),
       registrationStatus: 'registered',
+      testPaymentIdentifiers: undefined,
     };
     const result = await impose({
       source: await createBoletoPdf([registeredData]),
@@ -355,6 +464,9 @@ describe('n-up production artifacts', () => {
     expect(result.plan.options.layout.scale).toBe('none');
     expect(result.plan.sheets[3].front.emptySlots).toHaveLength(1);
     assertUnscaledBoletoPlacements(result.plan);
+    await expect(decodeFirstPlacedPixQr(result.pdf, result.plan)).resolves.toBe(
+      buildSyntheticPixPayload(1),
+    );
     expect(images).toHaveLength(4);
     for (const [index, image] of images.entries()) {
       expect(image.byteLength).toBeGreaterThan(10_000);
@@ -402,6 +514,9 @@ describe('n-up production artifacts', () => {
     expect(result.plan.options.layout.scale).toBe('none');
     expect(result.plan.sheets[1].front.emptySlots).toHaveLength(1);
     assertUnscaledBoletoPlacements(result.plan);
+    await expect(decodeFirstPlacedPixQr(result.pdf, result.plan)).resolves.toBe(
+      buildSyntheticPixPayload(1),
+    );
     expect(images).toHaveLength(2);
     for (const [index, image] of images.entries()) {
       expect(image.byteLength).toBeGreaterThan(20_000);

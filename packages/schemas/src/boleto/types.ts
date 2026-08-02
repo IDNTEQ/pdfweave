@@ -3,6 +3,7 @@ export const BOLETO_ERROR_PREFIX = '[@pdfweave/schemas/boleto]' as const;
 
 export type BoletoKind = 'cobranca';
 export type BoletoRegistrationStatus = 'registered' | 'test';
+export type BoletoTestPaymentIdentifiers = 'redact' | 'render';
 export type BoletoBeneficiaryMode = 'direct' | 'third-party';
 export type BoletoAmountMode = 'fixed' | 'variable';
 export type BrazilianTaxIdType = 'cpf' | 'cnpj';
@@ -38,10 +39,19 @@ export interface BoletoInstitution {
   logo?: string;
 }
 
+export interface BoletoPixData {
+  /** Complete Pix Copia e Cola / BR Code payload returned by the issuing bank or PSP. */
+  emvPayload: string;
+  /** Explicit because QR placement on the ficha de compensacao is issuer-profile-specific. */
+  placement: 'instructions-right';
+}
+
 export interface BoletoBaseData {
   version: typeof BOLETO_DATA_VERSION;
   kind: BoletoKind;
   registrationStatus: BoletoRegistrationStatus;
+  /** Test records redact payment identifiers unless rendering is explicitly requested. */
+  testPaymentIdentifiers?: BoletoTestPaymentIdentifiers;
   institution: BoletoInstitution;
   beneficiaryMode: BoletoBeneficiaryMode;
   beneficiary: BoletoParty;
@@ -63,6 +73,7 @@ export interface BoletoBaseData {
   currencyQuantity?: string;
   currencyUnitValueCents?: number;
   instructions?: string[];
+  pix?: BoletoPixData;
 }
 
 export interface FixedAmountBoletoData extends BoletoBaseData {

@@ -1,5 +1,11 @@
 import { mm2pt, pt2mm, type PDFRenderProps } from '@pdfweave/common';
-import { LineCapStyle, type PDFImage } from '@pdfweave/pdf-lib';
+import {
+  concatTransformationMatrix,
+  LineCapStyle,
+  popGraphicsState,
+  pushGraphicsState,
+  type PDFImage,
+} from '@pdfweave/pdf-lib';
 import type { BarcodeSchema } from '../barcodes/types.js';
 import barcodes from '../barcodes/index.js';
 import { computeImageFitRect } from '../graphics/image.js';
@@ -7,7 +13,14 @@ import text from '../text/index.js';
 import type { TextSchema } from '../text/types.js';
 import { hex2RgbColor } from '../utils.js';
 import { formatDigitableLine } from './digits.js';
-import { BOLETO_BARCODE_HEIGHT_MM, BOLETO_BARCODE_WIDTH_MM, buildBoletoLayout } from './layout.js';
+import { BOLETO_PIX_QR_PADDING_POINTS } from './pix.js';
+import { inspectBoletoPixQrDensity } from './pixQr.js';
+import {
+  BOLETO_BARCODE_HEIGHT_MM,
+  BOLETO_BARCODE_WIDTH_MM,
+  BOLETO_PIX_QR_SIZE_MM,
+  buildBoletoLayout,
+} from './layout.js';
 import {
   getBoletoLogoMemo,
   getBoletoTextValue,
@@ -114,12 +127,39 @@ const getBarcodeSchema = (schema: BoletoSchema, x: number, y: number): BarcodeSc
   readOnly: true,
 });
 
+const getPixQrCodeSchema = (schema: BoletoSchema, x: number, y: number): BarcodeSchema => ({
+  ...(barcodes.qrcode.propPanel.defaultSchema as BarcodeSchema),
+  name: '__boleto-pix-qrcode',
+  type: 'qrcode',
+  content: '',
+  position: getPosition(schema, x, y),
+  width: BOLETO_PIX_QR_SIZE_MM,
+  height: BOLETO_PIX_QR_SIZE_MM,
+  rotate: 0,
+  opacity: 1,
+  backgroundColor: '#ffffff',
+  barColor: '#000000',
+  includetext: false,
+  padding: BOLETO_PIX_QR_PADDING_POINTS,
+  paddingtop: BOLETO_PIX_QR_PADDING_POINTS,
+  paddingleft: BOLETO_PIX_QR_PADDING_POINTS,
+  paddingright: BOLETO_PIX_QR_PADDING_POINTS,
+  paddingbottom: BOLETO_PIX_QR_PADDING_POINTS,
+  eclevel: 'M',
+  showBorder: false,
+  format: 'svg',
+  readOnly: true,
+});
+
 export const pdfRender = async (arg: PDFRenderProps<BoletoSchema>): Promise<void> => {
   const { schema, page } = arg;
   validateBoletoSchema(schema, { allowInternalPosition: true });
   assertSchemaFitsPage(schema, page);
   const data = parseBoletoData(arg.value);
   const layout = buildBoletoLayout(data, schema, formatDigitableLine(data.barcode));
+  if (layout.pixQrCode) {
+    await inspectBoletoPixQrDensity(layout.pixQrCode.value);
+  }
   const resolvedTextSchemas = await preflightBoletoLayout({
     layout,
     font: arg.options.font,
@@ -156,25 +196,6 @@ export const pdfRender = async (arg: PDFRenderProps<BoletoSchema>): Promise<void
     });
   }
 
-  for (const display of layout.vectorDisplays) {
-    for (const segment of display.segments) {
-      page.drawLine({
-        start: {
-          x: mm2pt(schema.position.x + display.x + segment.x1),
-          y: page.getHeight() - mm2pt(schema.position.y + display.y + segment.y1),
-        },
-        end: {
-          x: mm2pt(schema.position.x + display.x + segment.x2),
-          y: page.getHeight() - mm2pt(schema.position.y + display.y + segment.y2),
-        },
-        thickness: mm2pt(display.strokeWidth),
-        color: hex2RgbColor('#000000'),
-        opacity: 1,
-        lineCap: LineCapStyle.Round,
-      });
-    }
-  }
-
   for (const primitive of layout.texts) {
     const resolvedSchema = resolvedTextSchemas.get(primitive.id);
     if (!resolvedSchema) {
@@ -182,14 +203,30 @@ export const pdfRender = async (arg: PDFRenderProps<BoletoSchema>): Promise<void
         `[@pdfweave/schemas/boleto] Missing resolved text schema for "${primitive.id}"`,
       );
     }
-    await text.pdf({
+    const textArg = {
       ...arg,
       value: getBoletoTextValue(primitive),
       schema: {
         ...resolvedSchema,
         position: getPosition(schema, primitive.x, primitive.y),
       },
-    } as PDFRenderProps<TextSchema>);
+    } as PDFRenderProps<TextSchema>;
+    const horizontalScale = primitive.horizontalScale ?? 1;
+    if (horizontalScale === 1) {
+      await text.pdf(textArg);
+      continue;
+    }
+
+    const anchorX = mm2pt(schema.position.x + primitive.x);
+    page.pushOperators(
+      pushGraphicsState(),
+      concatTransformationMatrix(horizontalScale, 0, 0, 1, anchorX * (1 - horizontalScale), 0),
+    );
+    try {
+      await text.pdf(textArg);
+    } finally {
+      page.pushOperators(popGraphicsState());
+    }
   }
 
   for (const primitive of layout.images) {
@@ -220,6 +257,13 @@ export const pdfRender = async (arg: PDFRenderProps<BoletoSchema>): Promise<void
       ...arg,
       value: layout.barcode.value,
       schema: getBarcodeSchema(schema, layout.barcode.x, layout.barcode.y),
+    });
+  }
+  if (layout.pixQrCode) {
+    await barcodes.qrcode.pdf({
+      ...arg,
+      value: layout.pixQrCode.value,
+      schema: getPixQrCodeSchema(schema, layout.pixQrCode.x, layout.pixQrCode.y),
     });
   }
 };

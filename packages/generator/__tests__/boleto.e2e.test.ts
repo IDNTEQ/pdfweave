@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { mm2pt, pt2mm, type Template } from '@pdfweave/common';
 import { pdf2img } from '@pdfweave/converter';
 import { PDFDocument, rgb } from '@pdfweave/pdf-lib';
+import jsQR from 'jsqr';
 import { PNG } from 'pngjs';
 import { vi } from 'vitest';
 import boleto, {
@@ -12,9 +13,14 @@ import boleto, {
   BOLETO_BARCODE_HEIGHT_MM,
   BOLETO_BARCODE_LEFT_MM,
   BOLETO_BARCODE_WIDTH_MM,
+  BOLETO_FICHA_MIN_WIDTH_MM,
+  BOLETO_PIX_QR_SIZE_MM,
+  BOLETO_PIX_QR_MAX_MODULES,
+  BOLETO_PIX_QR_MIN_DOTS_PER_MODULE,
   buildBoletoBarcode,
   deriveDigitableLine,
   formatDigitableLine,
+  inspectBoletoPixQrDensity,
   parseBoletoData,
   type BoletoData,
   type BoletoSchema,
@@ -24,6 +30,7 @@ import { getImageSnapshotOptions, pdfToImages } from './utils.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const artifactDirectory = path.join(__dirname, '..', 'test-artifacts', 'boleto-book');
+const minimumWidthArtifactDirectory = path.join(artifactDirectory, 'minimum-width');
 const cropBoxArtifactDirectory = path.join(artifactDirectory, 'asymmetric-cropbox-base');
 const batchArtifactDirectory = path.join(
   __dirname,
@@ -42,8 +49,15 @@ const CROP_BOX_WIDTH_MM = 210;
 const CROP_BOX_HEIGHT_MM = 120;
 const CROP_BOX_BOLETO_POSITION = { x: 5, y: 10 } as const;
 const BARCODE_ACQUISITION_PADDING_MM = { top: 2, right: 5, bottom: 3, left: 5 } as const;
+const PIX_QR_POSITION_MM = {
+  x: PAGE_WIDTH_MM - 50 - (21 - BOLETO_PIX_QR_SIZE_MM) / 2 - BOLETO_PIX_QR_SIZE_MM,
+  y: 45 + (21 - BOLETO_PIX_QR_SIZE_MM) / 2,
+} as const;
+const PIX_QR_ACQUISITION_PADDING_MM = 2;
 const CONSTANT_INSTITUTION_LOGO =
   'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAW0lEQVR4AcXBsQ1AUAAA0XPRGkFtGyOojGUxtUGYQfKTe29a9uNloOe8+UNiEpOYxCQmMYlJTGISk9jMYOu18YfEJCYxiUlMYhKTmMQkJjGJSUxiEpOYxCQmsQ/9MgT6Xr5uTQAAAABJRU5ErkJggg==';
+const BCB_PUBLISHED_DYNAMIC_PIX_PAYLOAD =
+  '00020101021226700014br.gov.bcb.pix2548pix.example.com/8b3da2f39a4140d1a91abd93113bd4415204000053039865802BR5913Fulano de Tal6008BRASILIA62070503***630464E4';
 
 const ITF_PATTERNS = new Map([
   ['nnwwn', '0'],
@@ -73,6 +87,46 @@ interface DarkRasterBounds {
   widthMillimeters: number;
   heightMillimeters: number;
 }
+
+interface QrRasterResult {
+  value: string;
+  acquisitionPixels: { width: number; height: number };
+}
+
+const textEncoder = new TextEncoder();
+const tlv = (tag: string, value: string): string =>
+  `${tag}${String([...value].length).padStart(2, '0')}${value}`;
+
+const calculatePixCrc = (value: string): string => {
+  let crc = 0xffff;
+  for (const byte of textEncoder.encode(value)) {
+    crc ^= byte << 8;
+    for (let bit = 0; bit < 8; bit += 1) {
+      crc = (crc & 0x8000) === 0 ? (crc << 1) & 0xffff : ((crc << 1) ^ 0x1021) & 0xffff;
+    }
+  }
+  return crc.toString(16).toUpperCase().padStart(4, '0');
+};
+
+const buildSyntheticPixPayload = (sequence: number): string => {
+  const merchantAccount = tlv(
+    '26',
+    tlv('00', 'br.gov.bcb.pix') +
+      tlv('25', `pix.example.test/cobv/${String(sequence).padStart(4, '0')}`),
+  );
+  const body =
+    tlv('00', '01') +
+    tlv('01', '12') +
+    merchantAccount +
+    tlv('52', '0000') +
+    tlv('53', '986') +
+    tlv('58', 'BR') +
+    tlv('59', 'PDFWEAVE LTDA') +
+    tlv('60', 'SAO PAULO') +
+    tlv('62', tlv('05', '***'));
+  const throughCrcHeader = `${body}6304`;
+  return `${throughCrcHeader}${calculatePixCrc(throughCrcHeader)}`;
+};
 
 const median = (values: number[]): number => {
   const sorted = [...values].sort((left, right) => left - right);
@@ -249,12 +303,53 @@ const cropBarcodeAcquisitionRegion = (
   return target;
 };
 
+const decodePixQrRaster = (pngBytes: ArrayBuffer): QrRasterResult => {
+  const source = PNG.sync.read(Buffer.from(new Uint8Array(pngBytes)));
+  const pixelsPerMillimeter = source.width / PAGE_WIDTH_MM;
+  const crop = {
+    x: PIX_QR_POSITION_MM.x - PIX_QR_ACQUISITION_PADDING_MM,
+    y: PIX_QR_POSITION_MM.y - PIX_QR_ACQUISITION_PADDING_MM,
+    width: BOLETO_PIX_QR_SIZE_MM + 2 * PIX_QR_ACQUISITION_PADDING_MM,
+    height: BOLETO_PIX_QR_SIZE_MM + 2 * PIX_QR_ACQUISITION_PADDING_MM,
+  };
+  const target = new PNG({
+    width: Math.round(crop.width * pixelsPerMillimeter),
+    height: Math.round(crop.height * pixelsPerMillimeter),
+  });
+  PNG.bitblt(
+    source,
+    target,
+    Math.round(crop.x * pixelsPerMillimeter),
+    Math.round(crop.y * pixelsPerMillimeter),
+    target.width,
+    target.height,
+    0,
+    0,
+  );
+  const pixels = new Uint8ClampedArray(
+    target.data.buffer,
+    target.data.byteOffset,
+    target.data.byteLength,
+  );
+  const decoded = jsQR(pixels, target.width, target.height, {
+    inversionAttempts: 'attemptBoth',
+  });
+  if (!decoded) {
+    throw new Error('Pix QR could not be decoded from the 300 DPI acquisition region');
+  }
+  return {
+    value: decoded.data,
+    acquisitionPixels: { width: target.width, height: target.height },
+  };
+};
+
 const measureDarkRasterBounds = (
   pngBytes: ArrayBuffer,
   region: { x: number; y: number; width: number; height: number },
+  pageWidthMillimeters = PAGE_WIDTH_MM,
 ): DarkRasterBounds => {
   const source = PNG.sync.read(Buffer.from(new Uint8Array(pngBytes)));
-  const pixelsPerMillimeter = source.width / PAGE_WIDTH_MM;
+  const pixelsPerMillimeter = source.width / pageWidthMillimeters;
   const startX = Math.min(source.width, Math.max(0, Math.floor(region.x * pixelsPerMillimeter)));
   const startY = Math.min(source.height, Math.max(0, Math.floor(region.y * pixelsPerMillimeter)));
   const endX = Math.min(
@@ -425,6 +520,7 @@ const buildBoletoData = (index: number): BoletoData => {
     version: 1,
     kind: 'cobranca',
     registrationStatus: 'test',
+    testPaymentIdentifiers: 'render',
     institution: {
       name: 'Banco de Teste',
       code: '001',
@@ -472,10 +568,17 @@ const buildBoletoData = (index: number): BoletoData => {
     bankUse: `CTRL-${String(sequence).padStart(4, '0')}`,
     portfolio: '17',
     instructions: [
-      'AMOSTRA DE TESTE SEM VALOR DE PAGAMENTO.',
+      'AMOSTRA SEM VALOR DE PAGAMENTO. Esta primeira instrucao longa demonstra quebra dentro da faixa reservada sem deslocar a segunda ou a terceira instrucao, mesmo com mais conteudo.',
       'Nao receber apos o vencimento.',
       `Referencia do servico: FAT-${String(sequence).padStart(5, '0')}.`,
     ],
+    pix: {
+      emvPayload:
+        sequence === PAGE_COUNT
+          ? BCB_PUBLISHED_DYNAMIC_PIX_PAYLOAD
+          : buildSyntheticPixPayload(sequence),
+      placement: 'instructions-right',
+    },
     discountDeductionCents,
     interestPenaltyCents: 0,
     chargedAmountCents: documentValueCents - discountDeductionCents,
@@ -485,13 +588,34 @@ const buildBoletoData = (index: number): BoletoData => {
 const data = Array.from({ length: PAGE_COUNT }, (_, index) => buildBoletoData(index));
 
 describe('boleto book generator evidence', () => {
-  test('renders seven distinct specification-validated test boletos as inspectable artifacts', async () => {
+  test('renders seven distinct standards-aligned test boletos as inspectable artifacts', async () => {
     const barcodes = data.map(({ barcode }) => barcode);
     const digitableLines = data.map(({ barcode }) => deriveDigitableLine(barcode));
+    const pixPayloads = data.map(({ pix }) => pix?.emvPayload);
+    const pixQrDensity = await Promise.all(
+      pixPayloads.map((payload, index) => {
+        if (!payload) throw new Error(`Missing Pix payload for boleto ${String(index + 1)}`);
+        return inspectBoletoPixQrDensity(payload);
+      }),
+    );
 
     expect(new Set(barcodes).size).toBe(PAGE_COUNT);
     expect(new Set(digitableLines).size).toBe(PAGE_COUNT);
+    expect(new Set(pixPayloads).size).toBe(PAGE_COUNT);
     expect(data.every(({ registrationStatus }) => registrationStatus === 'test')).toBe(true);
+    expect(data.every(({ testPaymentIdentifiers }) => testPaymentIdentifiers === 'render')).toBe(
+      true,
+    );
+    expect(Math.max(...pixQrDensity.map(({ moduleCount }) => moduleCount))).toBe(
+      BOLETO_PIX_QR_MAX_MODULES,
+    );
+    expect(pixQrDensity.at(-1)?.moduleCount).toBe(BOLETO_PIX_QR_MAX_MODULES);
+    expect(
+      pixQrDensity.every(
+        ({ dotsPerModuleAtMinimumDpi }) =>
+          dotsPerModuleAtMinimumDpi >= BOLETO_PIX_QR_MIN_DOTS_PER_MODULE,
+      ),
+    ).toBe(true);
 
     const pdf = await generate({
       inputs: data.map((boletoData) => ({ boleto: boletoData })),
@@ -513,14 +637,21 @@ describe('boleto book generator evidence', () => {
     const barcodeScanResults = scanImages.map((image) =>
       tryDecodeItfRaster(cropBarcodeAcquisitionRegion(image), SCAN_DPI),
     );
+    const pixQrScanResults = scanImages.map((image) => decodePixQrRaster(image));
     const firstScanImage = scanImages.at(0);
     expect(firstScanImage).toBeDefined();
     if (!firstScanImage) throw new Error('Expected a first 300 DPI boleto scan');
-    const headerVectorValidation = {
+    const headerTypographyValidation = {
       institutionCode: measureDarkRasterBounds(firstScanImage, {
         x: 34.3,
         y: 1,
-        width: 14.4,
+        width: 20.4,
+        height: 7,
+      }),
+      digitableLine: measureDarkRasterBounds(firstScanImage, {
+        x: 55.5,
+        y: 1,
+        width: 115,
         height: 7,
       }),
     };
@@ -552,9 +683,14 @@ describe('boleto book generator evidence', () => {
     }
     expect(images).toHaveLength(PAGE_COUNT);
     expect(images.every((image) => image.byteLength > 10_000)).toBe(true);
-    expect(barcodeScanResults.every((result) => result === undefined)).toBe(true);
-    expect(headerVectorValidation.institutionCode.heightMillimeters).toBeGreaterThanOrEqual(4.8);
-    expect(headerVectorValidation.institutionCode.heightMillimeters).toBeLessThanOrEqual(5.2);
+    expect(barcodeScanResults.map((result) => result?.value)).toEqual(barcodes);
+    expect(pixQrScanResults.map(({ value }) => value)).toEqual(pixPayloads);
+    expect(headerTypographyValidation.institutionCode.heightMillimeters).toBeGreaterThanOrEqual(
+      4.7,
+    );
+    expect(headerTypographyValidation.institutionCode.heightMillimeters).toBeLessThanOrEqual(5.3);
+    expect(headerTypographyValidation.digitableLine.heightMillimeters).toBeGreaterThanOrEqual(3.5);
+    expect(headerTypographyValidation.digitableLine.heightMillimeters).toBeLessThanOrEqual(4.5);
     expect(gridEdgeValidation.top.topMillimeters).toBe(0);
     expect(gridEdgeValidation.top.heightMillimeters).toBeGreaterThanOrEqual(0.25);
     expect(gridEdgeValidation.top.heightMillimeters).toBeLessThanOrEqual(0.45);
@@ -591,16 +727,30 @@ describe('boleto book generator evidence', () => {
     const manifest = {
       scenario: 'boleto-book',
       generatedBy: '@pdfweave/generator boleto integration test',
-      classification: 'specification-validated synthetic test fixture',
+      classification: 'standards-aligned synthetic test specimen',
       disclaimer: 'AMOSTRA - NAO PAGAVEL. Not bank-issued, payable, certified, or homologated.',
       pageCount: pages.length,
       pageSizeMm: { width: PAGE_WIDTH_MM, height: PAGE_HEIGHT_MM },
       paymentIdentifierPolicy: {
         registrationStatus: 'test',
-        barcodeRendered: false,
-        digitableLineRendered: false,
+        testPaymentIdentifiers: 'render',
+        barcodeRendered: true,
+        digitableLineRendered: true,
         decodedBarcodeCount: barcodeScanResults.filter(Boolean).length,
         identifierValuesIncludedInManifest: false,
+      },
+      pixQrPolicy: {
+        placement: 'instructions-right',
+        payloadKind:
+          'synthetic dynamic BR Code fixtures, including the exact BCB-published dynamic example',
+        rendered: true,
+        decodedQrCount: pixQrScanResults.length,
+        payloadValuesIncludedInManifest: false,
+        printDensity: {
+          maximumModuleCount: BOLETO_PIX_QR_MAX_MODULES,
+          minimumDotsPerModule: BOLETO_PIX_QR_MIN_DOTS_PER_MODULE,
+          measured: pixQrDensity,
+        },
       },
       documents: data.map((boletoData, index) => ({
         page: index + 1,
@@ -618,11 +768,24 @@ describe('boleto book generator evidence', () => {
         rasterValidation: {
           dpi: SCAN_DPI,
           barcodeAcquisitionRegionsDecoded: barcodeScanResults.filter(Boolean).length,
-          headerVectorMetrics: {
+          headerTypographyMetrics: {
             expected: {
-              institutionCode: { glyphHeightMillimeters: 5, strokeMillimeters: 1.2 },
+              institutionCode: {
+                ordinaryBoldText: true,
+                referenceNominalInkHeightMillimeters: 5,
+                acceptedRasterInkHeightMillimeters: { minimum: 4.7, maximum: 5.3 },
+              },
+              digitableLine: {
+                ordinaryBoldText: true,
+                acceptedRasterInkHeightMillimeters: { minimum: 3.5, maximum: 4.5 },
+              },
             },
-            measuredInkBounds: headerVectorValidation,
+            measuredInkBounds: headerTypographyValidation,
+          },
+          pixQr: {
+            sizeMillimeters: BOLETO_PIX_QR_SIZE_MM,
+            decodedCount: pixQrScanResults.length,
+            acquisitionPixels: pixQrScanResults.map(({ acquisitionPixels }) => acquisitionPixels),
           },
           gridEdgeMetrics: {
             expected: {
@@ -642,18 +805,33 @@ describe('boleto book generator evidence', () => {
       expect(manifestText).not.toContain(barcode);
       expect(manifestText).not.toContain(line);
       expect(manifestText).not.toContain(formatDigitableLine(barcode));
+      const pixPayload = pixPayloads[index];
+      if (!pixPayload) throw new Error(`Missing Pix payload for boleto ${String(index + 1)}`);
+      expect(manifestText).not.toContain(pixPayload);
     }
     writeFileSync(path.join(artifactDirectory, 'manifest.json'), manifestText);
   });
 
-  test('renders registered barcode and digitable-line mechanics in memory', async () => {
-    const registeredData: BoletoData = {
-      ...buildBoletoData(0),
-      registrationStatus: 'registered',
+  test('retains payment mechanics and target line height at 170 mm minimum width', async () => {
+    const minimumWidthData = buildBoletoData(0);
+    const minimumWidthTemplate: Template = {
+      basePdf: {
+        width: BOLETO_FICHA_MIN_WIDTH_MM,
+        height: PAGE_HEIGHT_MM,
+        padding: [0, 0, 0, 0],
+      },
+      schemas: [
+        [
+          {
+            ...boletoSchema,
+            width: BOLETO_FICHA_MIN_WIDTH_MM,
+          },
+        ],
+      ],
     };
     const pdf = await generate({
-      inputs: [{ boleto: registeredData }],
-      template,
+      inputs: [{ boleto: minimumWidthData }],
+      template: minimumWidthTemplate,
       plugins: { boleto },
       options: {
         creationDate: fixedMetadataDate,
@@ -664,21 +842,78 @@ describe('boleto book generator evidence', () => {
     expect(scanBytes).toBeDefined();
     if (!scanBytes) throw new Error('Expected a registered boleto raster');
 
-    const barcodeValidation = decodeItfRaster(cropBarcodeAcquisitionRegion(scanBytes), SCAN_DPI);
-    const digitableLineBounds = measureDarkRasterBounds(scanBytes, {
-      x: 49.5,
-      y: 1,
-      width: 115,
-      height: 7,
-    });
+    const barcodeValidation = decodeItfRaster(
+      cropBarcodeAcquisitionRegion(scanBytes, BOLETO_FICHA_MIN_WIDTH_MM),
+      SCAN_DPI,
+    );
+    const digitableLineBounds = measureDarkRasterBounds(
+      scanBytes,
+      {
+        x: 55.5,
+        y: 1,
+        width: BOLETO_FICHA_MIN_WIDTH_MM - 57,
+        height: 7,
+      },
+      BOLETO_FICHA_MIN_WIDTH_MM,
+    );
 
-    expect(barcodeValidation.value).toBe(registeredData.barcode);
+    expect(barcodeValidation.value).toBe(minimumWidthData.barcode);
     expect(barcodeValidation.quietZoneMillimeters.left).toBeGreaterThanOrEqual(5);
     expect(barcodeValidation.quietZoneMillimeters.right).toBeGreaterThanOrEqual(5);
-    expect(digitableLineBounds.heightMillimeters).toBeGreaterThanOrEqual(3.8);
-    expect(digitableLineBounds.heightMillimeters).toBeLessThanOrEqual(4.2);
-    expect(digitableLineBounds.leftMillimeters).toBeGreaterThanOrEqual(49.9);
-    expect(digitableLineBounds.leftMillimeters).toBeLessThanOrEqual(50.2);
+    expect(digitableLineBounds.heightMillimeters).toBeGreaterThanOrEqual(3.5);
+    expect(digitableLineBounds.heightMillimeters).toBeLessThanOrEqual(4.5);
+    expect(digitableLineBounds.widthMillimeters).toBeGreaterThanOrEqual(105);
+    expect(digitableLineBounds.widthMillimeters).toBeLessThanOrEqual(113);
+    expect(digitableLineBounds.leftMillimeters).toBeGreaterThanOrEqual(55.9);
+    expect(digitableLineBounds.leftMillimeters).toBeLessThanOrEqual(56.5);
+    expect(
+      digitableLineBounds.leftMillimeters + digitableLineBounds.widthMillimeters,
+    ).toBeGreaterThanOrEqual(167);
+    expect(
+      digitableLineBounds.leftMillimeters + digitableLineBounds.widthMillimeters,
+    ).toBeLessThanOrEqual(169);
+    const output = await PDFDocument.load(pdf);
+    expect(output.getPage(0).getWidth()).toBeCloseTo(mm2pt(BOLETO_FICHA_MIN_WIDTH_MM), 5);
+
+    const preview = (await pdfToImages(pdf)).at(0);
+    if (!preview) throw new Error('Expected a minimum-width boleto preview');
+    mkdirSync(minimumWidthArtifactDirectory, { recursive: true });
+    writeFileSync(path.join(minimumWidthArtifactDirectory, 'boleto-minimum-width.pdf'), pdf);
+    writeFileSync(
+      path.join(minimumWidthArtifactDirectory, 'boleto-minimum-width-page-01.png'),
+      preview,
+    );
+    const minimumWidthManifestText = `${JSON.stringify(
+      {
+        scenario: 'boleto-minimum-width',
+        generatedBy: '@pdfweave/generator boleto integration test',
+        classification: 'standards-aligned synthetic test specimen',
+        disclaimer: 'AMOSTRA - NAO PAGAVEL. Not bank-issued, certified, or homologated.',
+        pageCount: 1,
+        pageSizeMm: { width: BOLETO_FICHA_MIN_WIDTH_MM, height: PAGE_HEIGHT_MM },
+        paymentIdentifierValuesIncludedInManifest: false,
+        rasterValidation: {
+          dpi: SCAN_DPI,
+          barcodeDecoded: barcodeValidation.value === minimumWidthData.barcode,
+          digitableLineInkBounds: digitableLineBounds,
+        },
+        output: {
+          pdfBytes: pdf.byteLength,
+          pdfSha256: createHash('sha256').update(pdf).digest('hex'),
+          pngSha256: createHash('sha256').update(preview).digest('hex'),
+        },
+      },
+      null,
+      2,
+    )}\n`;
+    expect(minimumWidthManifestText).not.toContain(minimumWidthData.barcode);
+    expect(minimumWidthManifestText).not.toContain(formatDigitableLine(minimumWidthData.barcode));
+    if (!minimumWidthData.pix) throw new Error('Expected a minimum-width Pix test payload');
+    expect(minimumWidthManifestText).not.toContain(minimumWidthData.pix.emvPayload);
+    writeFileSync(
+      path.join(minimumWidthArtifactDirectory, 'manifest.json'),
+      minimumWidthManifestText,
+    );
   });
 
   test('stamps an opaque boleto onto an asymmetric CropBox base PDF', async () => {
@@ -797,7 +1032,7 @@ describe('boleto book generator evidence', () => {
       cropBoxSchema.height,
     );
     const barcodeDecode = tryDecodeItfRaster(barcodeScan, SCAN_DPI);
-    expect(barcodeDecode).toBeUndefined();
+    expect(barcodeDecode?.value).toBe(boletoData.barcode);
     await expect(preview).toMatchImage(
       getImageSnapshotOptions('boleto-asymmetric-cropbox-base-page-01'),
     );
@@ -812,7 +1047,7 @@ describe('boleto book generator evidence', () => {
     const cropBoxManifest = {
       scenario: 'boleto-asymmetric-cropbox-base',
       generatedBy: '@pdfweave/generator boleto integration test',
-      classification: 'specification-validated synthetic test fixture',
+      classification: 'standards-aligned synthetic test specimen',
       disclaimer: 'AMOSTRA - NAO PAGAVEL. Not bank-issued, payable, certified, or homologated.',
       sourcePageBoxesPt: {
         mediaBox: patternedBase.mediaBox,
@@ -839,8 +1074,9 @@ describe('boleto book generator evidence', () => {
       },
       paymentIdentifierPolicy: {
         registrationStatus: 'test',
-        barcodeRendered: false,
-        digitableLineRendered: false,
+        testPaymentIdentifiers: 'render',
+        barcodeRendered: true,
+        digitableLineRendered: true,
         identifierValuesIncludedInManifest: false,
       },
       output: {
@@ -854,6 +1090,8 @@ describe('boleto book generator evidence', () => {
     expect(cropBoxManifestText).not.toContain(boletoData.barcode);
     expect(cropBoxManifestText).not.toContain(deriveDigitableLine(boletoData.barcode));
     expect(cropBoxManifestText).not.toContain(formatDigitableLine(boletoData.barcode));
+    if (!boletoData.pix) throw new Error('Expected a Pix payload for the CropBox boleto');
+    expect(cropBoxManifestText).not.toContain(boletoData.pix.emvPayload);
     writeFileSync(path.join(cropBoxArtifactDirectory, 'manifest.json'), cropBoxManifestText);
   });
 
@@ -926,16 +1164,22 @@ describe('boleto book generator evidence', () => {
       const manifest = {
         scenario: '100-boleto-records',
         generatedBy: '@pdfweave/generator boleto integration test',
-        classification: 'specification-validated synthetic test fixture',
+        classification: 'standards-aligned synthetic test specimen',
         disclaimer: 'AMOSTRA - NAO PAGAVEL. Not bank-issued, payable, certified, or homologated.',
         pageCount: outputDocument.getPageCount(),
         distinctInputBarcodeCount,
         validatedInputBarcodeCount: validatedInputBarcodes.length,
         paymentIdentifierPolicy: {
           registrationStatus: 'test',
-          barcodeRendered: false,
-          digitableLineRendered: false,
+          testPaymentIdentifiers: 'render',
+          barcodeRendered: true,
+          digitableLineRendered: true,
           identifierValuesIncludedInManifest: false,
+        },
+        pixQrPolicy: {
+          placement: 'instructions-right',
+          renderedCount: inputs.filter(({ boleto: item }) => item.pix !== undefined).length,
+          payloadValuesIncludedInManifest: false,
         },
         representativeRecords: REPRESENTATIVE_PAGE_INDEXES.map((index) => ({
           page: index + 1,
@@ -966,6 +1210,9 @@ describe('boleto book generator evidence', () => {
         expect(manifestText).not.toContain(barcode);
         expect(manifestText).not.toContain(deriveDigitableLine(barcode));
         expect(manifestText).not.toContain(formatDigitableLine(barcode));
+      }
+      for (const { boleto: item } of inputs) {
+        if (item.pix) expect(manifestText).not.toContain(item.pix.emvPayload);
       }
       writeFileSync(path.join(batchArtifactDirectory, 'manifest.json'), manifestText);
     } finally {

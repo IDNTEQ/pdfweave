@@ -12,7 +12,11 @@ Add a first-class `boleto` schema for the generic Brazilian boleto de
 cobranca `ficha de compensacao`. The schema renders the generic FEBRABAN field
 topology and labels from strictly validated structured data. Registered output
 also renders the 47-digit `linha digitavel` and 44-digit Interleaved 2 of 5
-barcode; test output deliberately redacts both payable identifiers.
+barcode. Test output deliberately redacts both payable identifiers by default,
+or renders them under an explicit qualification policy while retaining its
+non-payable watermark. An optional complete Pix BR Code payload can be
+validated and rendered in the instructions area when the issuer profile
+permits that placement.
 
 The barcode is the canonical payment identifier, but it is not a complete
 boleto record. PDFweave derives the `linha digitavel` from it and cross-checks
@@ -35,14 +39,19 @@ The public contract has five parts:
    derives the 47-digit line and rejects a supplied line that disagrees.
 3. The component enforces the generic physical layout and barcode geometry.
    Rotation and transparency are rejected because they can impair processing.
-4. `registrationStatus` is explicit. `test` output omits the barcode and line,
-   replaces them with digit-free redaction labels, and carries a visible
-   `AMOSTRA - NÃO PAGÁVEL` watermark. `registered` means that the caller
-   asserts the data came from its bank/provider registration workflow; it is
-   not independently verified by PDFweave.
+4. `registrationStatus` is explicit. `registered` always renders its payment
+   identifiers. `test` defaults to digit-free redaction labels but may set
+   `testPaymentIdentifiers: 'render'` for inspectable evidence; every test
+   carries a visible `AMOSTRA - NÃO PAGÁVEL` watermark. `registered` means that
+   the caller asserts the data came from its bank/provider registration
+   workflow; it is not independently verified by PDFweave.
 5. The plugin is output-only. Designer/Form do not expose editors for legal or
    payment subfields; the caller supplies a complete bound object from its own
    validated workflow.
+6. Optional Pix support accepts only a complete bank/PSP-issued BR Code payload,
+   validates its supported EMV fields and checksum, and renders the exact value
+   at an explicit issuer-dependent placement. It does not generate or register
+   a Pix charge.
 
 ## Why the barcode is not sufficient input
 
@@ -78,6 +87,10 @@ Phase 1 includes:
 - validation and conversion of 44-digit barcodes and 47-digit lines;
 - the February 2025 due-factor reset and issuer-supplied factor `0000`;
 - optional static PNG/JPEG institution logos embedded as data URIs;
+- an optional complete Pix Copia e Cola / BR Code payload in the explicit
+  `instructions-right` placement;
+- fixed independent instruction lanes whose wrapping or shrink-to-fit does not
+  move later logical instruction lines;
 - PDF and browser rendering from the same layout model;
 - an explicit non-payable test mode.
 
@@ -85,7 +98,9 @@ Phase 1 excludes:
 
 - 48-digit arrecadacao/convenio codes, which use a different layout and check
   digit system;
-- Pix hybrid boletos and Pix Copy and Paste/EMV payload generation;
+- Pix payload construction from a key or URL, charge registration, dynamic-URL
+  liveness checks, coordinated boleto/Pix lifecycle, and issuer-independent QR
+  placement;
 - boleto-proposta and its consent and disclosure requirements;
 - institution code `988`/ISPB-based arrangements;
 - inference of any bank-specific `campo livre`;
@@ -123,6 +138,7 @@ type BoletoBaseData = {
   version: 1;
   kind: 'cobranca';
   registrationStatus: 'registered' | 'test';
+  testPaymentIdentifiers?: 'redact' | 'render';
   institution: {
     name: string;
     code: string;
@@ -149,6 +165,10 @@ type BoletoBaseData = {
   currencyQuantity?: string;
   currencyUnitValueCents?: number;
   instructions?: string[];
+  pix?: {
+    emvPayload: string;
+    placement: 'instructions-right';
+  };
 };
 ```
 
@@ -170,6 +190,24 @@ invent, normalize, or interpret that value.
 A bank adapter may build the field only from that institution's current,
 versioned manual and agreement data. The resulting barcode is still subject
 to registration and homologation with that institution.
+
+## Pix payload ownership
+
+`pix.emvPayload` is the complete Pix Copia e Cola / BR Code returned by the
+issuing bank or PSP. PDFweave re-encodes that exact string as a QR Code after
+structural validation. It does not validate DICT key ownership or syntax, the
+dynamic URL contract or liveness, or provider authorization. A raw URL, Pix
+key, or partial merchant-account value is not valid input: PDFweave does not
+invent the remaining EMV fields or register a charge. A static amount tag `54`,
+when present, must equal the boleto's `documentValueCents` exactly. A dynamic
+payload's root amount is ignored because the Pix manual makes the URL response
+authoritative.
+
+The only current placement literal, `instructions-right`, is deliberately
+explicit because issuer manuals disagree. Its presence in the generic schema
+means that PDFweave can render that profile, not that every institution permits
+it. The integrating application must select it only after issuer documentation
+and homologation establish that placement.
 
 ## Validation contract
 
@@ -195,6 +233,19 @@ checks:
 - exact fixed-amount reconciliation using `charged = document - discount +
 interest`, with a charged amount required whenever an adjustment is present;
 - rejection of adjustment properties for variable-amount records;
+- test identifier policy, including rejection on registered records and an
+  explicit `render` requirement when a test record carries a Pix payload;
+- a complete UTF-8 Pix EMV TLV payload of at most 499 Unicode characters as a
+  defensive parser ceiling, unique
+  root/nested tags, final CRC16 tag `63`, PFI `01`, one Pix merchant account,
+  MCC, BRL currency `986`, country `BR`, merchant name/city, additional-data
+  reference label, and merchant-account GUI `br.gov.bcb.pix`;
+- a mutually exclusive static Pix key or dynamic URL and, when supplied, a
+  compatible point-of-initiation method;
+- character-counted TLV lengths with the CRC calculated over the exact UTF-8
+  payload bytes;
+- exact equality between static Pix transaction amount tag `54`, when present,
+  and `documentValueCents`; dynamic root amounts are ignored;
 - the known institution display suffixes `001-9`, `104-0`, `341-7`, and
   `748-X`, while leaving other syntactically valid COMPE suffixes to the
   provider;
@@ -274,16 +325,44 @@ fixed barcode measurements:
 - vertical center 12 mm above the ficha bottom edge.
 
 The header separates the institution identity, institution code plus digit,
-and formatted line. Explicit shared vector paths give the institution code an
-exact 5 mm outer ink height with 1.2 mm strokes. FEBRABAN permits a 3.5-4.5 mm
-line character height; PDFweave deterministically uses 4 mm with 0.3 mm
-strokes. The line's outer ink begins at the absolute 50 mm ficha coordinate,
-1 mm inside its cell. PDFweave also uses 0.3 mm field-grid rules as a stable
-rendering choice. Individual field sizes and this uniform grid stroke are not
-claimed as separately mandated FEBRABAN dimensions. The 1.2 mm requirement
-applies to the institution-code glyph strokes, not to a header border.
-The mechanical-authentication caption also uses the shared vector face at the
-2 mm maximum character height and 0.3 mm strokes.
+and formatted line. The institution code, line, and mechanical-authentication
+caption are ordinary PDF/browser text primitives rendered through the shared
+text plugin and font resources. No bitmap image or custom single-stroke
+alphabet is used.
+
+The generic source constrains these fields' presence, placement, legibility,
+and physical character envelope. Annex V sections 2.2.1(a), 2.2.1(g), and
+2.3.5 state 5 mm characters with 1.2 mm strokes for the institution code and
+digit, 3.5-4.5 mm characters with 0.3 mm strokes for the linha digitável, and
+at most 2 mm characters with 0.3 mm strokes for the authentication label.
+Annex III supplies the referenced boleto model. These are final printed-output
+targets; they do not require a bespoke stroke font or conversion of normal text
+to outlines. PDFweave uses nominal bold 20 pt text, bounded to 18 pt, for the
+institution code, bold 14 pt text for the formatted line, and 6.5 pt text for
+the authentication caption. Narrow fichas horizontally scale the formatted-line
+text without reducing its vertical font size. Automated 300 DPI qualification currently measures
+the institution-code raster ink envelope at about 5.17 mm; complete physical
+measurement remains an issuer-homologation responsibility. Its 0.3 mm
+field-grid rules and individual
+cell sizes are deterministic implementation choices, not claims of separately
+mandated FEBRABAN dimensions.
+
+When `pix` is present, a fixed 20.7 x 20.7 mm EC-M QR region is reserved on the
+right of the instructions block. The QR includes at least four quiet modules
+per side. Render preflight measures the actual encoder matrix and rejects more
+than 49 modules per side (QR version 8), retaining at least four printer dots
+per module at 300 DPI. The exact BCB-published static and dynamic vectors are
+45 and 49 modules respectively and define the public boundary artifacts. The
+499-character parser ceiling is separate from this module-based render limit.
+
+Each of at most three `instructions` entries, up to 180 characters each,
+receives its own fixed-height lane in the remaining width. Wrapping and
+shrink-to-fit occur inside that lane, so overflow in line 1 never changes line
+2's vertical position. The maximum is render-tested at the minimum 170 mm
+ficha width with and without Pix. The placement is issuer-dependent: Santander
+v2.37 (February 2026) permits this arrangement for Boleto SX, while CAIXA
+SIGCB section 3.5 forbids its hybrid QR in the ficha and requires it in the
+payer receipt.
 
 These dimensions are physical print requirements. Production imposition must
 use scale 1, no rotation, and no clipping for boleto placements. A PDF viewer
@@ -305,13 +384,16 @@ reading, and payment processing. The generated PDF should be described as
 certified".
 
 `registrationStatus: 'test'` is for fixtures, previews, and qualification
-artifacts only. The renderer omits the barcode and digitable line, adds explicit
-redaction labels, and applies a visible watermark. None of those safeguards can
-be disabled through a schema option.
+artifacts only. It defaults to omitting the barcode and digitable line and
+adding explicit redaction labels. `testPaymentIdentifiers: 'render'` may expose
+the validated barcode, line, and optional Pix QR for inspectable qualification
+evidence. The visible watermark cannot be disabled through a schema option.
 
 Test input still passes the complete identifier and cross-field validation
-contract. The validated values are not copied into the test-mode layout, PDF,
-browser DOM, or qualification manifest.
+contract. Redacted values are not copied into the test-mode layout or browser
+DOM. Qualification manifests omit payment-identifier and Pix payload values
+even when the visible standards-aligned synthetic specimen renders and
+decode-validates them. The specimen is neither bank-issued nor homologated.
 
 ## Security and failure behavior
 
@@ -323,8 +405,8 @@ Rendering payment documents is a high-integrity operation:
 - unknown keys are rejected so misspelled payment fields cannot disappear;
 - a logo accepts only embedded static PNG/JPEG data, not animated PNGs or
   remote network URLs;
-- test output contains no scannable barcode or digitable line and is visibly
-  non-payable;
+- test output is always visibly non-payable; its default mode contains no
+  scannable identifiers, while explicit render mode exists only for evidence;
 - presentation data never overrides digits encoded in the canonical barcode.
 
 Applications remain responsible for protecting payer personal data in logs,
@@ -346,7 +428,13 @@ The regulatory and integration boundary is informed by:
 - [Itau CNAB/SISPAG technical manual](https://download.itau.com.br/bankline/SISPAG_CNAB.pdf);
 - [Receita Federal alphanumeric CNPJ check-digit manual](https://www.gov.br/receitafederal/pt-br/centrais-de-conteudo/publicacoes/documentos-tecnicos/cnpj/manual-dv-cnpj.pdf);
 - [Sicredi CNAB 240 manual](https://www.sicredi.com.br/media/produtos/filer_public/2025/10/10/manual_cnab_240_28_1.pdf), including the `748-X` display suffix;
-- [BCB Pix initiation standards manual](https://www.bcb.gov.br/content/estabilidadefinanceira/pix/Regulamento_Pix/II_ManualdePadroesparaIniciacaodoPix.pdf).
+- [BCB FAQ: paying a boleto using Pix](https://www.bcb.gov.br/meubc/faqs/p/pagamento-de-boleto-utilizando-o-pix);
+- [BCB BR Code Manual v2.0.1](https://www.bcb.gov.br/content/estabilidadefinanceira/spb_docs/ManualBRCode.pdf), for character-counted TLV structure, common mandatory fields, amount grammar, and published static/dynamic vectors;
+- [BCB Pix initiation standards manual](https://www.bcb.gov.br/content/estabilidadefinanceira/pix/Regulamento_Pix/II_ManualdePadroesparaIniciacaodoPix.pdf);
+- [DENSO WAVE QR module-size guidance](https://www.qrcode.com/en/howto/cell.html), for the four-printer-dots-per-module stable-operation target;
+- [DENSO WAVE QR symbol-area guidance](https://www.qrcode.com/en/howto/code.html), for the four-module quiet zone;
+- [Santander CNAB 353/400 v2.37, February 2026](https://cms.santander.com.br/sites/WPS/documentos/arq-layout-de-arquivos-download-cob400ptbr/26-02-25_131730_h7800_layout_de_cobran%C3%A7a_353_400_posi%C3%A7%C3%B5es_v._2.37_fev_2026_%28portugu%C3%AAs%29.pdf), pages 4-5, as an issuer profile that permits the instructions-area QR;
+- [CAIXA SIGCB specification, section 3.5](https://www.caixa.gov.br/Downloads/cobranca-caixa/ESP_COD_BARRAS_SIGCB_COBRANCA_CAIXA.pdf), as an issuer profile that forbids the QR in the ficha.
 
 Institution manuals are evidence that `campo livre` and agreement rules are
 bank-specific. They do not replace the generic FEBRABAN source or a current
@@ -354,19 +442,18 @@ contract with the institution.
 
 ## Roadmap
 
-1. Maintain the implemented shared PDF/browser renderer and redacted
-   qualification fixtures for generic ficha geometry, test safeguards, and
-   exact-size A4/A3 imposition.
-2. Extend the private registered-mode 300 DPI structural verifier to multiple
-   print resolutions, independent scanners, and measured hard-copy acceptance
-   without publishing scannable payment fixtures.
+1. Maintain the shared PDF/browser renderer and standards-aligned synthetic
+   qualification specimens for generic ficha geometry, test safeguards,
+   barcode/Pix decoding, and exact-size A4/A3 imposition.
+2. Extend the 300 DPI structural verifier to multiple print resolutions,
+   independent scanners, and measured hard-copy acceptance.
 3. Add versioned bank adapters only with official vectors and institution
    homologation fixtures; never add a generic free-field guesser.
 4. Add the payer receipt and a complete A4 composition as a separate layout
    composition over the validated ficha.
 5. Add a separate 48-digit arrecadacao component and contract.
-6. Add a Pix hybrid contract that validates the EMV payload against payment
-   fields and follows current BCB rules.
+6. Add versioned issuer profiles for Pix placement, charge registration, and
+   coordinated boleto/Pix lifecycle behavior.
 7. Add boleto-proposta only after its distinct regulatory and consent model is
    specified.
 8. Add registration/status provider interfaces without coupling the renderer

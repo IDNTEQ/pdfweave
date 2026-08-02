@@ -54,9 +54,17 @@
     {
       "id": "boleto-book",
       "title": "Seven-page boleto component book",
-      "description": "Seven distinct, structured cobranca test records rendered as 200 x 95 mm boleto pages. Test mode replaces the barcode and digitable line with explicit redaction labels, adds a non-payable watermark, and is not bank-issued, certified, or homologated.",
+      "description": "Seven distinct, structured cobranca test records rendered as complete 200 x 95 mm boleto specimens with normal typography, scan-validated ITF barcodes, scan-validated synthetic Pix QR codes, fixed instruction lanes, and a non-payable watermark. The records are not bank-issued, certified, or homologated.",
       "artifactDirectory": "packages/generator/test-artifacts/boleto-book",
       "pdf": "boleto-book.pdf",
+      "manifest": "manifest.json"
+    },
+    {
+      "id": "boleto-minimum-width",
+      "title": "170 mm minimum-width boleto",
+      "description": "One structured 170 x 95 mm boleto specimen whose normal-font linha digitavel is horizontally condensed without reducing its 14 pt vertical size, with barcode decoding and printed-height checks at 300 DPI.",
+      "artifactDirectory": "packages/generator/test-artifacts/boleto-book/minimum-width",
+      "pdf": "boleto-minimum-width.pdf",
       "manifest": "manifest.json"
     },
     {
@@ -70,7 +78,7 @@
     {
       "id": "a4-boleto-booklet",
       "title": "A4 boleto exact-size 2-up job",
-      "description": "Seven validated, payment-identifier-redacted 200 x 95 mm boleto test pages packed without scaling two-up across four A4 sheets, with one explicit empty slot on the final sheet.",
+      "description": "Seven validated, visibly watermarked 200 x 95 mm boleto test specimens packed without scaling two-up across four A4 sheets, with a Pix QR decoded after imposition and one explicit empty slot on the final sheet.",
       "artifactDirectory": "packages/imposition/test-artifacts/n-up/a4-boleto-booklet",
       "pdf": "a4-boleto-booklet.pdf",
       "manifest": "manifest.json"
@@ -78,7 +86,7 @@
     {
       "id": "a3-boleto-booklet",
       "title": "Landscape A3 boleto exact-size 4-up job",
-      "description": "Seven validated, payment-identifier-redacted 200 x 95 mm boleto test pages packed without scaling four-up across two landscape A3 sheets, with one explicit empty slot on the final sheet.",
+      "description": "Seven validated, visibly watermarked 200 x 95 mm boleto test specimens packed without scaling four-up across two landscape A3 sheets, with a Pix QR decoded after imposition and one explicit empty slot on the final sheet.",
       "artifactDirectory": "packages/imposition/test-artifacts/n-up/a3-boleto-booklet",
       "pdf": "a3-boleto-booklet.pdf",
       "manifest": "manifest.json"
@@ -118,7 +126,7 @@
     {
       "id": "100-boleto-records",
       "title": "100 boleto records with one shared logo",
-      "description": "One 100-page PDF receives 100 distinct validated boleto inputs while embedding the constant institution logo once. Every test-mode page redacts its barcode and digitable line and carries a non-payable watermark.",
+      "description": "One 100-page PDF receives 100 distinct validated boleto inputs while embedding the constant institution logo once. Every page renders distinct ITF and synthetic Pix identifiers under a non-payable watermark.",
       "artifactDirectory": "packages/generator/test-artifacts/resource-reuse/100-boleto-records",
       "pdf": "100-boleto-records.pdf",
       "manifest": "manifest.json"
@@ -160,7 +168,7 @@
       "definition": "Given explicit rows, columns, asymmetric margins, and gutters, every slot has deterministic top-to-bottom physical coordinates.",
       "assertions": [
         "Exact cell rectangles are asserted numerically.",
-        "Exact-size 2-up A4 and 4-up landscape A3 boleto jobs are rasterized and snapshot-tested.",
+        "Exact-size 2-up A4 and 4-up landscape A3 boleto jobs retain their visible synthetic ITF and Pix QR symbols, are rasterized and snapshot-tested, and recover the exact Pix payload from a 300 DPI imposed-sheet scan.",
         "Partial final sheets expose every empty slot."
       ],
       "tests": [
@@ -174,6 +182,10 @@
           "supportingDefinitions": [
             "createBoletoData",
             "createBoletoBook",
+            "buildSyntheticPixPayload",
+            "renderOutputPageAtScanDpi",
+            "getPlacedQrAcquisitionRegion",
+            "decodeFirstPlacedPixQr",
             "assertUnscaledBoletoPlacements"
           ]
         },
@@ -183,6 +195,10 @@
           "supportingDefinitions": [
             "createBoletoData",
             "createBoletoBook",
+            "buildSyntheticPixPayload",
+            "renderOutputPageAtScanDpi",
+            "getPlacedQrAcquisitionRegion",
+            "decodeFirstPlacedPixQr",
             "assertUnscaledBoletoPlacements"
           ]
         },
@@ -325,7 +341,7 @@
         "An asymmetric CropBox and nonzero MediaBox origin are preserved exactly in the output PDF.",
         "The authored boleto coordinates are translated into source-page space and the component remains wholly inside the visible CropBox.",
         "The boleto's opaque white backing covers the dark pattern only inside the ficha while sampled regions outside it remain unchanged.",
-        "The controlled 300 DPI raster verifier confirms that the test-mode barcode acquisition region is not decodable after the overlay is rendered."
+        "The controlled 300 DPI raster verifier recovers the exact synthetic test barcode after the overlay is rendered."
       ],
       "tests": [
         {
@@ -474,7 +490,7 @@
         "One source load and one embedPages call are asserted.",
         "Only two Form XObjects exist for twelve placements of two source pages.",
         "The generator emits 100 client statement pages with one image embed and one font embed, bounded PDF size, exact client coverage, and inspectable page renders.",
-        "A separate 100-page boleto batch validates all 100 distinct input barcodes in order, redacts payable identifiers from test-mode output and manifests, embeds its constant institution logo once, and remains below the configured size bound.",
+        "A separate 100-page boleto batch validates all 100 distinct input barcodes in order, explicitly renders synthetic identifiers under a non-payable watermark while omitting their values from the manifest, embeds its constant institution logo once, and remains below the configured size bound.",
         "Repeated logo preflight reuses a bounded exact-source fingerprint and structural decode instead of retaining the data URI in a Map key or hashing it for every record."
       ],
       "tests": [
@@ -612,29 +628,41 @@
           "supportingDefinitions": ["createValidBoleto", "payer"]
         }
       ],
-      "scenarios": ["boleto-book"]
+      "scenarios": ["boleto-book", "boleto-minimum-width"]
     },
     {
       "id": "boleto-component",
       "category": "Document rendering",
       "name": "Boleto ficha de compensacao component",
       "evidenceKind": "visual",
-      "definition": "One structured boleto value renders the supported ficha de compensacao layout. Registered mode renders the formatted line and specification-shaped ITF barcode; test mode omits both payable identifiers, replaces them with explicit redaction labels, and adds an unavoidable non-payable watermark.",
+      "definition": "One structured boleto value renders the supported ficha de compensacao layout. Registered mode always renders the formatted line and specification-shaped ITF barcode. Test mode safely redacts identifiers by default, while an explicit qualification-only render policy exposes synthetic identifiers under an unavoidable non-payable watermark.",
       "assertions": [
         "The component draws one exact 103 x 13 mm ITF barcode and produces a reloadable PDF.",
-        "Shared conventional vector paths render the institution code at 5 mm outer ink height with 1.2 mm strokes, the digitable line at PDFweave's deterministic 4 mm height with 0.3 mm strokes, and the mechanical-authentication caption at the 2 mm maximum with 0.3 mm strokes in both PDF and browser paths.",
+        "The institution code, digitable line, and mechanical-authentication caption use ordinary text primitives in both PDF and browser paths rather than a custom SVG stroke alphabet.",
         "PDFweave's deterministic 0.3 mm project grid keeps outer ink inside the ficha and merges shared internal cell edges; this regression choice is not presented as a separately mandated FEBRABAN dimension.",
         "Every text, image, line, and barcode primitive stays within the supported minimum and maximum ficha dimensions.",
         "The layout uses the three Annex III adjustment rows, a dedicated final-beneficiary line, and the accented Portuguese field labels.",
         "The plugin is output-only and requires a complete structured value supplied through binding.",
-        "The seven-page book contains distinct payer, document, and amount values while omitting barcode and digitable-line values from test-mode PDF output and manifests.",
-        "A private registered-mode 300 DPI verifier recovers the ITF payload and checks guards, run clusters, wide-to-narrow ratio, quiet zones, and digitable-line geometry without publishing a scannable payment artifact.",
-        "Synthetic qualification pages carry explicit identifier-redaction labels and an unavoidable non-payable watermark and are not represented as bank-certified output."
+        "The seven-page book contains distinct payer, document, amount, barcode, and Pix values while omitting the identifier values from manifests.",
+        "The public 300 DPI verifier recovers every exact ITF payload and checks guards, run clusters, wide-to-narrow ratio, quiet zones, and digitable-line geometry at both the 200 mm artifact width and the supported 170 mm minimum.",
+        "Synthetic qualification pages carry an unavoidable non-payable watermark and are described as standards-aligned test specimens, never as bank-certified output."
       ],
       "tests": [
         {
           "file": "packages/schemas/__tests__/boleto.plugin.test.ts",
           "title": "draws one exact 103 x 13 mm SVG barcode and saves a reloadable PDF"
+        },
+        {
+          "file": "packages/schemas/__tests__/boleto.plugin.test.ts",
+          "title": "preflights minimum-width line text with the configured font and fixed vertical size"
+        },
+        {
+          "file": "packages/schemas/__tests__/boleto.plugin.test.ts",
+          "title": "wraps minimum-width PDF line text in an anchored horizontal transform"
+        },
+        {
+          "file": "packages/schemas/__tests__/boleto.plugin.test.ts",
+          "title": "applies the preflighted line scale at minimum width in the browser"
         },
         {
           "file": "packages/schemas/__tests__/boleto.layout.test.ts",
@@ -652,12 +680,16 @@
         },
         {
           "file": "packages/schemas/__tests__/boleto.layout.test.ts",
-          "title": "uses the required shared vector metrics and alignment",
-          "supportingDefinitions": ["createData", "createSchema", "getOuterInkBounds"]
+          "title": "renders synthetic test identifiers only when explicitly requested"
         },
         {
           "file": "packages/schemas/__tests__/boleto.layout.test.ts",
-          "title": "draws an uppercase X institution suffix without relying on a font glyph",
+          "title": "renders institution, digitable-line, and authentication labels as normal text",
+          "supportingDefinitions": ["createData", "createSchema"]
+        },
+        {
+          "file": "packages/schemas/__tests__/boleto.layout.test.ts",
+          "title": "renders an uppercase X institution suffix as text",
           "supportingDefinitions": ["createData", "createSchema"]
         },
         {
@@ -676,7 +708,7 @@
         },
         {
           "file": "packages/generator/__tests__/boleto.e2e.test.ts",
-          "title": "renders seven distinct specification-validated test boletos as inspectable artifacts",
+          "title": "renders seven distinct standards-aligned test boletos as inspectable artifacts",
           "supportingDefinitions": [
             "PAGE_WIDTH_MM",
             "PAGE_HEIGHT_MM",
@@ -698,7 +730,7 @@
         },
         {
           "file": "packages/generator/__tests__/boleto.e2e.test.ts",
-          "title": "renders registered barcode and digitable-line mechanics in memory",
+          "title": "retains payment mechanics and target line height at 170 mm minimum width",
           "supportingDefinitions": [
             "SCAN_DPI",
             "ITF_PATTERNS",
@@ -707,7 +739,6 @@
             "decodeItfRaster",
             "measureDarkRasterBounds",
             "boletoSchema",
-            "template",
             "buildBoletoData"
           ]
         },
@@ -715,6 +746,117 @@
           "file": "packages/generator/__tests__/boleto.e2e.test.ts",
           "title": "uses the public default schema as an input-bound required field",
           "supportingDefinitions": ["boletoSchema", "template"]
+        }
+      ],
+      "scenarios": ["boleto-book", "boleto-minimum-width"]
+    },
+    {
+      "id": "boleto-pix-instructions",
+      "category": "Document rendering",
+      "name": "Validated Pix QR and fixed instruction lanes",
+      "evidenceKind": "visual",
+      "definition": "An issuer-supplied complete Pix BR Code payload can be placed explicitly at the right of the beneficiary-instructions block. Up to three 180-character instructions retain independent vertical lanes, so wrapping or shrinking one logical line never moves later lines.",
+      "assertions": [
+        "The Pix parser validates character-counted EMV TLV structure, a UTF-8 CRC16-CCITT-FALSE checksum, payload format 01, exactly one br.gov.bcb.pix merchant account, MCC, BRL currency 986, country BR, merchant name/city, and the additional-data reference label.",
+        "Static key and dynamic URL merchant data are mutually exclusive; an optional point-of-initiation method must agree with that classification.",
+        "The exact static and dynamic example payloads published by BCB parse with their documented CRCs and classifications.",
+        "A static Pix amount must exactly match documentValueCents; a dynamic root amount is ignored because the URL response is authoritative.",
+        "PDF and browser paths render a 20.7 mm EC-M QR from the exact structurally validated payload and measure at least four quiet modules on every side of the emitted SVG path.",
+        "Module-count preflight accepts at most a 49 x 49 version-8 matrix, preserving at least four printer dots per module at 300 DPI; denser payloads fail before PDF drawing.",
+        "The exact BCB-published static and dynamic vectors measure 45 and 49 modules, and the 300 DPI artifact decoder recovers every exact synthetic payload from the published PDF pages.",
+        "Three unbroken 180-character instructions preflight and render at the minimum 170 mm width, with and without Pix; a fourth lane or 181st character is rejected.",
+        "Placement is explicit and remains subject to the issuing bank's profile and homologation; the component does not accept an arbitrary image, raw Pix key, or naked dynamic URL as a compliant Pix QR."
+      ],
+      "tests": [
+        {
+          "file": "packages/schemas/__tests__/boleto.pix.test.ts",
+          "title": "parses the BCB-published $name BR Code vector"
+        },
+        {
+          "file": "packages/schemas/__tests__/boleto.pix.test.ts",
+          "title": "keeps both BCB-published vectors within the fixed print-density envelope"
+        },
+        {
+          "file": "packages/schemas/__tests__/boleto.pix.test.ts",
+          "title": "separates the parser safety ceiling from QR print-density inspection"
+        },
+        {
+          "file": "packages/schemas/__tests__/boleto.pix.test.ts",
+          "title": "parses a deterministic dynamic payload without inventing an amount"
+        },
+        {
+          "file": "packages/schemas/__tests__/boleto.pix.test.ts",
+          "title": "rejects a payload whose content changed without a matching CRC"
+        },
+        {
+          "file": "packages/schemas/__tests__/boleto.pix.test.ts",
+          "title": "uses Unicode character lengths while calculating CRC over UTF-8 bytes"
+        },
+        {
+          "file": "packages/schemas/__tests__/boleto.pix.test.ts",
+          "title": "requires reference label tag 05 inside additional data tag 62"
+        },
+        {
+          "file": "packages/schemas/__tests__/boleto.pix.test.ts",
+          "title": "rejects a payload without the required $name contract"
+        },
+        {
+          "file": "packages/schemas/__tests__/boleto.pix.test.ts",
+          "title": "rejects merchant data containing $name"
+        },
+        {
+          "file": "packages/schemas/__tests__/boleto.pix.test.ts",
+          "title": "requires exactly one Pix merchant account information field"
+        },
+        {
+          "file": "packages/schemas/__tests__/boleto.pix.test.ts",
+          "title": "rejects point of initiation method inconsistent with a $name payload"
+        },
+        {
+          "file": "packages/schemas/__tests__/boleto.pix.test.ts",
+          "title": "requires the complete root $name field"
+        },
+        {
+          "file": "packages/schemas/__tests__/boleto.validation.test.ts",
+          "title": "accepts validated Pix payloads and reconciles an encoded amount",
+          "supportingDefinitions": ["createValidBoleto"]
+        },
+        {
+          "file": "packages/schemas/__tests__/boleto.validation.test.ts",
+          "title": "rejects free text that exceeds conservative rendering limits",
+          "supportingDefinitions": ["createValidBoleto"]
+        },
+        {
+          "file": "packages/schemas/__tests__/boleto.layout.test.ts",
+          "title": "bounds maximum-length instruction lanes at minimum width with and without Pix",
+          "supportingDefinitions": ["createData", "createSchema"]
+        },
+        {
+          "file": "packages/schemas/__tests__/boleto.plugin.test.ts",
+          "title": "renders a validated Pix payload with four quiet modules in one fixed-size QR code"
+        },
+        {
+          "file": "packages/schemas/__tests__/boleto.plugin.test.ts",
+          "title": "rejects an over-dense Pix QR before drawing PDF content"
+        },
+        {
+          "file": "packages/schemas/__tests__/boleto.plugin.test.ts",
+          "title": "preflights three maximum-length unbroken instruction lanes at minimum width %s"
+        },
+        {
+          "file": "packages/schemas/__tests__/boleto.plugin.test.ts",
+          "title": "renders a validated Pix QR beside fixed instruction lanes in the browser"
+        },
+        {
+          "file": "packages/generator/__tests__/boleto.e2e.test.ts",
+          "title": "renders seven distinct standards-aligned test boletos as inspectable artifacts",
+          "supportingDefinitions": [
+            "SCAN_DPI",
+            "BCB_PUBLISHED_DYNAMIC_PIX_PAYLOAD",
+            "buildSyntheticPixPayload",
+            "decodePixQrRaster",
+            "buildBoletoData"
+          ]
         }
       ],
       "scenarios": ["boleto-book"]
@@ -852,6 +994,7 @@
         "Every placement remains 200 x 95 mm with scale 1 and rotation 0.",
         "A4 output contains four sheets at capacity two; A3 output contains two sheets at capacity four.",
         "Source order is preserved, content stays within each slot, and the final unused slot is explicit.",
+        "Every public source boleto retains its distinct synthetic Pix QR beside the fixed instruction lanes after exact-size imposition.",
         "A private registered-mode check imposes one boleto at scale 1, rasterizes the A4 sheet at 300 DPI, and recovers the exact 44-digit ITF payload without publishing that payable fixture.",
         "Every physical sheet is rasterized and snapshot-tested."
       ],
@@ -872,6 +1015,7 @@
           "supportingDefinitions": [
             "createBoletoData",
             "createBoletoBook",
+            "buildSyntheticPixPayload",
             "assertUnscaledBoletoPlacements"
           ]
         },
@@ -881,6 +1025,7 @@
           "supportingDefinitions": [
             "createBoletoData",
             "createBoletoBook",
+            "buildSyntheticPixPayload",
             "assertUnscaledBoletoPlacements"
           ]
         }

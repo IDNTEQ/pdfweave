@@ -13,6 +13,8 @@ import {
   BOLETO_BARCODE_LEFT_MM,
   BOLETO_BARCODE_WIDTH_MM,
   BOLETO_GRID_STROKE_MM,
+  BOLETO_MECHANICAL_AUTHENTICATION_LABEL,
+  BOLETO_PIX_QR_SIZE_MM,
   buildBoletoLayout,
 } from '../src/boleto/layout.js';
 import {
@@ -22,20 +24,19 @@ import {
   BOLETO_LOGO_MAX_PIXELS,
   getBoletoLogoCacheKey,
   getBoletoLogoMemo,
+  preflightBoletoLayout,
   preflightBoletoLogo,
 } from '../src/boleto/renderPreflight.js';
+import { BOLETO_FICHA_MIN_WIDTH_MM } from '../src/boleto/schema.js';
 import { formatDigitableLine } from '../src/boleto/digits.js';
 import type { BoletoSchema } from '../src/boleto/schema.js';
 import type { BoletoData } from '../src/boleto/types.js';
-import {
-  BOLETO_DIGITABLE_LINE_STROKE_MM,
-  BOLETO_INSTITUTION_CODE_STROKE_MM,
-  BOLETO_MECHANICAL_AUTHENTICATION_GLYPH_HEIGHT_MM,
-  BOLETO_MECHANICAL_AUTHENTICATION_LABEL,
-  BOLETO_MECHANICAL_AUTHENTICATION_STROKE_MM,
-} from '../src/boleto/vectorDisplay.js';
 
 const ITAU_BARCODE = '34196166700000123451101234567880057123457000';
+const VALID_PIX_PAYLOAD =
+  '00020126580014br.gov.bcb.pix0136123e4567-e12b-12d1-a456-4266554400005204000053039865802BR5913Fulano de Tal6008BRASILIA62070503***63041D3D';
+const OVER_DENSE_VALID_PIX_PAYLOAD =
+  '00020101021226990014br.gov.bcb.pix2577pix.example.test/cobv/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa5204000053039865502015802BR5925aaaaaaaaaaaaaaaaaaaaaaaaa6015aaaaaaaaaaaaaaa61080131010062290525aaaaaaaaaaaaaaaaaaaaaaaaa6304CC48';
 const ONE_PIXEL_PNG =
   'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
 const TWO_FRAME_APNG =
@@ -70,6 +71,43 @@ const toPngHeaderDataUri = (width: number, height: number): string => {
   view.setUint32(16, width);
   view.setUint32(20, height);
   return `data:image/png;base64,${Buffer.from(bytes).toString('base64')}`;
+};
+
+const measureQrQuietZoneModules = (svgSource: string) => {
+  const svgDocument = new DOMParser().parseFromString(svgSource, 'image/svg+xml');
+  const svg = svgDocument.documentElement;
+  const viewBox = (svg.getAttribute('viewBox') ?? '').split(/\s+/).map(Number);
+  const pathData = svg.querySelector('path')?.getAttribute('d') ?? '';
+  const coordinates = pathData
+    .split(/[MLZ]/)
+    .filter(Boolean)
+    .map((command) => {
+      const [x, y] = command.trim().split(' ');
+      return { x: Number(x), y: Number(y) };
+    });
+  const [viewX, viewY, viewWidth, viewHeight] = viewBox;
+  const finderStart = coordinates.at(0);
+  const finderEnd = coordinates.at(1);
+  if (
+    viewBox.length !== 4 ||
+    [viewX, viewY, viewWidth, viewHeight].some((value) => !Number.isFinite(value)) ||
+    !finderStart ||
+    !finderEnd ||
+    finderStart.y !== finderEnd.y
+  ) {
+    throw new Error('Expected a measurable bwip-js QR SVG');
+  }
+
+  // bwip-js begins the QR path with the seven-module outer edge of the lower-left finder.
+  const moduleSize = Math.abs(finderEnd.x - finderStart.x) / 7;
+  const xValues = coordinates.map(({ x }) => x);
+  const yValues = coordinates.map(({ y }) => y);
+  return {
+    left: (Math.min(...xValues) - viewX) / moduleSize,
+    right: (viewX + viewWidth - Math.max(...xValues)) / moduleSize,
+    top: (Math.min(...yValues) - viewY) / moduleSize,
+    bottom: (viewY + viewHeight - Math.max(...yValues)) / moduleSize,
+  };
 };
 
 const createDeferred = <T>() => {
@@ -133,6 +171,77 @@ const schema: BoletoSchema = {
 };
 
 describe('boleto PDF plugin', () => {
+  it('preflights minimum-width line text with the configured font and fixed vertical size', async () => {
+    const minimumSchema = { ...schema, width: BOLETO_FICHA_MIN_WIDTH_MM };
+    const data = withData({ registrationStatus: 'registered' });
+    const layout = buildBoletoLayout(data, minimumSchema, formatDigitableLine(data.barcode));
+    const line = layout.texts.find(({ id }) => id === 'digitable-line');
+    if (!line) throw new Error('Expected a minimum-width digitable line');
+
+    const resolved = await preflightBoletoLayout({
+      layout,
+      font: getDefaultFont(),
+      _cache: new Map(),
+    });
+    const lineSchema = resolved.get('digitable-line');
+
+    expect(line.horizontalScale).toBeLessThan(1);
+    expect(lineSchema).toMatchObject({ fontName: 'Roboto', fontSize: 14 });
+    expect(lineSchema?.width).toBeCloseTo(line.width / (line.horizontalScale ?? 1), 10);
+    expect(resolved.get('mechanical-authentication')?.fontName).toBe('Roboto');
+  });
+
+  it('wraps minimum-width PDF line text in an anchored horizontal transform', async () => {
+    const minimumSchema = { ...schema, width: BOLETO_FICHA_MIN_WIDTH_MM };
+    const data = withData({ registrationStatus: 'registered' });
+    const layout = buildBoletoLayout(data, minimumSchema, formatDigitableLine(data.barcode));
+    const line = layout.texts.find(({ id }) => id === 'digitable-line');
+    if (!line?.horizontalScale) throw new Error('Expected a scaled minimum-width digitable line');
+    const pdfDoc = await PDFDocument.create();
+    pdfDoc.registerFontkit(fontkit);
+    const page = pdfDoc.addPage([mm2pt(210), mm2pt(297)]);
+    const pushOperators = vi.spyOn(page, 'pushOperators');
+
+    try {
+      await boleto.pdf({
+        value: JSON.stringify(data),
+        schema: minimumSchema,
+        basePdf: BLANK_PDF,
+        pdfLib,
+        pdfDoc,
+        page,
+        options: { font: getDefaultFont() },
+        _cache: new Map(),
+      } as PDFRenderProps<BoletoSchema>);
+
+      const operatorCalls = pushOperators.mock.calls.map((operators) =>
+        operators.map((operator) => operator.toString()),
+      );
+      const transformCallIndex = operatorCalls.findIndex(
+        (operators) => operators[0] === 'q' && operators[1]?.endsWith(' cm'),
+      );
+      expect(transformCallIndex).toBeGreaterThanOrEqual(0);
+      const transform = operatorCalls[transformCallIndex]?.[1]?.split(' ').map(Number);
+      expect(transform).toBeDefined();
+      if (!transform) throw new Error('Expected a PDF transformation matrix');
+      const [scaleX, skewX, skewY, scaleY, translateX, translateY] = transform;
+      const anchorX = mm2pt(minimumSchema.position.x + line.x);
+      expect(scaleX).toBeCloseTo(line.horizontalScale, 8);
+      expect(skewX).toBe(0);
+      expect(skewY).toBe(0);
+      expect(scaleY).toBe(1);
+      expect(translateX).toBeCloseTo(anchorX * (1 - line.horizontalScale), 8);
+      expect(translateY).toBe(0);
+      const restoreCallIndex = operatorCalls.findIndex(
+        (operators, index) =>
+          index > transformCallIndex && operators.length === 1 && operators[0] === 'Q',
+      );
+      expect(restoreCallIndex).toBeGreaterThan(transformCallIndex);
+    } finally {
+      pushOperators.mockRestore();
+    }
+  });
+
   it('draws one exact 103 x 13 mm SVG barcode and saves a reloadable PDF', async () => {
     const pdfDoc = await PDFDocument.create();
     pdfDoc.registerFontkit(fontkit);
@@ -173,49 +282,21 @@ describe('boleto PDF plugin', () => {
     expect(svgCalls[0]?.options.y).toBeCloseTo(page.getHeight() - mm2pt(barcodeTop), 5);
 
     const layout = buildBoletoLayout(data, schema, formatDigitableLine(data.barcode));
-    const vectorSegmentCount = layout.vectorDisplays.reduce(
-      (count, display) => count + display.segments.length,
-      0,
-    );
-    const institutionSegmentCount =
-      layout.vectorDisplays.find(({ id }) => id === 'institution-code')?.segments.length ?? 0;
-    const digitableLineSegmentCount =
-      layout.vectorDisplays.find(({ id }) => id === 'digitable-line')?.segments.length ?? 0;
-    const mechanicalAuthenticationSegmentCount =
-      layout.vectorDisplays.find(({ id }) => id === 'mechanical-authentication')?.segments.length ??
-      0;
-    expect(drawLine).toHaveBeenCalledTimes(layout.lines.length + vectorSegmentCount);
-    const gridCalls = drawLine.mock.calls.slice(0, layout.lines.length);
+    expect(drawLine).toHaveBeenCalledTimes(layout.lines.length);
+    const gridCalls = drawLine.mock.calls;
     expect(gridCalls.every(([options]) => options.lineCap === pdfLib.LineCapStyle.Butt)).toBe(true);
     expect(gridCalls[0]?.[0].start.x).toBeCloseTo(mm2pt(schema.position.x), 5);
     expect(gridCalls[0]?.[0].start.y).toBeCloseTo(
       page.getHeight() - mm2pt(schema.position.y + BOLETO_GRID_STROKE_MM / 2),
       5,
     );
-    expect(
-      drawLine.mock.calls.filter(
-        ([options]) => options.thickness === mm2pt(BOLETO_INSTITUTION_CODE_STROKE_MM),
-      ),
-    ).toHaveLength(institutionSegmentCount);
-    expect(
-      drawLine.mock.calls
-        .filter(([options]) => options.thickness === mm2pt(BOLETO_INSTITUTION_CODE_STROKE_MM))
-        .every(([options]) => options.lineCap === pdfLib.LineCapStyle.Round),
-    ).toBe(true);
-    expect(
-      drawLine.mock.calls.filter(
-        ([options]) => options.thickness === mm2pt(BOLETO_DIGITABLE_LINE_STROKE_MM),
-      ),
-    ).toHaveLength(
-      layout.lines.length + digitableLineSegmentCount + mechanicalAuthenticationSegmentCount,
+    expect(layout.texts.find(({ id }) => id === 'institution-code')?.value).toBe('341-7');
+    expect(layout.texts.find(({ id }) => id === 'digitable-line')?.value).toBe(
+      formatDigitableLine(data.barcode),
     );
-    expect(
-      drawLine.mock.calls.filter(
-        ([options]) =>
-          options.thickness === mm2pt(BOLETO_MECHANICAL_AUTHENTICATION_STROKE_MM) &&
-          options.lineCap === pdfLib.LineCapStyle.Round,
-      ),
-    ).toHaveLength(digitableLineSegmentCount + mechanicalAuthenticationSegmentCount);
+    expect(layout.texts.find(({ id }) => id === 'mechanical-authentication')?.value).toBe(
+      BOLETO_MECHANICAL_AUTHENTICATION_LABEL,
+    );
 
     const bytes = await pdfDoc.save();
     expect(bytes.byteLength).toBeGreaterThan(1_000);
@@ -244,10 +325,108 @@ describe('boleto PDF plugin', () => {
 
     const layout = buildBoletoLayout(data, schema, formatDigitableLine(data.barcode));
     expect(layout.barcode).toBeUndefined();
-    expect(layout.vectorDisplays.find(({ id }) => id === 'digitable-line')).toBeUndefined();
+    expect(layout.texts.find(({ id }) => id === 'digitable-line')).toBeUndefined();
     expect(drawSvg).not.toHaveBeenCalled();
     expect((await PDFDocument.load(await pdfDoc.save())).getPageCount()).toBe(1);
   });
+
+  it('renders a validated Pix payload with four quiet modules in one fixed-size QR code', async () => {
+    const pdfDoc = await PDFDocument.create();
+    pdfDoc.registerFontkit(fontkit);
+    const page = pdfDoc.addPage([mm2pt(210), mm2pt(297)]);
+    const drawSvg = vi.spyOn(page, 'drawSvg');
+    const data = withData({
+      testPaymentIdentifiers: 'render',
+      pix: { emvPayload: VALID_PIX_PAYLOAD, placement: 'instructions-right' },
+    });
+
+    await boleto.pdf({
+      value: JSON.stringify(data),
+      schema,
+      basePdf: BLANK_PDF,
+      pdfLib,
+      pdfDoc,
+      page,
+      options: { font: getDefaultFont() },
+      _cache: new Map(),
+    } as PDFRenderProps<BoletoSchema>);
+
+    expect(drawSvg).toHaveBeenCalledTimes(2);
+    const qrCodeCall = drawSvg.mock.calls.find(
+      ([, options]) => options?.width === mm2pt(BOLETO_PIX_QR_SIZE_MM),
+    );
+    expect(qrCodeCall?.[1]).toMatchObject({
+      width: mm2pt(BOLETO_PIX_QR_SIZE_MM),
+      height: mm2pt(BOLETO_PIX_QR_SIZE_MM),
+    });
+    const quietZoneModules = measureQrQuietZoneModules(qrCodeCall?.[0] ?? '');
+    expect(Object.values(quietZoneModules).every((modules) => modules >= 4)).toBe(true);
+    expect((await PDFDocument.load(await pdfDoc.save())).getPageCount()).toBe(1);
+  });
+
+  it('rejects an over-dense Pix QR before drawing PDF content', async () => {
+    const pdfDoc = await PDFDocument.create();
+    pdfDoc.registerFontkit(fontkit);
+    const page = pdfDoc.addPage([mm2pt(210), mm2pt(297)]);
+    const drawRectangle = vi.spyOn(page, 'drawRectangle');
+    const data = withData({
+      testPaymentIdentifiers: 'render',
+      pix: { emvPayload: OVER_DENSE_VALID_PIX_PAYLOAD, placement: 'instructions-right' },
+    });
+
+    await expect(
+      boleto.pdf({
+        value: JSON.stringify(data),
+        schema,
+        basePdf: BLANK_PDF,
+        pdfLib,
+        pdfDoc,
+        page,
+        options: { font: getDefaultFont() },
+        _cache: new Map(),
+      } as PDFRenderProps<BoletoSchema>),
+    ).rejects.toThrow('Pix payload requires a 61 x 61 QR symbol');
+    expect(drawRectangle).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['without Pix', undefined],
+    ['with Pix', { emvPayload: VALID_PIX_PAYLOAD, placement: 'instructions-right' } as const],
+  ])(
+    'preflights three maximum-length unbroken instruction lanes at minimum width %s',
+    async (_case, pix) => {
+      const pdfDoc = await PDFDocument.create();
+      pdfDoc.registerFontkit(fontkit);
+      const page = pdfDoc.addPage([mm2pt(210), mm2pt(297)]);
+      const minimumSchema: BoletoSchema = {
+        ...schema,
+        width: 170,
+        height: 95,
+      };
+      const data = withData({
+        registrationStatus: 'registered',
+        instructions: Array.from(
+          { length: 3 },
+          (_, index) => `${String(index + 1)}${'W'.repeat(179)}`,
+        ),
+        pix,
+      });
+
+      await expect(
+        boleto.pdf({
+          value: JSON.stringify(data),
+          schema: minimumSchema,
+          basePdf: BLANK_PDF,
+          pdfLib,
+          pdfDoc,
+          page,
+          options: { font: getDefaultFont() },
+          _cache: new Map(),
+        } as PDFRenderProps<BoletoSchema>),
+      ).resolves.toBeUndefined();
+      expect((await pdfDoc.save()).byteLength).toBeGreaterThan(1000);
+    },
+  );
 
   it('fails closed before drawing anything when structured data is invalid', async () => {
     const pdfDoc = await PDFDocument.create();
@@ -826,12 +1005,13 @@ describe('boleto UI plugin', () => {
       mode?: UiMode;
       onChange?: OnChange;
       rootElement?: HTMLDivElement;
+      schema?: BoletoSchema;
     } = {},
   ): Promise<HTMLDivElement> => {
     const rootElement = options.rootElement ?? document.createElement('div');
     await boleto.ui({
       value,
-      schema,
+      schema: options.schema ?? schema,
       rootElement,
       mode: options.mode ?? 'viewer',
       onChange: options.onChange,
@@ -847,77 +1027,50 @@ describe('boleto UI plugin', () => {
     const formattedLine = formatDigitableLine(ITAU_BARCODE);
 
     expect(rootElement.querySelector('[data-boleto-error]')).toBeNull();
-    expect(rootElement.querySelectorAll('svg')).toHaveLength(2);
+    expect(rootElement.querySelectorAll('svg')).toHaveLength(0);
     expect(rootElement.textContent).toContain('AMOSTRA - NÃO PAGÁVEL');
     expect(rootElement.textContent).toContain('LINHA DIGITÁVEL SUPRIMIDA - AMOSTRA');
     expect(rootElement.textContent).toContain('CÓDIGO DE BARRAS SUPRIMIDO - AMOSTRA');
     expect(rootElement.textContent).toContain('Autenticação Mecânica');
     expect(rootElement.querySelector('[data-boleto-primitive="test-watermark"]')).not.toBeNull();
-    expect(rootElement.querySelector('[data-boleto-vector-display="digitable-line"]')).toBeNull();
+    expect(rootElement.querySelector('[data-boleto-primitive="digitable-line"]')).toBeNull();
     expect(rootElement.querySelector('[data-boleto-primitive="barcode"]')).toBeNull();
     const mechanicalAuthentication = rootElement.querySelector(
-      '[data-boleto-vector-display="mechanical-authentication"]',
+      '[data-boleto-primitive="mechanical-authentication"]',
     );
-    expect(mechanicalAuthentication?.getAttribute('data-boleto-vector-value')).toBe(
-      BOLETO_MECHANICAL_AUTHENTICATION_LABEL,
-    );
-    expect(mechanicalAuthentication?.getAttribute('data-glyph-height-mm')).toBe(
-      String(BOLETO_MECHANICAL_AUTHENTICATION_GLYPH_HEIGHT_MM),
-    );
-    expect(mechanicalAuthentication?.getAttribute('data-stroke-width-mm')).toBe(
-      String(BOLETO_MECHANICAL_AUTHENTICATION_STROKE_MM),
-    );
-    expect(mechanicalAuthentication?.querySelectorAll('line').length).toBeGreaterThan(0);
+    expect(mechanicalAuthentication?.textContent).toContain('Autenticação Mecânica');
     expect(rootElement.outerHTML).not.toContain(ITAU_BARCODE);
     expect(rootElement.outerHTML).not.toContain(formattedLine);
     expect(rootElement.outerHTML).not.toContain(formattedLine.replace(/\D/g, ''));
   });
 
-  it('renders registered payment identifiers with exact browser vector metrics', async () => {
+  it('renders registered payment identifiers as normal browser text', async () => {
     const rootElement = await render(
       JSON.stringify(withData({ registrationStatus: 'registered' })),
     );
 
     expect(rootElement.querySelector('[data-boleto-error]')).toBeNull();
-    expect(rootElement.querySelectorAll('svg')).toHaveLength(4);
+    expect(rootElement.querySelectorAll('svg')).toHaveLength(1);
     expect(rootElement.textContent).not.toContain('AMOSTRA - NÃO PAGÁVEL');
     expect(rootElement.querySelector('[data-boleto-primitive="test-watermark"]')).toBeNull();
     expect(rootElement.querySelector('[data-boleto-primitive="barcode"]')).not.toBeNull();
     expect(
       rootElement.querySelector('[data-boleto-primitive="final-beneficiary-label"]'),
     ).not.toBeNull();
-    const institutionCode = rootElement.querySelector(
-      '[data-boleto-vector-display="institution-code"]',
-    );
-    const digitableLine = rootElement.querySelector(
-      '[data-boleto-vector-display="digitable-line"]',
-    );
+    const institutionCode = rootElement.querySelector('[data-boleto-primitive="institution-code"]');
+    const digitableLine = rootElement.querySelector('[data-boleto-primitive="digitable-line"]');
     const mechanicalAuthentication = rootElement.querySelector(
-      '[data-boleto-vector-display="mechanical-authentication"]',
+      '[data-boleto-primitive="mechanical-authentication"]',
     );
-    expect(institutionCode?.getAttribute('data-glyph-height-mm')).toBe('5');
-    expect(institutionCode?.getAttribute('data-stroke-width-mm')).toBe('1.2');
-    expect(institutionCode?.querySelectorAll('line').length).toBeGreaterThan(0);
-    expect(institutionCode?.querySelector('line')?.getAttribute('stroke-linecap')).toBe('round');
-    expect(digitableLine?.getAttribute('data-glyph-height-mm')).toBe('4');
-    expect(digitableLine?.getAttribute('data-stroke-width-mm')).toBe('0.3');
-    expect(digitableLine?.getAttribute('data-boleto-vector-value')).toBe(
-      formatDigitableLine(ITAU_BARCODE),
+    expect(institutionCode?.textContent).toContain('341-7');
+    expect(digitableLine?.textContent).toContain(formatDigitableLine(ITAU_BARCODE));
+    expect(mechanicalAuthentication?.textContent).toContain('Autenticação Mecânica');
+    expect(digitableLine?.querySelector<HTMLElement>('div[id^="text-"]')?.style.fontFamily).toBe(
+      '"Roboto"',
     );
-    expect(digitableLine?.querySelectorAll('line').length).toBeGreaterThan(0);
-    expect(mechanicalAuthentication?.getAttribute('data-boleto-vector-value')).toBe(
-      BOLETO_MECHANICAL_AUTHENTICATION_LABEL,
-    );
-    expect(mechanicalAuthentication?.getAttribute('data-glyph-height-mm')).toBe(
-      String(BOLETO_MECHANICAL_AUTHENTICATION_GLYPH_HEIGHT_MM),
-    );
-    expect(mechanicalAuthentication?.getAttribute('data-stroke-width-mm')).toBe(
-      String(BOLETO_MECHANICAL_AUTHENTICATION_STROKE_MM),
-    );
-    expect(mechanicalAuthentication?.querySelectorAll('line').length).toBeGreaterThan(0);
-    expect(mechanicalAuthentication?.querySelector('line')?.getAttribute('stroke-linecap')).toBe(
-      'round',
-    );
+    expect(
+      mechanicalAuthentication?.querySelector<HTMLElement>('div[id^="text-"]')?.style.fontFamily,
+    ).toBe('"Roboto"');
     const mechanicalLeft = Number.parseFloat(
       (mechanicalAuthentication as HTMLElement | null)?.style.left ?? 'NaN',
     );
@@ -948,6 +1101,54 @@ describe('boleto UI plugin', () => {
     expect(leftGridLine?.style.top).toBe('0%');
     expect(leftGridLine?.style.width).toBe('0.3mm');
     expect(leftGridLine?.style.transform).toBe('translateX(-0.15mm)');
+  });
+
+  it('applies the preflighted line scale at minimum width in the browser', async () => {
+    const minimumSchema = { ...schema, width: BOLETO_FICHA_MIN_WIDTH_MM };
+    const rootElement = await render(
+      JSON.stringify(withData({ registrationStatus: 'registered' })),
+      { schema: minimumSchema },
+    );
+    const line = rootElement.querySelector('[data-boleto-primitive="digitable-line"]');
+    const scaledRoot = line?.querySelector<HTMLElement>('[data-boleto-horizontal-scale]');
+    const horizontalScale = Number(scaledRoot?.dataset.boletoHorizontalScale);
+
+    expect(rootElement.querySelector('[data-boleto-error]')).toBeNull();
+    expect(horizontalScale).toBeGreaterThan(0);
+    expect(horizontalScale).toBeLessThan(1);
+    expect(scaledRoot?.style.transform).toBe(`scaleX(${String(horizontalScale)})`);
+    expect(scaledRoot?.style.transformOrigin).toBe('left top');
+    expect(scaledRoot?.querySelector<HTMLElement>('div[id^="text-"]')?.style.fontFamily).toBe(
+      '"Roboto"',
+    );
+  });
+
+  it('renders a validated Pix QR beside fixed instruction lanes in the browser', async () => {
+    const rootElement = await render(
+      JSON.stringify(
+        withData({
+          testPaymentIdentifiers: 'render',
+          instructions: [
+            'Primeira instrucao longa que pode quebrar sem deslocar a segunda instrucao.',
+            'Segunda instrucao.',
+          ],
+          pix: { emvPayload: VALID_PIX_PAYLOAD, placement: 'instructions-right' },
+        }),
+      ),
+    );
+    const qrCode = rootElement.querySelector('[data-boleto-primitive="pix-qrcode"]');
+    const lanes = rootElement.querySelectorAll('[data-boleto-primitive^="instructions-value-"]');
+
+    expect(rootElement.querySelector('[data-boleto-error]')).toBeNull();
+    expect(qrCode).not.toBeNull();
+    const qrSvg = qrCode?.querySelector('svg');
+    expect(qrSvg).not.toBeNull();
+    expect(
+      Object.values(measureQrQuietZoneModules(qrSvg?.outerHTML ?? '')).every(
+        (modules) => modules >= 4,
+      ),
+    ).toBe(true);
+    expect(lanes).toHaveLength(2);
   });
 
   it('replaces invalid input with a stable error marker and no barcode', async () => {
@@ -1072,7 +1273,7 @@ describe('boleto UI plugin', () => {
 
       expect(rootElement.querySelector('button, input, select, textarea')).toBeNull();
       expect(onChange).not.toHaveBeenCalled();
-      expect(rootElement.querySelectorAll('svg')).toHaveLength(2);
+      expect(rootElement.querySelectorAll('svg')).toHaveLength(0);
     },
   );
 });
