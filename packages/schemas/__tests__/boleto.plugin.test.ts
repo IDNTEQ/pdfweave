@@ -72,6 +72,16 @@ const toPngHeaderDataUri = (width: number, height: number): string => {
   return `data:image/png;base64,${Buffer.from(bytes).toString('base64')}`;
 };
 
+const createDeferred = <T>() => {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, resolve, reject };
+};
+
 const createData = (): BoletoData => ({
   version: 1,
   kind: 'cobranca',
@@ -612,6 +622,65 @@ describe('boleto logo preflight cache', () => {
       expect(cacheKey.length).toBeLessThan(80);
       expect(cacheKey).not.toContain(ONE_PIXEL_PNG);
       expect(cache.has(cacheKey)).toBe(true);
+    } finally {
+      decode.mockRestore();
+    }
+  });
+
+  it('coalesces concurrent structural validation and clears the pending operation', async () => {
+    const cache = new Map<string | number, unknown>();
+    const decoded = await PngEmbedder.for(toUint8Array(ONE_PIXEL_PNG));
+    const deferred = createDeferred<typeof decoded>();
+    const decode = vi.spyOn(PngEmbedder, 'for').mockReturnValue(deferred.promise);
+    try {
+      const first = preflightBoletoLogo(ONE_PIXEL_PNG, cache);
+      const second = preflightBoletoLogo(ONE_PIXEL_PNG, cache);
+
+      expect(decode).toHaveBeenCalledTimes(1);
+      deferred.resolve(decoded);
+      await expect(Promise.all([first, second])).resolves.toEqual([
+        { kind: 'png', width: 1, height: 1 },
+        { kind: 'png', width: 1, height: 1 },
+      ]);
+
+      const memo = getBoletoLogoMemo(ONE_PIXEL_PNG, cache);
+      expect(memo.structural).toEqual({ kind: 'png', width: 1, height: 1 });
+      expect(memo.pendingStructural).toBeUndefined();
+      expect(memo.pendingStructuralToken).toBeUndefined();
+    } finally {
+      decode.mockRestore();
+    }
+  });
+
+  it('coalesces concurrent failures, clears them, and permits a retry', async () => {
+    const cache = new Map<string | number, unknown>();
+    const decoded = await PngEmbedder.for(toUint8Array(ONE_PIXEL_PNG));
+    const deferred = createDeferred<typeof decoded>();
+    const decode = vi.spyOn(PngEmbedder, 'for').mockReturnValue(deferred.promise);
+    try {
+      const first = preflightBoletoLogo(ONE_PIXEL_PNG, cache);
+      const second = preflightBoletoLogo(ONE_PIXEL_PNG, cache);
+      const results = Promise.allSettled([first, second]);
+
+      expect(decode).toHaveBeenCalledTimes(1);
+      deferred.reject(new Error('synthetic decode failure'));
+      await expect(results).resolves.toEqual([
+        expect.objectContaining({ status: 'rejected' }),
+        expect.objectContaining({ status: 'rejected' }),
+      ]);
+
+      const memo = getBoletoLogoMemo(ONE_PIXEL_PNG, cache);
+      expect(memo.structural).toBeUndefined();
+      expect(memo.pendingStructural).toBeUndefined();
+      expect(memo.pendingStructuralToken).toBeUndefined();
+
+      decode.mockResolvedValue(decoded);
+      await expect(preflightBoletoLogo(ONE_PIXEL_PNG, cache)).resolves.toEqual({
+        kind: 'png',
+        width: 1,
+        height: 1,
+      });
+      expect(decode).toHaveBeenCalledTimes(2);
     } finally {
       decode.mockRestore();
     }

@@ -54,18 +54,99 @@ const parseDateValue = (value: unknown): Date => {
     : new Date(Number.NaN);
 };
 
-const tokenizePath = (path: string): Array<string | number> => {
-  const tokens: Array<string | number> = [];
-  const re = /([^[.\]]+)|\[(\d+|(["'])(.*?)\3)\]/g;
-  let match: RegExpExecArray | null;
+const MAX_BINDING_PATH_LENGTH = 4096;
 
-  while ((match = re.exec(path))) {
-    if (match[1]) {
-      tokens.push(match[1]);
-    } else if (match[2]) {
-      const raw = match[2];
-      tokens.push(/^\d+$/.test(raw) ? Number(raw) : (match[4] ?? raw));
+type PathToken = string | number;
+type PathQuote = '"' | "'";
+
+interface ParsedPathToken {
+  token: PathToken;
+  nextCursor: number;
+}
+
+const isAsciiDigit = (char: string): boolean => char >= '0' && char <= '9';
+
+const isPathDelimiter = (char: string): boolean => char === '.' || char === '[' || char === ']';
+
+const findBareSegmentEnd = (path: string, start: number): number => {
+  let cursor = start;
+  while (cursor < path.length && !isPathDelimiter(path.charAt(cursor))) cursor += 1;
+  return cursor;
+};
+
+const parseQuotedBracketToken = (
+  path: string,
+  valueStart: number,
+  quote: PathQuote,
+): ParsedPathToken | undefined => {
+  let closingQuote = valueStart + 1;
+  while (closingQuote < path.length && path.charAt(closingQuote) !== quote) closingQuote += 1;
+  if (closingQuote >= path.length || path.charAt(closingQuote + 1) !== ']') return undefined;
+
+  return {
+    token: path.slice(valueStart + 1, closingQuote),
+    nextCursor: closingQuote + 2,
+  };
+};
+
+const parseNumericBracketToken = (
+  path: string,
+  valueStart: number,
+): ParsedPathToken | undefined => {
+  let closingBracket = valueStart;
+  while (isAsciiDigit(path.charAt(closingBracket))) closingBracket += 1;
+  if (closingBracket === valueStart || path.charAt(closingBracket) !== ']') return undefined;
+
+  return {
+    token: Number(path.slice(valueStart, closingBracket)),
+    nextCursor: closingBracket + 1,
+  };
+};
+
+const parseBracketToken = (path: string, cursor: number): ParsedPathToken | undefined => {
+  const valueStart = cursor + 1;
+  const quote = path.charAt(valueStart);
+  return quote === '"' || quote === "'"
+    ? parseQuotedBracketToken(path, valueStart, quote)
+    : parseNumericBracketToken(path, valueStart);
+};
+
+const parsePathSegment = (
+  path: string,
+  cursor: number,
+  allowBracket: boolean,
+): ParsedPathToken | undefined => {
+  const char = path.charAt(cursor);
+  if (char === '[') return allowBracket ? parseBracketToken(path, cursor) : undefined;
+  if (char === '' || isPathDelimiter(char)) return undefined;
+
+  const segmentEnd = findBareSegmentEnd(path, cursor);
+  return { token: path.slice(cursor, segmentEnd), nextCursor: segmentEnd };
+};
+
+const tokenizePath = (path: string): PathToken[] | undefined => {
+  if (path.length > MAX_BINDING_PATH_LENGTH) return undefined;
+
+  const first = parsePathSegment(path, 0, true);
+  if (!first) return undefined;
+
+  const tokens: PathToken[] = [first.token];
+  let cursor = first.nextCursor;
+  while (cursor < path.length) {
+    if (path.charAt(cursor) === '[') {
+      const bracket = parseBracketToken(path, cursor);
+      if (!bracket) return undefined;
+      tokens.push(bracket.token);
+      cursor = bracket.nextCursor;
+      continue;
     }
+
+    if (path.charAt(cursor) !== '.') return undefined;
+    const segment = parsePathSegment(path, cursor + 1, false);
+    if (!segment) return undefined;
+
+    tokens.push(segment.token);
+    cursor = segment.nextCursor;
   }
 
   return tokens;
@@ -77,7 +158,10 @@ export const getValueByPath = (data: unknown, path: string): unknown => {
     return data[path];
   }
 
-  return tokenizePath(path).reduce<unknown>((current, token) => {
+  const tokens = tokenizePath(path);
+  if (!tokens) return undefined;
+
+  return tokens.reduce<unknown>((current, token) => {
     if (current == null) return undefined;
     if (typeof token === 'number') {
       return Array.isArray(current) ? current[token] : undefined;

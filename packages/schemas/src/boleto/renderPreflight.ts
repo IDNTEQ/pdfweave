@@ -49,6 +49,7 @@ export interface BoletoLogoMemo {
   source: string;
   structural?: BoletoLogoPreflight;
   pendingStructural?: Promise<BoletoLogoPreflight>;
+  pendingStructuralToken?: object;
   embeddedByDocument: WeakMap<object, Promise<unknown>>;
 }
 
@@ -269,14 +270,17 @@ export const preflightBoletoLogo = async (
   }
 
   const pending = decodeBoletoLogo(value);
+  const pendingToken = {};
   memo.pendingStructural = pending;
+  memo.pendingStructuralToken = pendingToken;
   try {
     const result = await pending;
     memo.structural = result;
     return result;
   } finally {
-    if (memo.pendingStructural === pending) {
+    if (memo.pendingStructuralToken === pendingToken) {
       memo.pendingStructural = undefined;
+      memo.pendingStructuralToken = undefined;
     }
   }
 };

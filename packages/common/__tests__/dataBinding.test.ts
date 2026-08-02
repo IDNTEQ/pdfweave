@@ -20,6 +20,32 @@ describe('data binding helpers', () => {
     );
   });
 
+  test('resolves dot paths, numeric brackets, and quoted bracket keys', () => {
+    const data = {
+      customers: [{ accounts: [{ balance: 125.5 }, { balance: 480.25 }] }],
+      ledger: {
+        'posted.total': 605.75,
+        'client label': 'Primary',
+      },
+      'top.level': 'quoted root key',
+    };
+
+    expect(getValueByPath(data, 'customers[0].accounts[1].balance')).toBe(480.25);
+    expect(getValueByPath(data, 'ledger["posted.total"]')).toBe(605.75);
+    expect(getValueByPath(data, "ledger['client label']")).toBe('Primary');
+    expect(getValueByPath(data, '["top.level"]')).toBe('quoted root key');
+  });
+
+  test('rejects malformed and overlong quoted bracket paths without resolving a prefix', () => {
+    const data = { ledger: { valid: 'value' } };
+    const malformed = `ledger["${'a"'.repeat(2000)}`;
+    const overlong = `ledger["${'a'.repeat(100_000)}`;
+
+    expect(getValueByPath(data, malformed)).toBeUndefined();
+    expect(getValueByPath(data, overlong)).toBeUndefined();
+    expect(getValueByPath(data, 'ledger["valid"]suffix')).toBeUndefined();
+  });
+
   test('formats table binding previews from object rows, array rows, and JSON strings', () => {
     const columns = [
       { path: 'sku', label: 'SKU' },
