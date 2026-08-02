@@ -206,7 +206,7 @@ ERROR MESSAGE: Too small: expected array to have >=1 items
     } catch (e: any) {
       expect(e.message).toEqual(
         `[@pdfweave/common] fallback flag is not found in font. true fallback flag must be only one.
-Check this document: https://pdfme.com/docs/custom-fonts#about-font-type`
+Check this document: https://pdfme.com/docs/custom-fonts#about-font-type`,
       );
     }
   });
@@ -237,7 +237,7 @@ Check this document: https://pdfme.com/docs/custom-fonts#about-font-type`
     } catch (e: any) {
       expect(e.message).toEqual(
         `[@pdfweave/common] 2 fallback flags found in font. true fallback flag must be only one.
-Check this document: https://pdfme.com/docs/custom-fonts#about-font-type`
+Check this document: https://pdfme.com/docs/custom-fonts#about-font-type`,
       );
     }
   });
@@ -297,30 +297,26 @@ Check this document: https://pdfme.com/docs/custom-fonts#about-font-type`
       expect(mediaBox.height).toBeCloseTo(792, 5);
     });
 
-    test('translates schemas authored at (0,0) to the CropBox origin', async () => {
-      // Verify the helper itself: when an explicit CropBox is set, the
-      // content offset returned for schema positioning must be the CropBox
-      // origin rather than the MediaBox origin. This is the crux of the bug
-      // pdfme/pdfme#623 — without this translation, schemas authored against
-      // the visible (CropBox) area land at the MediaBox origin in the
-      // rendered PDF.
+    test('translates top-left schema coordinates into asymmetric CropBox and MediaBox space', async () => {
       const { getPageContentOffset } = await import('../src/helper.js');
       const offsetWithExplicitCrop = getPageContentOffset({
-        mediaBox: { x: 0, y: 0, width: 612, height: 792 },
-        bleedBox: { x: 0, y: 0, width: 612, height: 792 },
-        trimBox: { x: 0, y: 0, width: 612, height: 792 },
-        cropBox: { x: 50, y: 50, width: 512, height: 692 },
+        mediaBox: { x: -40, y: 30, width: 600, height: 800 },
+        bleedBox: { x: -40, y: 30, width: 600, height: 800 },
+        trimBox: { x: -10, y: 90, width: 500, height: 620 },
+        cropBox: { x: -10, y: 90, width: 500, height: 620 },
       });
-      expect(offsetWithExplicitCrop).toEqual({ x: 50, y: 50 });
+      // CropBox top is 710pt, while page.getHeight() is 800pt. Schema y is
+      // top-down, so its additive offset is 800 - 710 = 90pt.
+      expect(offsetWithExplicitCrop).toEqual({ x: -10, y: 90 });
 
-      // No explicit CropBox: must fall back to MediaBox origin so the change
-      // is a no-op for the common case (MediaBox == CropBox).
+      // With no explicit CropBox, x is the absolute MediaBox x coordinate.
+      // The renderer's page.getHeight() excludes MediaBox.y, hence -30pt.
       const offsetNoCrop = getPageContentOffset({
-        mediaBox: { x: 10, y: 20, width: 612, height: 792 },
-        bleedBox: { x: 10, y: 20, width: 612, height: 792 },
-        trimBox: { x: 10, y: 20, width: 612, height: 792 },
+        mediaBox: { x: -40, y: 30, width: 600, height: 800 },
+        bleedBox: { x: -40, y: 30, width: 600, height: 800 },
+        trimBox: { x: -40, y: 30, width: 600, height: 800 },
       });
-      expect(offsetNoCrop).toEqual({ x: 10, y: 20 });
+      expect(offsetNoCrop).toEqual({ x: -40, y: -30 });
     });
   });
 
@@ -356,7 +352,7 @@ Check this document: https://pdfme.com/docs/custom-fonts#about-font-type`
     } catch (e: any) {
       expect(e.message).toEqual(
         `[@pdfweave/common] DUMMY_FONT of template.schemas is not found in font.
-Check this document: https://pdfme.com/docs/custom-fonts`
+Check this document: https://pdfme.com/docs/custom-fonts`,
       );
     }
   });

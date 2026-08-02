@@ -7,14 +7,15 @@ a focused scope. Here's how to be effective.
 
 ## Repo layout
 
-PDFweave is an npm-workspaces monorepo. Eight packages:
+PDFweave is an npm-workspaces monorepo. Nine packages:
 
-```
+```text
 packages/
   common/       — shared types, dynamic-template (reflow), binding/anchor helpers
   pdf-lib/      — vendored fork of pdf-lib with PDFweave-specific tweaks
   schemas/      — built-in plugins: text, image, table, barcodes, svg, lines, shapes
   generator/    — Node-side PDF generation entry point
+  imposition/   — deterministic n-up physical-sheet planning and rendering
   ui/           — React Designer, Form, Viewer
   converter/    — image ⇄ PDF conversion utilities
   manipulator/  — PDF merge/split/rotate/etc.
@@ -32,7 +33,7 @@ Workspace tooling: `npm` (NOT pnpm). Top-level scripts live in the root
 git clone git@github.com:IDNTEQ/pdfweave.git
 cd pdfweave
 npm install
-npm run build -w packages/common -w packages/pdf-lib -w packages/converter -w packages/schemas -w packages/generator -w packages/ui
+npm run build
 ```
 
 For testing a change against a real consumer, the recommended flow is to

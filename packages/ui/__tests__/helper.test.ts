@@ -1,5 +1,12 @@
 import { SchemaForUI, Schema, Template, BLANK_PDF, BasePdf, pluginRegistry } from '@pdfweave/common';
-import { uuid, getUniqueSchemaName, schemasList2template, changeSchemas, setFontNameRecursively } from '../src/helper';
+import {
+  uuid,
+  getUniqueSchemaName,
+  schemasList2template,
+  changeSchemas,
+  setFontNameRecursively,
+  template2SchemasList,
+} from '../src/helper';
 import { text, image } from '@pdfweave/schemas';
 
 const getSchema = (): Schema => ({
@@ -9,6 +16,27 @@ const getSchema = (): Schema => ({
   position: { x: 0, y: 0 },
   width: 100,
   height: 100,
+});
+
+describe('template2SchemasList modes', () => {
+  const getTemplate = (): Template => ({
+    basePdf: BLANK_PDF,
+    schemas: [[{ ...getSchema(), readOnly: false, required: true }]],
+  });
+
+  test('the default designer mode keeps legacy constant-field semantics', async () => {
+    const template = getTemplate();
+    const schemasList = await template2SchemasList(template);
+
+    expect(schemasList[0][0]).toMatchObject({ readOnly: true, required: false });
+    expect(template.schemas[0][0]).toMatchObject({ readOnly: false, required: true });
+  });
+
+  test('preview mode preserves schema editability and validation metadata', async () => {
+    const schemasList = await template2SchemasList(getTemplate(), 'preview');
+
+    expect(schemasList[0][0]).toMatchObject({ readOnly: false, required: true });
+  });
 });
 
 describe('getUniqSchemaName test', () => {

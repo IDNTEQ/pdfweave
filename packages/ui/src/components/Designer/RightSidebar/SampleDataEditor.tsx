@@ -88,15 +88,18 @@ const SampleDataEditor = ({
       return;
     }
 
-    const timer = window.setTimeout(() => {
-      try {
-        const parsed = JSON.parse(text);
-        setError(null);
-        onChangeRef.current?.(parsed);
-      } catch (parseError) {
-        setError(parseJsonError(parseError, text));
-      }
-    }, Math.max(0, debounceMs));
+    const timer = window.setTimeout(
+      () => {
+        try {
+          const parsed = JSON.parse(text);
+          setError(null);
+          onChangeRef.current?.(parsed);
+        } catch (parseError) {
+          setError(parseJsonError(parseError, text));
+        }
+      },
+      Math.max(0, debounceMs),
+    );
 
     return () => window.clearTimeout(timer);
   }, [debounceMs, readOnly, text]);
@@ -108,7 +111,9 @@ const SampleDataEditor = ({
       ).join('\n'),
     [text],
   );
-  const statusText = error ? i18n('designer.sampleData.invalid') : i18n('designer.sampleData.valid');
+  const statusText = error
+    ? i18n('designer.sampleData.invalid')
+    : i18n('designer.sampleData.valid');
   const statusColor = error ? 'error' : 'success';
 
   return (

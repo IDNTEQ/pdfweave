@@ -35,18 +35,118 @@ const getFormatKind = (format?: DataFormatHint): string | undefined =>
 const getFormatOption = <T>(format: DataFormatHint | undefined, key: string): T | undefined =>
   typeof format === 'object' && format !== null ? (format[key] as T | undefined) : undefined;
 
-const tokenizePath = (path: string): Array<string | number> => {
-  const tokens: Array<string | number> = [];
-  const re = /([^[.\]]+)|\[(\d+|(["'])(.*?)\3)\]/g;
-  let match: RegExpExecArray | null;
+const parseDateValue = (value: unknown): Date => {
+  if (value instanceof Date) return value;
+  if (typeof value === 'number') return new Date(value);
 
-  while ((match = re.exec(path))) {
-    if (match[1]) {
-      tokens.push(match[1]);
-    } else if (match[2]) {
-      const raw = match[2];
-      tokens.push(/^\d+$/.test(raw) ? Number(raw) : match[4] ?? raw);
+  const raw = String(value);
+  const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
+  if (!dateOnly) return new Date(raw);
+
+  const year = Number(dateOnly[1]);
+  const month = Number(dateOnly[2]) - 1;
+  const day = Number(dateOnly[3]);
+  const date = new Date(year, month, day);
+  if (year < 100) date.setFullYear(year);
+
+  return date.getFullYear() === year && date.getMonth() === month && date.getDate() === day
+    ? date
+    : new Date(Number.NaN);
+};
+
+const MAX_BINDING_PATH_LENGTH = 4096;
+
+type PathToken = string | number;
+type PathQuote = '"' | "'";
+
+interface ParsedPathToken {
+  token: PathToken;
+  nextCursor: number;
+}
+
+const isAsciiDigit = (char: string): boolean => char >= '0' && char <= '9';
+
+const isPathDelimiter = (char: string): boolean => char === '.' || char === '[' || char === ']';
+
+const findBareSegmentEnd = (path: string, start: number): number => {
+  let cursor = start;
+  while (cursor < path.length && !isPathDelimiter(path.charAt(cursor))) cursor += 1;
+  return cursor;
+};
+
+const parseQuotedBracketToken = (
+  path: string,
+  valueStart: number,
+  quote: PathQuote,
+): ParsedPathToken | undefined => {
+  let closingQuote = valueStart + 1;
+  while (closingQuote < path.length && path.charAt(closingQuote) !== quote) closingQuote += 1;
+  if (closingQuote >= path.length || path.charAt(closingQuote + 1) !== ']') return undefined;
+
+  return {
+    token: path.slice(valueStart + 1, closingQuote),
+    nextCursor: closingQuote + 2,
+  };
+};
+
+const parseNumericBracketToken = (
+  path: string,
+  valueStart: number,
+): ParsedPathToken | undefined => {
+  let closingBracket = valueStart;
+  while (isAsciiDigit(path.charAt(closingBracket))) closingBracket += 1;
+  if (closingBracket === valueStart || path.charAt(closingBracket) !== ']') return undefined;
+
+  return {
+    token: Number(path.slice(valueStart, closingBracket)),
+    nextCursor: closingBracket + 1,
+  };
+};
+
+const parseBracketToken = (path: string, cursor: number): ParsedPathToken | undefined => {
+  const valueStart = cursor + 1;
+  const quote = path.charAt(valueStart);
+  return quote === '"' || quote === "'"
+    ? parseQuotedBracketToken(path, valueStart, quote)
+    : parseNumericBracketToken(path, valueStart);
+};
+
+const parsePathSegment = (
+  path: string,
+  cursor: number,
+  allowBracket: boolean,
+): ParsedPathToken | undefined => {
+  const char = path.charAt(cursor);
+  if (char === '[') return allowBracket ? parseBracketToken(path, cursor) : undefined;
+  if (char === '' || isPathDelimiter(char)) return undefined;
+
+  const segmentEnd = findBareSegmentEnd(path, cursor);
+  return { token: path.slice(cursor, segmentEnd), nextCursor: segmentEnd };
+};
+
+const tokenizePath = (path: string): PathToken[] | undefined => {
+  if (path.length > MAX_BINDING_PATH_LENGTH) return undefined;
+
+  const first = parsePathSegment(path, 0, true);
+  if (!first) return undefined;
+
+  const tokens: PathToken[] = [first.token];
+  let cursor = first.nextCursor;
+  while (cursor < path.length) {
+    if (path.charAt(cursor) === '[') {
+      const bracket = parseBracketToken(path, cursor);
+      if (!bracket) return undefined;
+      tokens.push(bracket.token);
+      cursor = bracket.nextCursor;
+      continue;
     }
+
+    if (path.charAt(cursor) !== '.') return undefined;
+    const segment = parsePathSegment(path, cursor + 1, false);
+    if (!segment) return undefined;
+
+    tokens.push(segment.token);
+    cursor = segment.nextCursor;
   }
 
   return tokens;
@@ -58,7 +158,10 @@ export const getValueByPath = (data: unknown, path: string): unknown => {
     return data[path];
   }
 
-  return tokenizePath(path).reduce<unknown>((current, token) => {
+  const tokens = tokenizePath(path);
+  if (!tokens) return undefined;
+
+  return tokens.reduce<unknown>((current, token) => {
     if (current == null) return undefined;
     if (typeof token === 'number') {
       return Array.isArray(current) ? current[token] : undefined;
@@ -103,7 +206,7 @@ export const formatDesignDataValue = (value: unknown, format?: DataFormatHint): 
   }
 
   if (kind === 'date') {
-    const date = value instanceof Date ? value : new Date(String(value));
+    const date = parseDateValue(value);
     if (!Number.isNaN(date.getTime())) {
       return new Intl.DateTimeFormat(locale, {
         dateStyle: getFormatOption<Intl.DateTimeFormatOptions['dateStyle']>(format, 'dateStyle'),
@@ -139,7 +242,10 @@ const inferItemFields = (items: unknown[]): Record<string, DesignDataField> | un
   if (!firstRecord) return undefined;
 
   return Object.fromEntries(
-    Object.entries(firstRecord).map(([key, value]) => [key, { type: inferType(value), sample: value }]),
+    Object.entries(firstRecord).map(([key, value]) => [
+      key,
+      { type: inferType(value), sample: value },
+    ]),
   );
 };
 
@@ -147,7 +253,10 @@ const createColumns = (
   itemFields: Record<string, DesignDataField> | undefined,
   sample: unknown,
 ): SchemaBindingColumn[] =>
-  inferTableColumns(sample, itemFields ?? (Array.isArray(sample) ? inferItemFields(sample) : undefined));
+  inferTableColumns(
+    sample,
+    itemFields ?? (Array.isArray(sample) ? inferItemFields(sample) : undefined),
+  );
 
 const visitFields = (
   fields: Record<string, DesignDataField>,
@@ -201,10 +310,7 @@ const visitFields = (
   });
 };
 
-const inferVariablesFromData = (
-  data: unknown,
-  prefix = '',
-): DesignDataVariable[] => {
+const inferVariablesFromData = (data: unknown, prefix = ''): DesignDataVariable[] => {
   if (!isRecord(data)) return [];
 
   return Object.entries(data).flatMap(([key, value]) => {
@@ -256,8 +362,7 @@ export const getDesignDataVariables = (designData?: DesignDataPackage): DesignDa
   return variables;
 };
 
-const getInputRecord = (input?: unknown): Record<string, unknown> =>
-  isRecord(input) ? input : {};
+const getInputRecord = (input?: unknown): Record<string, unknown> => (isRecord(input) ? input : {});
 
 export const resolveSchemaValue = (arg: {
   schema: Schema;

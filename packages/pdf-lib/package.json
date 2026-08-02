@@ -3,7 +3,6 @@
   "version": "0.1.0",
   "description": "Create and modify PDF files with JavaScript",
   "keywords": [
-    "pdfweave",
     "create",
     "creation",
     "document",
@@ -15,6 +14,7 @@
     "modify",
     "pdf",
     "pdf-lib",
+    "pdfweave",
     "typescript"
   ],
   "homepage": "https://pdfweave.dev",

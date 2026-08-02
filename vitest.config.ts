@@ -33,6 +33,12 @@ const workspaceTests: Record<
     setupFiles: [path.resolve(repoRoot, 'packages/generator/vitest.setup.ts')],
     testTimeout: 60000,
   },
+  'packages/imposition': {
+    name: 'imposition',
+    include: ['__tests__/**/*.test.ts'],
+    setupFiles: [path.resolve(repoRoot, 'packages/imposition/vitest.setup.ts')],
+    testTimeout: 60000,
+  },
   'packages/manipulator': {
     name: 'manipulator',
     include: ['__tests__/**/*.test.ts'],
@@ -89,6 +95,7 @@ const coverageThresholds: Record<
   // TODO ratchet schemas: current L57.51 / B44.94 / F55.55 / S56.52, target 60 / 50 / 60 / 60
   'packages/schemas': { lines: 52, branches: 39, functions: 50, statements: 51 },
   'packages/generator': { lines: 55, branches: 45, functions: 55, statements: 55 },
+  'packages/imposition': { lines: 80, branches: 70, functions: 80, statements: 80 },
   // TODO ratchet ui: current L46.75 / B23.01 / F34.39 / S44.56, target 40 / 30 / 40 / 40
   'packages/ui': { lines: 41, branches: 18, functions: 29, statements: 39 },
   'packages/converter': { lines: 40, branches: 30, functions: 40, statements: 40 },
@@ -118,6 +125,10 @@ const pdfmeAliases = usePublishedPdfmeExports
   ? []
   : [
       {
+        find: '@pdfweave/schemas/boleto',
+        replacement: path.resolve(repoRoot, 'packages/schemas/src/boleto.ts'),
+      },
+      {
         find: '@pdfweave/schemas/builtins',
         replacement: path.resolve(repoRoot, 'packages/schemas/src/builtins.ts'),
       },
@@ -140,6 +151,10 @@ const pdfmeAliases = usePublishedPdfmeExports
       {
         find: '@pdfweave/generator',
         replacement: path.resolve(repoRoot, 'packages/generator/src/index.ts'),
+      },
+      {
+        find: '@pdfweave/imposition',
+        replacement: path.resolve(repoRoot, 'packages/imposition/src/index.ts'),
       },
       {
         find: '@pdfweave/manipulator',

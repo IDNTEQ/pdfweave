@@ -124,7 +124,8 @@ const columnsStyle: React.CSSProperties = {
 
 const columnRowStyle: React.CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'auto minmax(0, 1.2fr) minmax(58px, 0.7fr) minmax(0, 0.9fr) minmax(0, 0.9fr) auto auto',
+  gridTemplateColumns:
+    'auto minmax(0, 1.2fr) minmax(58px, 0.7fr) minmax(0, 0.9fr) minmax(0, 0.9fr) auto auto',
   gap: 6,
   alignItems: 'end',
   padding: 8,
@@ -219,10 +220,8 @@ const mergeAvailableColumns = (
 };
 
 const getColumnStyles = (schema: SchemaForUI): Record<string, unknown> =>
-  ((schema as SchemaForUI & { columnStyles?: Record<string, unknown> }).columnStyles ?? {}) as Record<
-    string,
-    unknown
-  >;
+  ((schema as SchemaForUI & { columnStyles?: Record<string, unknown> }).columnStyles ??
+    {}) as Record<string, unknown>;
 
 const getColumnAlignments = (schema: SchemaForUI): Record<string, string> =>
   (getColumnStyles(schema).alignment ?? {}) as Record<string, string>;
@@ -234,7 +233,8 @@ const compatibleVariables = (
 ) => {
   const expectedKind = activeSchema.type === 'table' ? 'table' : 'scalar';
   const compatible = variables.filter((variable) => variable.kind === expectedKind);
-  if (!bindingPath || compatible.some((variable) => variable.path === bindingPath)) return compatible;
+  if (!bindingPath || compatible.some((variable) => variable.path === bindingPath))
+    return compatible;
 
   const currentVariable = variables.find((variable) => variable.path === bindingPath);
   return currentVariable ? [currentVariable, ...compatible] : compatible;
@@ -254,7 +254,7 @@ const BindingWidget = (props: PropPanelWidgetProps) => {
     selectedVariable?.sample ?? (bindingPath ? getValueByPath(dataInput, bindingPath) : undefined);
   const isTable = activeSchema.type === 'table';
   const pathListId = `binding-paths-${activeSchema.id}`;
-  const tableColumns: SchemaBindingColumn[] = isTable ? binding?.columns ?? [] : [];
+  const tableColumns: SchemaBindingColumn[] = isTable ? (binding?.columns ?? []) : [];
   const dataColumns: SchemaBindingColumn[] = isTable
     ? mergeAvailableColumns(selectedVariable, sample, undefined)
     : [];
@@ -288,12 +288,11 @@ const BindingWidget = (props: PropPanelWidgetProps) => {
       const key = columnKey(column);
       const hasAlignmentOverride = Object.prototype.hasOwnProperty.call(alignmentOverrides, key);
       const hasPreviousAlignment = previousAlignmentByPath.has(key);
-      const alignment =
-        hasAlignmentOverride
-          ? (alignmentOverrides[key] ?? '')
-          : hasPreviousAlignment
-            ? previousAlignmentByPath.get(key)
-            : defaultAlignmentForColumn(column);
+      const alignment = hasAlignmentOverride
+        ? (alignmentOverrides[key] ?? '')
+        : hasPreviousAlignment
+          ? previousAlignmentByPath.get(key)
+          : defaultAlignmentForColumn(column);
       if (alignment) acc[index] = alignment;
       return acc;
     }, {});
@@ -355,14 +354,18 @@ const BindingWidget = (props: PropPanelWidgetProps) => {
     }
 
     if (!shouldInclude && currentIndex !== -1 && tableColumns.length > 1) {
-      applyTableColumns(rebalanceColumnWidths(tableColumns, { kind: 'remove', atIndex: currentIndex }));
+      applyTableColumns(
+        rebalanceColumnWidths(tableColumns, { kind: 'remove', atIndex: currentIndex }),
+      );
     }
   };
 
   const moveColumn = (index: number, direction: -1 | 1) => {
     const nextIndex = index + direction;
     if (nextIndex < 0 || nextIndex >= tableColumns.length) return;
-    applyTableColumns(rebalanceColumnWidths(tableColumns, { kind: 'reorder', from: index, to: nextIndex }));
+    applyTableColumns(
+      rebalanceColumnWidths(tableColumns, { kind: 'reorder', from: index, to: nextIndex }),
+    );
   };
 
   const updateColumnAlignment = (column: SchemaBindingColumn, alignment: string) => {
@@ -448,7 +451,10 @@ const BindingWidget = (props: PropPanelWidgetProps) => {
         });
       }
 
-      if (activeSchema.type === 'text' && ['currency', 'number'].includes(formatKind(variable) ?? '')) {
+      if (
+        activeSchema.type === 'text' &&
+        ['currency', 'number'].includes(formatKind(variable) ?? '')
+      ) {
         changes.push({ key: 'alignment', value: 'right', schemaId: activeSchema.id });
       }
     }
@@ -480,8 +486,8 @@ const BindingWidget = (props: PropPanelWidgetProps) => {
   })();
 
   const sampleText = isTable
-    ? selectedVariable?.formattedSample ??
-      (Array.isArray(sample) ? `${sample.length} rows` : bindingPath ? 'No sample' : '')
+    ? (selectedVariable?.formattedSample ??
+      (Array.isArray(sample) ? `${sample.length} rows` : bindingPath ? 'No sample' : ''))
     : bindingPath
       ? formatDesignDataValue(sample, binding?.format)
       : '';
@@ -553,15 +559,21 @@ const BindingWidget = (props: PropPanelWidgetProps) => {
               {columnText ? <span>{columnText}</span> : null}
             </div>
             {isTable && binding?.columns?.length ? (
-              <div style={columnsStyle} role="group" aria-label={`${activeSchema.name} binding columns`}>
+              <div
+                style={columnsStyle}
+                role="group"
+                aria-label={`${activeSchema.name} binding columns`}
+              >
                 <span style={titleStyle}>Columns</span>
                 {availableColumns.map((availableColumn) => {
                   const key = columnKey(availableColumn);
-                  const selectedIndex = tableColumns.findIndex((column) => columnKey(column) === key);
+                  const selectedIndex = tableColumns.findIndex(
+                    (column) => columnKey(column) === key,
+                  );
                   const selectedColumn =
                     selectedIndex >= 0 ? tableColumns[selectedIndex] : availableColumn;
                   const isSelected = selectedIndex >= 0;
-                  const alignment = isSelected ? columnAlignments[selectedIndex] ?? '' : '';
+                  const alignment = isSelected ? (columnAlignments[selectedIndex] ?? '') : '';
 
                   return (
                     <div style={columnRowStyle} key={key}>
@@ -574,7 +586,9 @@ const BindingWidget = (props: PropPanelWidgetProps) => {
                           aria-label={`${activeSchema.name} include ${
                             availableColumn.label || titleFromPath(availableColumn.path)
                           } column`}
-                          onChange={(event) => toggleColumn(availableColumn, event.currentTarget.checked)}
+                          onChange={(event) =>
+                            toggleColumn(availableColumn, event.currentTarget.checked)
+                          }
                         />
                       </label>
                       <label style={labelStyle}>
@@ -649,7 +663,9 @@ const BindingWidget = (props: PropPanelWidgetProps) => {
                           aria-label={`${activeSchema.name} ${
                             availableColumn.label || titleFromPath(availableColumn.path)
                           } column alignment`}
-                          onChange={(event) => updateColumnAlignment(selectedColumn, event.currentTarget.value)}
+                          onChange={(event) =>
+                            updateColumnAlignment(selectedColumn, event.currentTarget.value)
+                          }
                         >
                           {alignmentOptions.map((option) => (
                             <option key={option.value} value={option.value}>

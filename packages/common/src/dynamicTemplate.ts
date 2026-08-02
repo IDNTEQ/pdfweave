@@ -40,8 +40,7 @@ const EPSILON = 0.01;
  */
 export const PAGE_BREAK_SCHEMA_TYPE = 'pageBreak';
 
-const isPageBreakSchema = (schema: Schema): boolean =>
-  schema.type === PAGE_BREAK_SCHEMA_TYPE;
+const isPageBreakSchema = (schema: Schema): boolean => schema.type === PAGE_BREAK_SCHEMA_TYPE;
 
 interface ModifyTemplateForDynamicTableArg {
   template: Template;
@@ -75,7 +74,13 @@ interface LayoutItem {
   fragments: LayoutUnitFragment[];
 }
 
-type LayoutUnitFragmentSource = 'dynamicHeights' | 'fragments' | 'height';
+type LayoutUnitFragmentSource = 'dynamicHeights' | 'prePaginatedHeights' | 'fragments' | 'height';
+
+export const PRE_PAGINATED_HEIGHTS = Symbol.for('@pdfweave/pre-paginated-dynamic-heights');
+
+export interface PrePaginatedHeightsMetadata {
+  rawHeights: number[];
+}
 
 type LayoutUnitFragment = LayoutFragment & {
   height: number;
@@ -135,6 +140,13 @@ function layoutFragmentsFromHeights(
 ): LayoutUnitFragment[] {
   return heights.map((height) => ({ height, __source: source }));
 }
+
+const getRawPrePaginatedHeights = (heights: number[]): number[] | undefined => {
+  const metadata = Reflect.get(heights, PRE_PAGINATED_HEIGHTS) as unknown;
+  if (!metadata || typeof metadata !== 'object' || !('rawHeights' in metadata)) return undefined;
+  const { rawHeights } = metadata as PrePaginatedHeightsMetadata;
+  return Array.isArray(rawHeights) ? rawHeights : undefined;
+};
 
 function getLayoutFragmentsFromLayoutResult(
   schema: Schema,
@@ -312,13 +324,12 @@ const getEffectiveContentBounds = (
   };
 };
 
-/** Calculate the content height of a page (drawable area excluding padding) */
-const getContentHeight = (basePdf: BlankPdf | StationeryPdf): number =>
-  getEffectiveContentBounds(basePdf).contentHeight;
-
 /** Get the input value for a schema */
-const getSchemaValue = (schema: Schema, input: Record<string, string>, pageSchemas: Schema[]): string =>
-  resolveSchemaValue({ schema, input, schemas: [pageSchemas] });
+const getSchemaValue = (
+  schema: Schema,
+  input: Record<string, string>,
+  pageSchemas: Schema[],
+): string => resolveSchemaValue({ schema, input, schemas: [pageSchemas] });
 
 /**
  * Normalize schemas within a single page into layout items.
@@ -377,7 +388,22 @@ function placeRowsOnPages(
   const dynamicHeights = fragments.map((fragment) => fragment.height);
   const isSplittable = dynamicHeights.length > 1;
   const usesBodyRange =
-    isSplittable && fragments.every((fragment) => fragment.__source === 'dynamicHeights');
+    isSplittable &&
+    fragments.every(
+      (fragment) =>
+        fragment.__source === 'dynamicHeights' || fragment.__source === 'prePaginatedHeights',
+    );
+  const includesPageOverhead = fragments.every(
+    (fragment) => fragment.__source === 'prePaginatedHeights',
+  );
+  const repeatedHeaderHeight =
+    usesBodyRange &&
+    !includesPageOverhead &&
+    schema.type === 'table' &&
+    schema.showHead !== false &&
+    schema.repeatHead === true
+      ? dynamicHeights[0]
+      : 0;
 
   while (currentRowIndex < dynamicHeights.length) {
     // Ensure page exists
@@ -385,9 +411,10 @@ function placeRowsOnPages(
 
     const spaceLeft = contentHeight - currentYInPage;
     const rowHeight = dynamicHeights[currentRowIndex];
+    const continuationHeaderHeight = currentRowIndex > 0 ? repeatedHeaderHeight : 0;
 
     // If row doesn't fit, move to next page
-    if (rowHeight > spaceLeft + EPSILON) {
+    if (rowHeight + continuationHeaderHeight > spaceLeft + EPSILON) {
       const isAtPageStart = Math.abs(spaceLeft - contentHeight) <= EPSILON;
 
       if (!isAtPageStart) {
@@ -399,7 +426,7 @@ function placeRowsOnPages(
     }
 
     // Pack as many rows as possible on this page
-    let chunkHeight = 0;
+    let chunkHeight = continuationHeaderHeight;
     const startRowIndex = currentRowIndex;
 
     while (currentRowIndex < dynamicHeights.length) {
@@ -514,17 +541,12 @@ function placeAbsoluteItems(
   contentHeight: number,
   paddingTop: number,
 ): Schema[][] {
-  const pages: Schema[][] = [];
+  // Every declared template page must survive reflow, even when it has no
+  // schemas. This preserves the requested media size for blank output pages.
+  const pages: Schema[][] = [[]];
   for (const item of items) {
     if (isPageBreakSchema(item.schema)) continue;
-    placeRowsOnPages(
-      item.schema,
-      item.fragments,
-      item.baseY,
-      contentHeight,
-      paddingTop,
-      pages,
-    );
+    placeRowsOnPages(item.schema, item.fragments, item.baseY, contentHeight, paddingTop, pages);
   }
   sortPagesByOrder(pages, orderMap);
   removeTrailingEmptyPages(pages);
@@ -567,10 +589,17 @@ async function measurePageItem(
   }
   if (ctx.getDynamicHeights) {
     const heights = await ctx.getDynamicHeights(value, measureArgs);
-    return layoutFragmentsFromHeights(
-      heights.length === 0 ? [0] : heights,
-      'dynamicHeights',
-    );
+    const rawHeights = getRawPrePaginatedHeights(heights);
+    if (rawHeights) {
+      return layoutFragmentsFromHeights(
+        rawHeights.length === 0 ? [0] : rawHeights,
+        'dynamicHeights',
+      );
+    }
+    const source = Reflect.get(heights, PRE_PAGINATED_HEIGHTS)
+      ? 'prePaginatedHeights'
+      : 'dynamicHeights';
+    return layoutFragmentsFromHeights(heights.length === 0 ? [0] : heights, source);
   }
   return layoutFragmentsFromHeights([item.schema.height], 'height');
 }
@@ -755,12 +784,7 @@ async function processAnchoredPage(ctx: PageReflowContext): Promise<Schema[][]> 
     if (Math.abs(a.baseY - b.baseY) > EPSILON) return a.baseY - b.baseY;
     return (orderMap.get(a.schema.name) ?? 0) - (orderMap.get(b.schema.name) ?? 0);
   });
-  const processedPages = placeAbsoluteItems(
-    absoluteItems,
-    orderMap,
-    contentHeight,
-    paddingTop,
-  );
+  const processedPages = placeAbsoluteItems(absoluteItems, orderMap, contentHeight, paddingTop);
 
   // Pass 3: sync absolute items' final geometry, then re-resolve and
   // place each anchored item, syncing its own placed geometry back
@@ -876,8 +900,6 @@ export const getDynamicTemplate = async (
       : await processAbsoluteOnlyPage(ctx, PARALLEL_LIMIT);
     resultPages.push(...processedPages);
   }
-
-  removeTrailingEmptyPages(resultPages);
 
   // Check if anything changed - return original template if not
   if (resultPages.length === template.schemas.length) {

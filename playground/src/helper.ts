@@ -1,4 +1,10 @@
-import { Template, Font, checkTemplate, getInputFromTemplate, getDefaultFont } from '@pdfweave/common';
+import {
+  Template,
+  Font,
+  checkTemplate,
+  getInputFromTemplate,
+  getDefaultFont,
+} from '@pdfweave/common';
 import { Form, Viewer, Designer } from '@pdfweave/ui';
 import { generate, generateForm } from '@pdfweave/generator';
 import { getPlugins } from './plugins';

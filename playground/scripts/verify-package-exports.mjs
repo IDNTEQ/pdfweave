@@ -10,6 +10,7 @@ const trackedSpecifiers = [
   '@pdfweave/common',
   '@pdfweave/converter',
   '@pdfweave/generator',
+  '@pdfweave/imposition',
   '@pdfweave/manipulator',
   '@pdfweave/schemas',
   '@pdfweave/schemas/builtins',

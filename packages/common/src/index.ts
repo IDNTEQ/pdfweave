@@ -89,7 +89,9 @@ import {
   getDynamicTemplate,
   getDynamicHeights,
   PAGE_BREAK_SCHEMA_TYPE,
+  PRE_PAGINATED_HEIGHTS,
 } from './dynamicTemplate.js';
+import type { PrePaginatedHeightsMetadata } from './dynamicTemplate.js';
 import { migrateTemplateToAnchored } from './migrate.js';
 import { resolveAnchorTargetPoint } from './anchorLayout.js';
 import type { AnchorAxis, ResolvedAnchorTarget } from './anchorLayout.js';
@@ -146,6 +148,7 @@ export {
   getDynamicTemplate,
   getDynamicHeights,
   PAGE_BREAK_SCHEMA_TYPE,
+  PRE_PAGINATED_HEIGHTS,
   migrateTemplateToAnchored,
   resolveAnchorTargetPoint,
   formatDesignDataValue,
@@ -231,6 +234,7 @@ export type {
   AnchorAxis,
   ResolvedAnchorTarget,
   ColumnOperation,
+  PrePaginatedHeightsMetadata,
 };
 
 // Anchor geometry — re-exported via `export from` to keep the public surface
@@ -253,8 +257,4 @@ export {
   reverseAnchorOffsetY,
   topoSortByAnchorDeps,
 } from './anchorGeometry.js';
-export type {
-  AnchoredLayoutRule,
-  AnchoredSchema,
-  SchemaIndex,
-} from './anchorGeometry.js';
+export type { AnchoredLayoutRule, AnchoredSchema, SchemaIndex } from './anchorGeometry.js';

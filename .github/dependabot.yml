@@ -30,6 +30,15 @@ updates:
     labels:
       - 'type:chore'
       - 'area:tooling'
+  - package-ecosystem: npm
+    directory: /website
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 3
+    labels:
+      - 'type:chore'
+      - 'area:tooling'
   - package-ecosystem: github-actions
     directory: /
     schedule:

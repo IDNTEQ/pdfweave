@@ -4,52 +4,56 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-PDFweave is an open-source TypeScript PDF template engine with
-first-class data binding, anchor layouts, smart tables, and stationery
-PDFs. It is a hard fork of [pdfme](https://github.com/pdfme/pdfme) (MIT).
+PDFweave is an open-source TypeScript PDF template engine with first-class
+data binding, anchor layouts, smart tables, stationery PDFs, and physical-sheet
+imposition. It is a hard fork of [pdfme](https://github.com/pdfme/pdfme) (MIT).
 
-The four differentiators over upstream — data binding, anchor layouts,
-smart tables, stationery PDFs — are the contracts the codebase exists to
+Those production-document capabilities are contracts the codebase exists to
 protect. See [GOALS.md](GOALS.md) for the mission and quality bar and
-[ROADMAP.md](ROADMAP.md) for the live punch list. `AGENTS.md` is a symlink
-to this file.
+[ROADMAP.md](ROADMAP.md) for the live punch list. `AGENTS.md` is a symlink to
+this file.
 
 ## Toolchain
 
 The task runner is **`vp`** (vite-plus / `vite-plus` package, binary at
 `node_modules/.bin/vp`), not raw npm or turbo. Root npm scripts wrap `vp`,
 which fans work out across the `@pdfweave/*` workspaces. Package manager is
-**npm 11** (`packageManager` is pinned); use npm, not pnpm/yarn, despite
-the README's `pnpm add` install example for consumers.
+**npm 11** (`packageManager` is pinned); use npm, not pnpm or yarn.
 
-Per-package scripts call `vite build` + `tsc` (build), `vp lint`/`vp fmt`
-(oxlint/oxfmt), and `vitest run --config ../../vitest.config.ts` (test).
+CI and release jobs use **Node 24**. Per-package scripts call Vite + TypeScript
+for builds, `vp lint`/`vp fmt` for oxlint/oxfmt, and Vitest with the shared root
+configuration for tests.
 
 ## Common Commands
 
-Run from the repo root unless noted.
+Run from the repository root unless noted.
 
 ```bash
 npm install            # install all workspaces
 npm run build          # clean + build all packages in dependency order
-npm run test           # vitest across all @pdfweave/* packages
+npm run test           # vitest across all packages + report-builder tests
+npm run qualification  # feature tests + inspectable HTML/PDF evidence
 npm run typecheck      # tsc -b (project references)
-npm run lint           # oxlint (fast gate) across packages + playground
-npm run lint:strict    # ESLint flat config (deep, type-aware — the CI gate)
+npm run lint           # oxlint across packages + playground
+npm run lint:strict    # ESLint flat config (deep, type-aware CI gate)
 npm run fmt            # oxfmt write across packages, playground, meta files
 npm run fmt:check      # oxfmt verify (no writes)
 npm run coverage       # per-package v8 coverage + aggregate
 npm run coverage:check # coverage + CRAP gate (scripts/crap.mjs)
-npm run check          # full local gate: fmt:check + lint + lint:strict +
-                       # typecheck + test + coverage:check + playground test
-npm run ci             # check + build + playground build (what CI runs)
+npm run check          # full local gate, package/playground builds, browser test
+npm run ci             # alias for the complete check gate
 npm run size           # size-limit bundle budgets (.size-limit.json)
 ```
+
+`npm run qualification` creates `test-artifacts/qualification-report.html`.
+The self-contained report maps each catalogued feature to its source test and
+embeds links/previews for generated PDFs and rendered pages. CI uploads the
+same report and PDFs as the `pdfweave-qualification-report` artifact.
 
 ### Running a single package or test
 
 ```bash
-# One package's whole suite (cwd selects the workspace via vitest.config.ts):
+# One package's whole suite (cwd selects the workspace):
 cd packages/common && npx vitest run --config ../../vitest.config.ts
 
 # One file or one test name:
@@ -60,126 +64,111 @@ cd packages/common && npx vitest run --config ../../vitest.config.ts \
 cd packages/generator && npx vitest --config ../../vitest.config.ts
 ```
 
-Tests live in each package's `__tests__/` directory. A **single root
-`vitest.config.ts`** holds per-workspace settings (include globs, jsdom for
-`ui`, timeouts, image-snapshot setup) keyed by the workspace path — so tests
-must be invoked with that shared config and the package as the cwd.
+Tests live in each package's `__tests__/` directory. A single root
+`vitest.config.ts` holds per-workspace settings, including jsdom, timeouts,
+and image-snapshot setup. Generator, imposition, and UI suites use image
+snapshots; update snapshots only for intentional rendering changes.
 
-The generator and ui suites use **image snapshots**; after intentional
-rendering changes update them with `npm run test:update-snapshots` inside
-the package (or `npm run test -w packages/ui -- -u`).
+## Quality Gates
 
-## Two-layer lint + the quality gate
+Linting is deliberately layered:
 
-Linting is deliberately layered (see ROADMAP Phase 1–4):
+- **oxlint** (`npm run lint`, config `.oxlintrc.json`) is the fast gate.
+- **ESLint** (`npm run lint:strict`, `eslint.config.mjs`) is the authoritative,
+  type-aware gate with complexity, boundary, security, and API-doc rules.
 
-- **oxlint** (`npm run lint`, config `.oxlintrc.json`) — fast, runs locally
-  and per-package. The everyday gate.
-- **ESLint flat config** (`npm run lint:strict`, `eslint.config.mjs`) —
-  `@typescript-eslint/strict-type-checked` + sonarjs (cognitive-complexity
-  ≤ 15) + import boundaries + security + jsdoc-on-public-API. This is the
-  authoritative CI gate. Phase 4 is an ongoing walk flipping warnings to
-  errors per file, so new code should land clean under `lint:strict`, not
-  just oxlint.
-
-The **CRAP** gate (`scripts/crap.mjs`, `.crap-allowlist.json`) joins
-coverage with cognitive complexity and fails any function over CRAP 30.
-Coverage floor is ≥80% line / ≥70% branch per package. When touching a
-hot-path function, keep it covered or it will trip the gate.
+The CRAP gate (`scripts/crap.mjs`, `.crap-allowlist.json`) combines coverage
+with cognitive complexity and fails functions over the configured limit.
+Coverage floors are enforced per package.
 
 ## Architecture
 
 ### Monorepo build order
 
-Builds are ordered by dependency (`npm run build`):
-`pdf-lib → common → converter → schemas → parallel(generator, ui,
-manipulator) → cli`. If you hit "module not found" between packages,
-the cause is almost always a stale/missing upstream `dist` — rebuild in
-this order.
+Builds run in dependency order:
+`pdf-lib -> common -> converter -> schemas -> parallel(generator, imposition,
+ui, manipulator) -> cli`. Rebuild an upstream package first when a downstream
+workspace reports stale or missing declarations.
 
 Packages:
-- **packages/common** — core types, the dynamic layout engine, and *all
-  the fork's defining logic* (see below). Most other packages depend on it.
-- **packages/pdf-lib** — forked pdf-lib with CJK + custom modifications.
-- **packages/converter** — format conversion utilities.
-- **packages/schemas** — built-in field-type plugins.
-- **packages/generator** — PDF generation from a template + inputs.
-- **packages/ui** — React Designer / Form / Viewer.
-- **packages/manipulator** — PDF merge/split/rotate.
-- **packages/cli** — `citty`-based CLI wrapping generator + schemas.
-- **playground** — Vite app for interactive testing (`cd playground && vp dev`).
-- **website** — Docusaurus docs.
 
-### The fork lives in `packages/common`
+- **packages/common** - core types, binding, expression, and dynamic layout.
+- **packages/pdf-lib** - forked pdf-lib with CJK and custom modifications.
+- **packages/converter** - format conversion utilities.
+- **packages/schemas** - built-in field-type plugins and smart tables.
+- **packages/generator** - PDF generation from templates and inputs.
+- **packages/imposition** - deterministic n-up planning and PDF rendering.
+- **packages/ui** - React Designer, Form, and Viewer.
+- **packages/manipulator** - PDF merge, split, and rotation.
+- **packages/cli** - `citty`-based CLI wrapping generator and schemas.
+- **playground** - Vite app for interactive testing.
+- **website** - Docusaurus documentation.
 
-Upstream pdfme had absolute-position schemas. PDFweave's value-add modules
-all sit in `packages/common/src/` and are what you must not break:
+### Core production-document logic
 
-- `dynamicTemplate.ts` — **the dynamic layout engine** (`getDynamicTemplate`).
-  Dynamic height calculation, automatic page breaking, layout-tree
-  management, stationery (`basePdf`) stamping across reflowed pages. The
-  current branch's work is here. (Note: older docs placed this in
-  `generator` — it is in `common`.)
-- `anchorLayout.ts` + `anchorGeometry.ts` — relative positioning
-  (`alignRightEdge`, `belowBottomEdge`, `afterRightEdge`, `pageLeft`,
-  `pageTop`, …) that survives sibling height changes and reflow.
-- `dataBinding.ts` + `tableBinding.ts` — schemas reference JSON paths with
-  format hints (currency/number/date) instead of carrying copied data;
-  per-row/column table binding.
-- `expression.ts` — secure JS expression evaluator (Acorn parse → AST
-  validation → cached compilation) for dynamic content.
-- `types.ts` — core type definitions; start here for any data shape.
-- `migrate.ts`, `pluginRegistry.ts`, `schema.ts` — versioned template
-  migration, plugin registration, Zod validation.
+The main PDFweave extensions live in `packages/common/src/`:
+
+- `dynamicTemplate.ts` handles dynamic heights, automatic page breaking,
+  layout trees, and stationery stamping across reflowed pages.
+- `anchorLayout.ts` and `anchorGeometry.ts` implement relative positioning
+  that survives sibling height changes and reflow.
+- `dataBinding.ts` and `tableBinding.ts` bind schemas and table rows/columns
+  to structured data with formatting hints.
+- `expression.ts` securely evaluates expressions using Acorn parsing, AST
+  validation, and cached compilation.
+- `types.ts` defines the cross-package data contracts.
+- `migrate.ts`, `pluginRegistry.ts`, and `schema.ts` handle migration,
+  registration, and runtime validation.
 
 ### Plugin-based field system
 
-Each field type is a plugin exporting `{ pdf, ui, propPanel }`:
-- `pdf` — renders in the PDF via pdf-lib
-- `ui` — renders interactively in the browser
-- `propPanel` — Designer configuration UI
+Each field type exports `{ pdf, ui, propPanel }`: PDF rendering, interactive
+browser rendering, and Designer configuration. The canonical examples live in
+`packages/schemas/src/<field-type>/`. Plugins are passed explicitly to
+`generate()` and UI components.
 
-Location: `packages/schemas/src/<field-type>/index.ts` (text is the
-canonical complete example). Plugins are passed into `generate()` /
-Designer explicitly — they are not auto-registered.
+### Template and UI models
 
-### Template structure
+- `basePdf` is either a blank page definition or a PDF used as stationery.
+- `schemas` is a two-dimensional array with one schema array per page.
+- `staticSchemas` contains optional fields repeated on every page.
 
-- `basePdf` — blank `{ width, height, padding }` **or** a single-page PDF
-  used as stamped stationery.
-- `schemas` — 2D array; each sub-array is one page.
-- `staticSchemas` — optional fields repeated on every page.
-
-### UI component model
-
-All UI components extend `BaseUIClass` (`packages/ui/src/class.ts`) and run
-in three modes: `viewer` (read-only), `form` (input), `designer` (authoring).
-Designer entry: `packages/ui/src/components/Designer/index.tsx`.
+UI components extend `BaseUIClass` (`packages/ui/src/class.ts`) and support
+viewer, form, and designer modes.
 
 ## PR Workflow
 
-- Branch from and PR against `main`. Branch names: `feature/...` or `fix/...`.
-- Conventional commits: `type(scope): description`
-  (`feat`/`fix`/`docs`/`style`/`refactor`/`test`/`chore`).
-- Before pushing, `npm run check` should pass (or at minimum
-  `lint:strict` + `typecheck` + `test`).
-- Every PR against `IDNTEQ/pdfweave` is auto-reviewed by **Greptile**
-  (`.greptile/settings.yaml`) and **CodeRabbit** (`.coderabbit.yaml`). Wait
-  for both, then address or push back with reasoning. There is no `@claude`
-  GitHub Action and one is not planned — the agent operates on the repo
-  directly via `gh`.
+- Branch from and open PRs against `main`; use `feature/...` or `fix/...`.
+- Use conventional commits: `type(scope): description`.
+- Do not leave completed work only in the local checkout. Commit and push it;
+  create the corresponding release when repository gates and publishing
+  credentials are available, and document any external release blocker.
+- Run `npm run check` before pushing, or at minimum strict lint, typecheck,
+  tests, and qualification for rendering changes.
+- CodeRabbit is the advisory automatic AI reviewer for contributor PRs. Address
+  its findings or respond with technical reasoning before merging.
+- CodeRabbit's open-source review quota can be rate-limited. A rate-limited or
+  unavailable review must not deadlock a PR: record the condition in the PR and
+  substitute an independent, read-only Claude Code review with the `fable`
+  model. Bot-authored dependency PRs may instead rely on the deterministic test,
+  CodeQL, and dependency-security results. Required deterministic CI checks
+  remain the authoritative automated merge gates.
+- For substantial changes, run periodic independent, read-only reviews through
+  Claude Code with the `fable` model, including one before the final push.
+  Verify each finding against current code and record material fixes or
+  reasoned rejections in the PR.
 
-## Fork relationship
+## Fork Relationship
 
-PDFweave is a **hard fork**, not a downstream mirror. We selectively port
-useful upstream pdfme changes case-by-case only when they don't conflict
-with the data-binding / anchor / smart-table / stationery contracts. There
-is no standing backport queue. See `MIGRATION.md` and GOALS.md "Non-goals".
+PDFweave is a hard fork, not a downstream mirror. Port useful upstream pdfme
+changes selectively only when they preserve the binding, anchor, smart-table,
+stationery, and production-print contracts. See `MIGRATION.md` and GOALS.md.
 
 ## Environment Notes
 
-- Node 18+ recommended (16 minimum). For large PDFs, raise the heap:
-  `export NODE_OPTIONS="--max-old-space-size=8192"`.
+- Use Node 24.11+ and npm 11 for parity with the current repository toolchain
+  and CI. Published-package runtime support remains package-specific. For large
+  PDFs, set `NODE_OPTIONS=--max-old-space-size=8192`.
 - Fonts are subset-embedded; CJK relies on the forked `@pdfweave/pdf-lib`.
-- The codebase runs in both Node and browser; some modules have
-  environment-specific implementations.
+- The codebase runs in Node and browsers; some modules have environment-specific
+  implementations.

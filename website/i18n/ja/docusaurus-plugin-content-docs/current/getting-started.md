@@ -13,8 +13,7 @@ PDFweaveはPDFのデザインと生成プロセスを簡素化するために作
 
 ## インストール
 
-動作要件はnode環境 `>=16` です。  
-PDFweaveには、generatorとUIの2つのパッケージがあります。
+動作要件はnode環境 `>=16` です。PDFweaveは用途別のパッケージに分かれているため、ワークフローで使用するAPIだけをインストールできます。
 
 PDFを生成するためのパッケージは、以下のコマンドでインストールできます。
 
@@ -30,7 +29,16 @@ npm i @pdfweave/ui @pdfweave/common
 
 `@pdfweave/ui` は standalone bundle として配布されるため、Designer / Form / Viewer を使うためだけに `react` や `react-dom` を別途インストールする必要はありません。
 
-\*どのパッケージを使用する場合でも、`@pdfweave/common`をインストールする必要があります。
+物理印刷シートへの面付けは、初回のnpm公開まではリポジトリのワークスペースから利用できます。
+
+```
+git clone https://github.com/IDNTEQ/pdfweave.git
+cd pdfweave
+npm install
+npm run build
+```
+
+各パッケージは必要なランタイム依存関係を宣言しています。型やユーティリティを直接importする場合を除き、アプリケーション側で`@pdfweave/common`を追加する必要はありません。
 
 PDFweaveでは以下の型、関数、クラスが利用可能です。
 
@@ -47,6 +55,10 @@ PDFweaveでは以下の型、関数、クラスが利用可能です。
 - [Designer]/getting-started#designer)
 - [Form]/getting-started#form)
 - [Viewer]/getting-started#viewer)
+
+`@pdfweave/imposition`
+
+- [imposeとplanImposition](/imposition)
 
 環境がwebpackを使用している場合は、以下のように必要なアイテムをインポートします。
 
@@ -81,7 +93,6 @@ PDFweaveライブラリの中核はテンプレートです。
 ```json
 basePdf: { "width": 210, "height": 297, "padding": [10, 10, 10, 10] }
 ```
-
 
 **schemas**はデフォルトではテキストのみ使用できます。`generate`、`Designer`、`Form`、`Viewer` が使うデフォルトのプラグインレジストリには、意図的に `text` スキーマだけが含まれています。  
 画像、署名、テーブル、QRコードなどのバーコード、その他のスキーマタイプを使う場合は、`@pdfweave/schemas` から対象プラグインを明示的に import し、`plugins` オプションで渡してください。  
@@ -282,7 +293,7 @@ UIの状態は `options` で制御できます（省略時は下記のデフォ�
 // UIの状態を一部またはすべて設定（省略時のデフォルト値を例示）
 const options = {
   zoomLevel: 1,
-  sidebarOpen: true
+  sidebarOpen: true,
 };
 
 const designer = new Designer({ domContainer, template, options });
@@ -362,4 +373,3 @@ const viewer = new Viewer({ domContainer, template, inputs });
 
 PDFweaveに貢献したい場合は、[開発ガイド](/development-guide)ページをご確認ください。  
 あなたの貢献をお待ちしています！
-

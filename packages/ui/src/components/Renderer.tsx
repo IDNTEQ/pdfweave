@@ -54,8 +54,7 @@ const getMeasuredHeight = (schema: SchemaForUI, result: LayoutMeasureResult): nu
 const isWindowLike = (value: object): boolean =>
   'window' in value && (value as { window?: unknown }).window === value;
 
-const isDomNode = (value: object): boolean =>
-  typeof Node !== 'undefined' && value instanceof Node;
+const isDomNode = (value: object): boolean => typeof Node !== 'undefined' && value instanceof Node;
 
 export const safeStringifyForRenderKey = (value: unknown): string => {
   const seen = new WeakSet<object>();
@@ -138,6 +137,7 @@ const useRenderKey = (arg: ReRenderCheckProps) => {
 
 const Wrapper = ({
   children,
+  mode,
   outline,
   onChangeHoveringSchemaId,
   schema,
@@ -154,13 +154,14 @@ const Wrapper = ({
   const clippedHeight = pageBoundsForClip
     ? Math.max(0, pageBoundsForClip.contentBottomY - schema.position.y)
     : schema.height;
-  const clipStyle = pageBoundsForClip && overflowsPageBounds
-    ? {
-        height: Math.min(visualHeight, clippedHeight) * ZOOM,
-        overflow: 'hidden',
-        maxHeight: clippedHeight * ZOOM,
-      }
-    : {};
+  const clipStyle =
+    pageBoundsForClip && overflowsPageBounds
+      ? {
+          height: Math.min(visualHeight, clippedHeight) * ZOOM,
+          overflow: 'hidden',
+          maxHeight: clippedHeight * ZOOM,
+        }
+      : {};
 
   return (
     <div
@@ -173,7 +174,7 @@ const Wrapper = ({
       id={schema.id}
       style={{
         position: 'absolute',
-        cursor: schema.readOnly ? 'initial' : 'pointer',
+        cursor: mode === 'form' && !schema.readOnly ? 'pointer' : 'initial',
         height: schema.height * ZOOM,
         width: schema.width * ZOOM,
         top: schema.position.y * ZOOM,
@@ -184,8 +185,9 @@ const Wrapper = ({
         ...clipStyle,
       }}
     >
-      {schema.required && (
+      {mode === 'form' && schema.required && (
         <span
+          data-pdfweave-required-marker="true"
           style={{
             color: 'red',
             position: 'absolute',

@@ -68,9 +68,7 @@ export type ImagePosition = { x: ImagePositionX; y: ImagePositionY };
 
 type ImageSchema = Schema & {
   objectFit?: ImageObjectFit;
-  position?: Schema['position'] & {
-    /** Letterbox-fill alignment within the schema box. */
-  };
+  position?: Schema['position'] & {/** Letterbox-fill alignment within the schema box. */};
   /** Image alignment when objectFit leaves slack/overflow. pdfme/pdfme#696. */
   imagePosition?: ImagePosition;
 };

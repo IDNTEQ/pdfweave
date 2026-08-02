@@ -215,8 +215,21 @@ export const getColumnStylesPropPanelSchema = ({
  * still renders correctly. Without `columnCount`, we fall back to a single
  * row containing the split tokens — better than throwing.
  */
+const normalizeCell = (value: unknown): string => {
+  if (value == null) return '';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') {
+    return String(value);
+  }
+  if (typeof value === 'object') return JSON.stringify(value) ?? '';
+  return '';
+};
+
+const normalizeRows = (rows: unknown[][]): string[][] =>
+  rows.map((row) => row.map((cell) => normalizeCell(cell)));
+
 export const getBody = (value: string | string[][], columnCount?: number): string[][] => {
-  if (Array.isArray(value)) return value || [];
+  if (Array.isArray(value)) return normalizeRows(value);
   if (typeof value !== 'string') return [];
   const trimmed = value.trim();
   if (!trimmed) return [];
@@ -227,9 +240,9 @@ export const getBody = (value: string | string[][], columnCount?: number): strin
       // what some upstream callers produce when the inputs themselves are an
       // array (not a JSON string of an array).
       if (parsed.every((row) => Array.isArray(row))) {
-        return parsed as string[][];
+        return normalizeRows(parsed as unknown[][]);
       }
-      return [parsed.map((cell) => String(cell))];
+      return [parsed.map((cell) => normalizeCell(cell))];
     }
     // JSON parsed but isn't an array (e.g. `"foo"`). Drop into the
     // comma-recovery path below.

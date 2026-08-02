@@ -19,11 +19,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
-          node-version: '20.x'
+          node-version: '24'
           registry-url: 'https://registry.npmjs.org'
           cache: npm
           cache-dependency-path: |
@@ -46,6 +46,9 @@ jobs:
 
       - name: Test generator
         run: npm test -w packages/generator
+
+      - name: Test imposition
+        run: npm test -w packages/imposition
 
       - name: Test ui
         run: npm test -w packages/ui
@@ -70,32 +73,34 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        package: [common, pdf-lib, schemas, generator, ui, cli, converter, manipulator]
+        package: [common, pdf-lib, schemas, generator, imposition, ui, cli, converter, manipulator]
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
-          node-version: '20.x'
+          node-version: '24'
           registry-url: 'https://registry.npmjs.org'
           cache: npm
           cache-dependency-path: |
             package-lock.json
             playground/package-lock.json
 
-      - name: Upgrade npm for OIDC publishing
-        run: npm install -g npm@latest
+      - name: Install the repository-pinned npm for OIDC publishing
+        run: npm install -g npm@11.12.1
 
       - run: npm ci
 
       - name: Set release versions from tag
         env:
-          RELEASE_PACKAGES: common pdf-lib schemas generator ui cli manipulator converter
+          RELEASE_PACKAGES: common pdf-lib schemas generator imposition ui cli manipulator converter
         run: |
           VERSION="${GITHUB_REF#refs/tags/v}"
           export VERSION
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          NPM_DIST_TAG="$(node scripts/npm-dist-tag.mjs "$VERSION")"
+          echo "NPM_DIST_TAG=$NPM_DIST_TAG" >> "$GITHUB_ENV"
 
           node <<'NODE'
           const fs = require('node:fs');
@@ -131,8 +136,28 @@ jobs:
       - name: Build release artifacts
         run: npm run build
 
+      - name: Check whether this version is already published
+        id: published-version
+        env:
+          PACKAGE_NAME: '@pdfweave/${{ matrix.package }}'
+        run: |
+          ERROR_FILE="$(mktemp)"
+          if npm view "$PACKAGE_NAME@$VERSION" version --json 2>"$ERROR_FILE" >/dev/null; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          elif grep -q 'E404' "$ERROR_FILE"; then
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          else
+            cat "$ERROR_FILE" >&2
+            exit 1
+          fi
+
       - name: Publish
-        run: npm publish --provenance --access public -w packages/${{ matrix.package }}
+        if: steps.published-version.outputs.exists != 'true'
+        run: npm publish --provenance --access public --tag "$NPM_DIST_TAG" -w packages/${{ matrix.package }}
+
+      - name: Report existing version
+        if: steps.published-version.outputs.exists == 'true'
+        run: echo "@pdfweave/${{ matrix.package }}@$VERSION is already published; skipping."
 
   create-github-release:
     name: Create GitHub Release
@@ -143,7 +168,20 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Install the repository-pinned npm
+        run: npm install -g npm@11.12.1
+
+      - run: npm ci
+
+      - name: Build qualification dashboard
+        run: npm run qualification
 
       - name: Create release
         env:
@@ -152,4 +190,5 @@ jobs:
           VERSION="${GITHUB_REF#refs/tags/v}"
           gh release create "${{ github.ref_name }}" \
             --title "PDFweave v$VERSION" \
-            --notes "See [CHANGELOG.md](https://github.com/IDNTEQ/pdfweave/blob/main/CHANGELOG.md) for details."
+            --notes "See [CHANGELOG.md](https://github.com/IDNTEQ/pdfweave/blob/main/CHANGELOG.md) for details." \
+            "test-artifacts/qualification-report.html#PDFweave qualification dashboard"

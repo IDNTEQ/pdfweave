@@ -1,4 +1,5 @@
 import {
+  formatDesignDataValue,
   getDesignDataVariables,
   getTableBindingPreview,
   getValueByPath,
@@ -19,6 +20,32 @@ describe('data binding helpers', () => {
     );
   });
 
+  test('resolves dot paths, numeric brackets, and quoted bracket keys', () => {
+    const data = {
+      customers: [{ accounts: [{ balance: 125.5 }, { balance: 480.25 }] }],
+      ledger: {
+        'posted.total': 605.75,
+        'client label': 'Primary',
+      },
+      'top.level': 'quoted root key',
+    };
+
+    expect(getValueByPath(data, 'customers[0].accounts[1].balance')).toBe(480.25);
+    expect(getValueByPath(data, 'ledger["posted.total"]')).toBe(605.75);
+    expect(getValueByPath(data, "ledger['client label']")).toBe('Primary');
+    expect(getValueByPath(data, '["top.level"]')).toBe('quoted root key');
+  });
+
+  test('rejects malformed and overlong quoted bracket paths without resolving a prefix', () => {
+    const data = { ledger: { valid: 'value' } };
+    const malformed = `ledger["${'a"'.repeat(2000)}`;
+    const overlong = `ledger["${'a'.repeat(100_000)}`;
+
+    expect(getValueByPath(data, malformed)).toBeUndefined();
+    expect(getValueByPath(data, overlong)).toBeUndefined();
+    expect(getValueByPath(data, 'ledger["valid"]suffix')).toBeUndefined();
+  });
+
   test('formats table binding previews from object rows, array rows, and JSON strings', () => {
     const columns = [
       { path: 'sku', label: 'SKU' },
@@ -29,9 +56,9 @@ describe('data binding helpers', () => {
       ['ENV-10', '$0.82'],
     ]);
     expect(getTableBindingPreview([['ENV-10', 0.82]], columns)).toEqual([['ENV-10', '$0.82']]);
-    expect(getTableBindingPreview(JSON.stringify([{ sku: 'ENV-10', price: 0.82 }]), columns)).toEqual([
-      ['ENV-10', '$0.82'],
-    ]);
+    expect(
+      getTableBindingPreview(JSON.stringify([{ sku: 'ENV-10', price: 0.82 }]), columns),
+    ).toEqual([['ENV-10', '$0.82']]);
   });
 
   test('resolves bound table values from JSON string inputs', () => {
@@ -79,6 +106,36 @@ describe('data binding helpers', () => {
         totalPages: 3,
       }),
     ).toBe('Page 2 of 3: Invoice');
+  });
+
+  test('formats date-only values as calendar dates west of UTC', () => {
+    vi.stubEnv('TZ', 'America/Los_Angeles');
+    try {
+      expect(
+        formatDesignDataValue('2026-01-01', {
+          kind: 'date',
+          locale: 'en-US',
+          dateStyle: 'short',
+        }),
+      ).toBe('1/1/26');
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  test('formats numeric epoch timestamps without parsing them as date strings', () => {
+    vi.stubEnv('TZ', 'UTC');
+    try {
+      expect(
+        formatDesignDataValue(0, {
+          kind: 'date',
+          locale: 'en-US',
+          dateStyle: 'short',
+        }),
+      ).toBe('1/1/70');
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   test('extracts variables from design data metadata and inferred arrays', () => {

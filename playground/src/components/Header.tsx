@@ -61,10 +61,7 @@ function HelpModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }
                 <div className="mt-2 space-y-4">
                   <button
                     onClick={() =>
-                      window.open(
-                        'https://github.com/IDNTEQ/pdfweave/issues',
-                        '_blank',
-                      )
+                      window.open('https://github.com/IDNTEQ/pdfweave/issues', '_blank')
                     }
                     className="flex justify-center items-center w-full rounded-md bg-blue-500 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
                   >
@@ -79,7 +76,9 @@ function HelpModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }
                     {externalIcon}
                   </button>
                   <button
-                    onClick={() => window.open('https://github.com/IDNTEQ/pdfweave/issues', '_blank')}
+                    onClick={() =>
+                      window.open('https://github.com/IDNTEQ/pdfweave/issues', '_blank')
+                    }
                     className="flex justify-center items-center w-full rounded-md bg-gray-500 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gray-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-500"
                   >
                     Found bugs? Report them on our GitHub issues page.

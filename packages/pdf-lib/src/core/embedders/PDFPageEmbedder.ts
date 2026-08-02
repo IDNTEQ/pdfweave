@@ -1,5 +1,6 @@
 import { MissingPageContentsEmbeddingError, UnrecognizedStreamTypeError } from '../errors';
 import PDFArray from '../objects/PDFArray';
+import PDFName from '../objects/PDFName';
 import PDFNumber from '../objects/PDFNumber';
 import PDFRawStream from '../objects/PDFRawStream';
 import PDFRef from '../objects/PDFRef';
@@ -89,6 +90,7 @@ class PDFPageEmbedder {
 
   async embedIntoContext(context: PDFContext, ref?: PDFRef): Promise<PDFRef> {
     const { Contents, Resources } = this.page.normalizedEntries();
+    const Group = this.page.get(PDFName.of('Group'));
 
     if (!Contents) throw new MissingPageContentsEmbeddingError();
     const decodedContents = this.decodeContents(Contents);
@@ -101,6 +103,7 @@ class PDFPageEmbedder {
       BBox: [left, bottom, right, top],
       Matrix: this.transformationMatrix,
       Resources,
+      Group,
     });
 
     if (ref) {

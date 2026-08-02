@@ -3,11 +3,11 @@
   "version": "0.1.0",
   "description": "TypeScript base PDF generator and React base UI. Open source, developed by the community, and completely free to use under the MIT license!",
   "keywords": [
-    "pdfweave",
     "pdf",
     "pdf-designer",
     "pdf-generation",
     "pdf-viewer",
+    "pdfweave",
     "react",
     "typescript"
   ],
@@ -60,7 +60,7 @@
     "clsx": "^2.1.1",
     "dayjs": "^1.11.20",
     "dequal": "^2.0.3",
-    "dompurify": "^3.4.1",
+    "dompurify": "^3.4.12",
     "form-render": "^2.5.5",
     "hotkeys-js": "^4.0.3",
     "lucide-react": "^1.12.0",
@@ -81,7 +81,7 @@
     "@types/react-dom": "^18.2.7",
     "@vitejs/plugin-react": "^6.0.3",
     "csstype": "^3.2.3",
-    "vite": "^8.0.10",
+    "vite": "^8.1.5",
     "vite-plugin-css-injected-by-js": "^5.0.1",
     "vite-tsconfig-paths": "^6.1.1"
   },

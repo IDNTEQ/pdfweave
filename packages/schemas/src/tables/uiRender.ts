@@ -119,8 +119,14 @@ const renderRowUi = (args: {
   resetEditingPosition: () => void;
   offsetY?: number;
 }) => {
-  const { rows, arg, onChangeEditingPosition, offsetY = 0, editingPosition, resetEditingPosition } =
-    args;
+  const {
+    rows,
+    arg,
+    onChangeEditingPosition,
+    offsetY = 0,
+    editingPosition,
+    resetEditingPosition,
+  } = args;
   const value = JSON.parse(arg.value || '[]') as string[][];
 
   let rowOffsetY = offsetY;

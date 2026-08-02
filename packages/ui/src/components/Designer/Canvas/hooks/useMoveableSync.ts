@@ -21,11 +21,7 @@ interface UseMoveableSyncParams {
  * stable — the original behaviour. This is unchanged from the inline effect
  * that lived in Canvas before extraction.
  */
-export const useMoveableSync = ({
-  moveable,
-  pageCursor,
-  schemasList,
-}: UseMoveableSyncParams) => {
+export const useMoveableSync = ({ moveable, pageCursor, schemasList }: UseMoveableSyncParams) => {
   const prevSchemas = usePrevious(schemasList[pageCursor]);
 
   useEffect(() => {

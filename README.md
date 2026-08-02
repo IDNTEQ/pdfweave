@@ -16,11 +16,15 @@ workflows actually need:
 - **Anchor layouts** — Position any schema relative to another by named
   anchor (`alignRightEdge`, `belowBottomEdge`, …) instead of absolute
   coordinates that break the moment a sibling changes height.
-- **Smart tables** — Tables reflow across pages with header repetition,
-  per-row binding to data, and column-level format/binding.
+- **Smart tables** — Tables use explicit column widths, wrap cell text, grow
+  rows to their tallest cell, and reflow across pages with repeated headings,
+  per-row binding, and column-level formatting.
 - **Stationery PDFs** — Use a single-page PDF as the basePdf, and PDFweave
   stamps it onto every reflowed page (header, footer, page numbers all in
   one re-usable artwork file).
+- **N-up imposition** — Pack smaller logical pages onto A2-A6, Letter, Legal,
+  or custom physical sheets with deterministic geometry, clipping, page
+  selection, copies, and collated or uncollated sequencing.
 
 PDFweave is built for teams whose templates need to bind to real data,
 reflow correctly across pages, and ship branded stationery.
@@ -33,8 +37,7 @@ See [GOALS.md](GOALS.md) for the mission and quality bar, and
 ## Quick start
 
 ```bash
-pnpm add @pdfweave/generator @pdfweave/schemas
-# or: npm install @pdfweave/generator @pdfweave/schemas
+npm install @pdfweave/generator @pdfweave/schemas
 ```
 
 ```ts
@@ -43,9 +46,7 @@ import { text, image, table, barcodes } from '@pdfweave/schemas';
 
 const template = {
   basePdf: { width: 210, height: 297, padding: [20, 20, 20, 20] },
-  schemas: [[
-    { name: 'name', type: 'text', position: { x: 20, y: 20 }, width: 80, height: 10 },
-  ]],
+  schemas: [[{ name: 'name', type: 'text', position: { x: 20, y: 20 }, width: 80, height: 10 }]],
 };
 
 const pdf = await generate({
@@ -55,6 +56,45 @@ const pdf = await generate({
 });
 ```
 
+To mount generated invoices, statements, labels, or boleto-style items onto
+physical print sheets, use the unreleased `@pdfweave/imposition` workspace
+package on this repository branch. It is not available from the public npm
+registry yet:
+
+```bash
+npm install
+npm run build
+```
+
+```ts
+import { impose } from '@pdfweave/imposition';
+
+const {
+  pdf: printPdf,
+  plan,
+  warnings,
+} = await impose({
+  source: pdf,
+  sheet: { size: 'A4', margins: 6, gutter: 3 },
+  layout: { type: 'n-up', rows: 3, columns: 1 },
+});
+```
+
+See the [imposition package guide](./packages/imposition/README.md) for page
+selection, scaling, alignment, copies, and collation.
+
+To inspect supported production features alongside their exact tests and
+rendered PDF evidence, run `npm run qualification` and open
+`test-artifacts/qualification-report.html`.
+
+For pull requests, open the [Testing workflow](https://github.com/IDNTEQ/pdfweave/actions/workflows/test.yml),
+select the run, and download `pdfweave-qualification-report` from its Summary
+page. The artifact is retained for 14 days; extract it and open
+`qualification-report.html`.
+
+The latest successful `main` build is published as a directly viewable
+[qualification dashboard](https://idnteq.github.io/pdfweave/qualification/).
+
 For data binding, anchor layouts, smart tables, and stationery PDFs —
 see the docs at [pdfweave.dev](https://pdfweave.dev) (coming soon).
 
@@ -63,27 +103,34 @@ see the docs at [pdfweave.dev](https://pdfweave.dev) (coming soon).
 ## Coming from pdfme?
 
 See **[MIGRATION.md](./MIGRATION.md)** — for templates that don't use
-the new features, switching is one find-and-replace and a `pnpm install`.
+the new features, switching is one find-and-replace and an `npm install`.
 
 ---
 
 ## Feature surface
 
-| | PDFweave |
-| --- | :-: |
-| JSON template format | ✅ |
-| Node generator | ✅ |
-| React Designer | ✅ |
-| Plugin architecture | ✅ |
-| Built-in schemas (text/image/table/barcodes/svg/lines/shapes) | ✅ |
-| Form / Viewer modes | ✅ |
-| Schema → data path bindings (`binding.path`, `binding.format`, `binding.columns`) | ✅ |
-| Anchor-relative positioning (`SchemaLayoutRule`) | ✅ |
-| Smart table reflow with header repeat | ✅ |
-| Designer binding panel (drag-from-data, JSON-path picker) | ✅ |
-| `StationeryPdf` basePdf shape (single-page PDF stamped on every page) | ✅ |
-| Plugin `measure` hook for layout-aware schemas | ✅ |
-| MIT license | ✅ |
+|                                                                                   | PDFweave |
+| --------------------------------------------------------------------------------- | :------: |
+| JSON template format                                                              |    ✅    |
+| Node generator                                                                    |    ✅    |
+| React Designer                                                                    |    ✅    |
+| Plugin architecture                                                               |    ✅    |
+| Built-in schemas (text/image/table/barcodes/svg/lines/shapes)                     |    ✅    |
+| Form / Viewer modes                                                               |    ✅    |
+| Schema → data path bindings (`binding.path`, `binding.format`, `binding.columns`) |    ✅    |
+| Anchor-relative positioning (`SchemaLayoutRule`)                                  |    ✅    |
+| Smart table reflow with header repeat                                             |    ✅    |
+| Fixed table columns with cell wrapping and automatic row-height growth            |    ✅    |
+| Designer binding panel (drag-from-data, JSON-path picker)                         |    ✅    |
+| `StationeryPdf` basePdf shape (single-page PDF stamped on every page)             |    ✅    |
+| Variable-data overlays positioned against existing PDF CropBoxes                  |    ✅    |
+| Validated generic boleto `ficha de compensacao` component                         |    ✅    |
+| Simplex n-up imposition on A2-A6, Letter, Legal, and custom sheets                |    ✅    |
+| Page selection, copies, and collated/uncollated imposition                        |    ✅    |
+| PDF passwords, encryption, and permission controls                                | Planned  |
+| Duplex, booklet signatures, crop/registration marks, and creep                    | Planned  |
+| Plugin `measure` hook for layout-aware schemas                                    |    ✅    |
+| MIT license                                                                       |    ✅    |
 
 ---
 
@@ -92,7 +139,9 @@ the new features, switching is one find-and-replace and a `pnpm install`.
 Pre-1.0. APIs may change between minor versions. Breaking changes are
 documented in [CHANGELOG.md](./CHANGELOG.md). Data binding, anchor
 layouts, smart tables, and stationery PDFs are the headline stable
-contracts.
+contracts. The imposition package currently implements Phase 1 simplex n-up;
+duplex, booklet signatures, press marks, creep, and color preflight remain on
+the [production-print roadmap](./docs/roadmaps/production-print-platform.md).
 
 ---
 

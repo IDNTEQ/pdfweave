@@ -30,6 +30,12 @@
     "limit": "7 KB"
   },
   {
+    "name": "@pdfweave/imposition (gzip)",
+    "path": "packages/imposition/dist/index.js",
+    "gzip": true,
+    "limit": "7.2 KB"
+  },
+  {
     "name": "@pdfweave/ui (gzip)",
     "path": "packages/ui/dist/index.js",
     "gzip": true,

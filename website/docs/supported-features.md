@@ -12,7 +12,6 @@ For using schemas other than the Text schema, please refer to the following docu
 
 :::
 
-
 ### Text (text)
 
 - Style-related
@@ -85,6 +84,34 @@ For using schemas other than the Text schema, please refer to the following docu
   - Text Color
   - [Include text option (planned support)](https://github.com/IDNTEQ/pdfweave/issues/23)
 
+### Boleto de cobranca (boleto)
+
+- Generic FEBRABAN `ficha de compensacao` rendered from strict structured data
+- Canonical 44-digit barcode validation and derived 47-digit linha digitavel
+- Numeric and uppercase alphanumeric CNPJ validation
+- Fixed and variable amounts, direct and third-party beneficiary display
+- Reconciled fixed-amount discount, interest, and charged-value fields
+- Test mode redacts payment identifiers by default or explicitly renders them
+  for qualification while always retaining a non-payable watermark
+- Optional structural validation of a complete bank/PSP-supplied Pix BR Code
+  and a fixed 20.7 mm QR placement with at least four quiet modules and a
+  version-8 density ceiling to the right of the instructions when the issuer
+  profile permits it
+- Up to three independent 180-character instruction lanes, with wrapping and
+  shrink-to-fit that do not move later logical lines
+- Fail-closed geometry/text/static-logo preflight, including animated-PNG
+  rejection before raster decode
+- Ordinary shared text primitives for the institution code, linha digitável,
+  and mechanical-authentication caption; no bitmap or custom stroke alphabet
+- Exact-size A4 two-up and landscape A3 four-up qualification artifacts
+
+The component does not derive a complete boleto from a barcode, invent a
+bank-specific free field, generate a Pix payload from a URL/key, register a
+title or Pix charge, choose a universal issuer QR placement, or replace
+bank/provider homologation. See the repository's
+[boleto operator guide](https://github.com/IDNTEQ/pdfweave/blob/main/docs/printing/boleto.md)
+for the complete contract and supported boundaries.
+
 ### Table (table){#table}
 
 Details: [Tables with Dynamic Data](/tables)
@@ -107,6 +134,21 @@ Details: [Tables with Dynamic Data](/tables)
     - Padding
   - Column
     - Text Align
+- Explicit percentage column widths
+- Cell word wrapping with automatic row-height growth
+- Multi-page reflow with optional repeated headings
+
+### Existing PDF backgrounds
+
+- Render variable schemas over an existing PDF base
+- Preserve MediaBox and CropBox geometry
+- Position authored top-left coordinates relative to the visible CropBox
+- Reuse a single-page stationery PDF across dynamically generated pages
+
+The qualification dashboard includes a boleto over a dark patterned base PDF
+with an asymmetric CropBox. The test checks unchanged surrounding artwork,
+opaque component backing, preserved page boxes, and a decode-valid synthetic
+test barcode under the non-payable watermark.
 
 ### Select (select)
 
@@ -136,6 +178,23 @@ Details: [Tables with Dynamic Data](/tables)
 
 - Style-related
   - Color
+
+## Print Imposition
+
+The independent, release-pending [`@pdfweave/imposition`](/imposition)
+workspace package currently supports simplex n-up output with:
+
+- A2, A3, A4, A5, A6, Letter, Legal, and custom physical sheet sizes;
+- configurable rows, columns, margins, gutters, fill order, alignment,
+  contain/cover/no scaling, clipping, and automatic 90-degree rotation;
+- source page selection, repeated selections, copies, and collated or
+  uncollated sequencing;
+- MediaBox, CropBox, TrimBox, BleedBox, or ArtBox selection with explicit
+  fallback warnings;
+- inspectable placement plans and configurable workload limits.
+
+Duplex imposition, booklet signatures, crop and registration marks, creep,
+and color/preflight controls are planned, not currently supported.
 
 ## Planned Support
 

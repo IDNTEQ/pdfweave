@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { BLANK_A4_PDF, getTableBindingPreview } from '@pdfweave/common';
+import {
+  BLANK_A4_PDF,
+  getDynamicTemplate,
+  getTableBindingPreview,
+  type Template,
+} from '@pdfweave/common';
 import { createSingleTable } from '../src/tables/tableHelper.js';
 import { getBody } from '../src/tables/helper.js';
+import { getDynamicHeightsForTable } from '../src/tables.js';
 import type { TableSchema } from '../src/tables/types.js';
 
 const baseTableSchema = (): TableSchema => ({
@@ -128,6 +134,37 @@ describe('table styling × binding composition', () => {
 });
 
 describe('table cell padding (pdfme/pdfme#1422)', () => {
+  it('keeps explicit percentage widths independent of cell content', async () => {
+    const schema = baseTableSchema();
+    schema.width = 186;
+    schema.head = ['Description', 'Qty', 'Unit price', 'Amount'];
+    schema.headWidthPercentages = [52, 10, 18, 20];
+
+    const createTable = (description: string) =>
+      createSingleTable([[description, '1', '$8.75', '$8.75']], {
+        schema,
+        basePdf: BLANK_A4_PDF,
+        options: {},
+        _cache: new Map(),
+      });
+    const shortTable = await createTable('Print service');
+    const longDescription =
+      'Enterprise-managed document production with archival media, tamper-evident packaging, indexed quality-control records, and verified delivery';
+    const longTable = await createTable(longDescription);
+    const expectedWidths = schema.headWidthPercentages.map(
+      (percentage) => schema.width * (percentage / 100),
+    );
+
+    for (const table of [shortTable, longTable]) {
+      expect(table.columns.map(({ width }) => width)).toEqual(expectedWidths);
+    }
+    const longCell = longTable.body[0].cells[0];
+    expect(longCell.raw).toBe(longDescription);
+    expect(longCell.text.length).toBeGreaterThan(1);
+    expect(longCell.text.join(' ').replaceAll('- ', '-').trim()).toBe(longDescription);
+    expect(longTable.body[0].height).toBeGreaterThan(shortTable.body[0].height);
+  });
+
   it('subtracts horizontal padding from text-fit width so wrapped rows are tall enough', async () => {
     // A narrow table (width 60mm, two equal columns => ~30mm/cell) with heavy left/right
     // padding. With the bug, splitTextToSize is given the full cell width, so a long string
@@ -156,6 +193,148 @@ describe('table cell padding (pdfme/pdfme#1422)', () => {
     // Row height must accommodate wrapped lines + vertical padding.
     const minHeight = cell.text.length * (12 / 2.8346) + 4; // pt2mm(fontSize)*lineHeight*lines + vPad
     expect(table.body[0].height).toBeGreaterThanOrEqual(minHeight - 0.5);
+  });
+});
+
+describe('public table height measurement', () => {
+  it('measures only the bounded rows when the first fragment starts at zero', async () => {
+    const schema = baseTableSchema();
+    schema.__bodyRange = { start: 0, end: 2 };
+    const body = Array.from({ length: 5 }, (_, index) => [
+      `Item ${String(index + 1)}`,
+      `${String(index + 1)}.00`,
+    ]);
+    const args = {
+      schema,
+      basePdf: BLANK_A4_PDF,
+      options: {},
+      _cache: new Map<string | number, unknown>(),
+    };
+
+    const measuredHeights = await getDynamicHeightsForTable(JSON.stringify(body), args);
+
+    expect(measuredHeights).toHaveLength(3);
+  });
+
+  it('retains continuation-header height accounting for direct callers', async () => {
+    const schema = baseTableSchema();
+    schema.position.y = 5;
+    schema.width = 60;
+    schema.repeatHead = true;
+    const basePdf = {
+      width: 100,
+      height: 60,
+      padding: [5, 5, 5, 5] as [number, number, number, number],
+    };
+    const body = Array.from({ length: 20 }, (_, index) => [`Item ${index + 1}`, `${index + 1}.00`]);
+    const args = { schema, basePdf, options: {}, _cache: new Map<string | number, unknown>() };
+    const table = await createSingleTable(body, args);
+    const rawHeights = table.allRows().map((row) => row.height);
+    const measuredHeights = await getDynamicHeightsForTable(JSON.stringify(body), args);
+    const repeatedHeight =
+      measuredHeights.reduce((sum, height) => sum + height, 0) -
+      rawHeights.reduce((sum, height) => sum + height, 0);
+
+    expect(measuredHeights).toHaveLength(rawHeights.length);
+    expect(repeatedHeight).toBeGreaterThan(0);
+    expect(repeatedHeight / table.getHeadHeight()).toBeCloseTo(
+      Math.round(repeatedHeight / table.getHeadHeight()),
+      8,
+    );
+  });
+
+  it('composes with the legacy dynamic-template callback without repeating page headers twice', async () => {
+    const schema = baseTableSchema();
+    schema.position.y = 5;
+    schema.width = 60;
+    schema.repeatHead = true;
+    const basePdf = {
+      width: 100,
+      height: 60,
+      padding: [5, 5, 5, 5] as [number, number, number, number],
+    };
+    const body = Array.from({ length: 20 }, (_, index) => [`Item ${index + 1}`, `${index + 1}.00`]);
+    const value = JSON.stringify(body);
+    const template: Template = { basePdf, schemas: [[schema]] };
+    const args = { schema, basePdf, options: {}, _cache: new Map<string | number, unknown>() };
+    const measuredHeights = await getDynamicHeightsForTable(value, args);
+
+    const dynamicTemplate = await getDynamicTemplate({
+      template,
+      input: { items: value },
+      options: {},
+      _cache: new Map(),
+      getDynamicHeights: getDynamicHeightsForTable,
+    });
+    const fragments = dynamicTemplate.schemas.flat().filter(({ name }) => name === schema.name);
+    const ranges = fragments.map(({ __bodyRange }) => __bodyRange);
+
+    expect(ranges[0]).toMatchObject({ start: 0 });
+    expect(ranges.at(-1)).toMatchObject({ end: body.length });
+    for (let index = 1; index < ranges.length; index += 1) {
+      expect(ranges[index]?.start).toBe(ranges[index - 1]?.end);
+    }
+    expect(fragments.reduce((sum, fragment) => sum + fragment.height, 0)).toBeCloseTo(
+      measuredHeights.reduce((sum, height) => sum + height, 0),
+      8,
+    );
+  });
+
+  it('uses static footer bounds when composing the legacy callback with repeated headers', async () => {
+    const schema = baseTableSchema();
+    schema.position = { x: 10, y: 5 };
+    schema.width = 60;
+    schema.repeatHead = true;
+    schema.headStyles.padding = { top: 2, right: 2, bottom: 2, left: 2 };
+    schema.bodyStyles.padding = { top: 2, right: 2, bottom: 2, left: 2 };
+    const basePdf = {
+      width: 100,
+      height: 100,
+      padding: [5, 5, 5, 5] as [number, number, number, number],
+      staticSchema: [
+        {
+          name: 'footer',
+          type: 'text',
+          content: 'page footer',
+          position: { x: 10, y: 80 },
+          width: 80,
+          height: 15,
+        },
+      ],
+    };
+    const body = Array.from({ length: 18 }, (_, index) => [
+      `Item ${String(index + 1)}`,
+      `${String(index + 1)}.00`,
+    ]);
+    const value = JSON.stringify(body);
+    const template: Template = { basePdf, schemas: [[schema]] };
+
+    const dynamicTemplate = await getDynamicTemplate({
+      template,
+      input: { items: value },
+      options: {},
+      _cache: new Map(),
+      getDynamicHeights: getDynamicHeightsForTable,
+    });
+    const fragments = dynamicTemplate.schemas.flat().filter(({ name }) => name === schema.name);
+
+    expect(fragments.map(({ __bodyRange }) => __bodyRange)).toEqual([
+      { start: 0, end: 8 },
+      { start: 8, end: 16 },
+      { start: 16, end: 18 },
+    ]);
+    for (const fragment of fragments) {
+      expect(fragment.position.y + fragment.height).toBeLessThanOrEqual(80.01);
+      const range = fragment.__bodyRange!;
+      const rendered = await createSingleTable(body.slice(range.start, range.end), {
+        schema: fragment as TableSchema,
+        basePdf,
+        options: {},
+        _cache: new Map(),
+      });
+      const renderedHeight = rendered.allRows().reduce((sum, row) => sum + row.height, 0);
+      expect(fragment.height).toBeCloseTo(renderedHeight, 8);
+    }
   });
 });
 
@@ -203,5 +382,23 @@ describe('table getBody recovery (pdfme/pdfme#1299)', () => {
   });
   it('tolerates a single-row JSON array (string[]) by wrapping it', () => {
     expect(getBody('["a","b"]')).toEqual([['a', 'b']]);
+  });
+
+  it('normalizes numeric, boolean, null, and object cells from JSON', () => {
+    expect(getBody('[[1,true,null,{"code":"A-1"}]]')).toEqual([
+      ['1', 'true', '', '{"code":"A-1"}'],
+    ]);
+  });
+
+  it('renders ragged rows without calling string methods on missing cells', async () => {
+    const table = await createSingleTable([['complete', 'row'], ['missing']], {
+      schema: baseTableSchema(),
+      basePdf: BLANK_A4_PDF,
+      options: {},
+      _cache: new Map(),
+    });
+
+    expect(table.body[1].cells[0].raw).toBe('missing');
+    expect(table.body[1].cells[1].raw).toBe('');
   });
 });

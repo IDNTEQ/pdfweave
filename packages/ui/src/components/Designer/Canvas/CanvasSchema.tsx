@@ -129,13 +129,7 @@ const CanvasSchema: React.FC<CanvasSchemaProps> = ({
   const mode: Mode =
     editing && activeElements.map((ae) => ae.id).includes(schema.id) ? 'designer' : 'viewer';
   const schemaPageHeight = pageSizes[schemaPageIndex]?.height;
-  const value = computeDisplayValue(
-    schema,
-    schemasList,
-    designDataInput,
-    index,
-    mode,
-  );
+  const value = computeDisplayValue(schema, schemasList, designDataInput, index, mode);
 
   const isOnCurrentPage = (schemasList[pageCursor] || []).some((s) => s.id === schema.id);
   const outline = buildOutline(schema, hoveringSchemaId, primaryColor);

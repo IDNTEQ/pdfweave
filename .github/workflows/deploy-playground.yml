@@ -1,4 +1,4 @@
-name: Deploy Pages (playground + docs)
+name: Deploy Pages (playground + docs + qualification)
 
 on:
   push:
@@ -6,7 +6,12 @@ on:
     paths:
       - 'packages/**'
       - 'playground/**'
+      - 'scripts/**'
       - 'website/**'
+      - 'docs/testing/qualification-cases.json'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'vitest.config.ts'
       - '.github/workflows/deploy-playground.yml'
   workflow_dispatch:
 
@@ -16,25 +21,26 @@ concurrency:
   group: pages
   cancel-in-progress: true
 
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      qualification_outcome: ${{ steps.qualification.outcome }}
+      qualification_report_present: ${{ steps.qualification_report.outputs.present }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           # Fetch tags so packages/common/set-version.js can stamp the
           # latest release version into the bundle (otherwise PDFWEAVE_VERSION
           # falls back to 'x.x.x' and shows that in the playground header).
           fetch-depth: 0
+          persist-credentials: false
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
-          node-version: '20.x'
+          node-version: '24'
           cache: npm
           cache-dependency-path: |
             package-lock.json
@@ -46,6 +52,40 @@ jobs:
 
       - name: Build packages
         run: npm run build
+
+      # --- Qualification dashboard (served at /pdfweave/qualification/) --
+      - name: Build qualification dashboard
+        id: qualification
+        run: npm run qualification
+        continue-on-error: true
+
+      - name: Preserve qualification diagnostic
+        id: qualification_report
+        if: always()
+        shell: bash
+        run: |
+          report='test-artifacts/qualification-report.html'
+          if [[ -f "$report" ]]; then
+            echo 'present=true' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo 'present=false' >> "$GITHUB_OUTPUT"
+          echo '::error::Qualification did not produce test-artifacts/qualification-report.html'
+          mkdir -p test-artifacts
+          cat > "$report" <<'HTML'
+          <!doctype html>
+          <html lang="en">
+            <head><meta charset="utf-8"><title>Qualification report unavailable</title></head>
+            <body>
+              <main>
+                <h1>Qualification report unavailable</h1>
+                <p>The qualification command did not produce its expected diagnostic report.</p>
+                <p>Inspect the Build qualification dashboard step in this workflow run.</p>
+              </main>
+            </body>
+          </html>
+          HTML
 
       # --- Playground (served at /pdfweave/) -----------------------------
       - name: Install playground dependencies
@@ -68,20 +108,51 @@ jobs:
           cp -r playground/dist/. pages-artifact/
           mkdir -p pages-artifact/docs
           cp -r website/build/. pages-artifact/docs/
+          mkdir -p pages-artifact/qualification
+          cp test-artifacts/qualification-report.html pages-artifact/qualification/index.html
           # SPA fallback so the playground's client-side routes resolve on
           # deep-link reload. (Docusaurus emits its own per-page HTML.)
           cp pages-artifact/index.html pages-artifact/404.html
 
-      - uses: actions/upload-pages-artifact@v5
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5
         with:
           path: pages-artifact
 
-  deploy:
+  qualification-gate:
+    name: Enforce qualification result
     needs: build
     runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Enforce qualification result
+        env:
+          QUALIFICATION_OUTCOME: ${{ needs.build.outputs.qualification_outcome }}
+          QUALIFICATION_REPORT_PRESENT: ${{ needs.build.outputs.qualification_report_present }}
+        shell: bash
+        run: |
+          if [[ "$QUALIFICATION_OUTCOME" != 'success' ]]; then
+            echo "Qualification command outcome: $QUALIFICATION_OUTCOME" >&2
+            exit 1
+          fi
+          if [[ "$QUALIFICATION_REPORT_PRESENT" != 'true' ]]; then
+            echo 'Qualification report was not produced.' >&2
+            exit 1
+          fi
+
+  deploy:
+    name: Deploy to GitHub Pages
+    # The independent gate still fails the workflow. Deployment only needs the
+    # build so a failed qualification report remains inspectable on Pages.
+    needs: build
+    runs-on: ubuntu-latest
+    # actions/deploy-pages needs Pages write access and an OIDC token for the
+    # GitHub Pages deployment API.
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v5
+        uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5

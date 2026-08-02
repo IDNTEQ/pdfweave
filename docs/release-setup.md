@@ -8,12 +8,34 @@ To enable token-free CI publishing via GitHub OIDC trusted publishers:
 
    - Provider: GitHub Actions
    - Repository: `IDNTEQ/pdfweave`
-   - Workflow: `.github/workflows/release.yml`
+   - Workflow filename: `release.yml`
    - Environment: leave blank unless you decide to add a `release` environment for approval gating
 
-   Packages: `common`, `pdf-lib`, `schemas`, `generator`, `ui`, and `cli`.
+   Packages: `common`, `pdf-lib`, `schemas`, `generator`, `imposition`, `ui`,
+   `cli`, `converter`, and `manipulator`.
 
-   `converter` and `manipulator` are not in the release workflow publish matrix yet.
+   npm cannot attach a trusted publisher until a package exists. Before the
+   first release containing `@pdfweave/imposition`, publish an authenticated
+   prerelease such as `0.4.0-rc.0` under the `next` tag, then configure it:
+
+   The permission flags used below require npm 11.15.0 or newer. Upgrade the
+   maintainer CLI before running the trust commands:
+
+   ```bash
+   npm install -g npm@^11.15.0
+   npm --version
+   ```
+
+   ```bash
+   npm trust github @pdfweave/imposition \
+     --file release.yml \
+     --repo IDNTEQ/pdfweave \
+     --allow-publish
+   npm trust list @pdfweave/imposition
+   ```
+
+   Use only the workflow filename in the npm configuration, not its full
+   `.github/workflows/` path.
 
 3. After registration, releases trigger via:
 
@@ -22,7 +44,11 @@ To enable token-free CI publishing via GitHub OIDC trusted publishers:
    git push pdfweave v0.1.1
    ```
 
-   The workflow handles npm publish and GitHub release creation automatically. No `NPM_TOKEN` secret is needed.
+   The workflow handles npm publish and GitHub release creation automatically.
+   Prerelease versions such as `v0.4.0-rc.0` publish under the npm `next`
+   dist-tag; stable versions publish under `latest`. Each GitHub release also
+   includes the self-contained PDFweave qualification dashboard as a permanent
+   release asset. No `NPM_TOKEN` secret is needed.
 
 4. The `npm_PGkY...` token and any subsequent legacy publish tokens can be revoked at https://www.npmjs.com/settings/lsadehaan/tokens once OIDC is verified working.
 

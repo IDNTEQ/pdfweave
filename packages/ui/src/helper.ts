@@ -312,12 +312,16 @@ export const arrayBufferToBase64 = (arrayBuffer: ArrayBuffer): string => {
   }
 };
 
-const getPersistedSchemaId = (schema: SchemaForUI | Template['schemas'][number][number]): string | null => {
+const getPersistedSchemaId = (
+  schema: SchemaForUI | Template['schemas'][number][number],
+): string | null => {
   const id = (schema as { id?: unknown }).id;
   return typeof id === 'string' && id.length > 0 ? id : null;
 };
 
-const isAnchoredLayoutRule = (layout: unknown): layout is Extract<SchemaLayoutRule, { mode: 'anchored' }> =>
+const isAnchoredLayoutRule = (
+  layout: unknown,
+): layout is Extract<SchemaLayoutRule, { mode: 'anchored' }> =>
   typeof layout === 'object' &&
   layout !== null &&
   (layout as { mode?: unknown }).mode === 'anchored';
@@ -345,7 +349,7 @@ const normalizeAnchorRefsForUI = (page: SchemaForUI[]): void => {
   });
 };
 
-const convertSchemasForUI = (template: Template): SchemaForUI[][] => {
+const convertSchemasForUI = (template: Template, mode: 'designer' | 'preview'): SchemaForUI[][] => {
   const seenIds = new Set<string>();
   template.schemas.forEach((page) => {
     page.forEach((schema) => {
@@ -354,8 +358,10 @@ const convertSchemasForUI = (template: Template): SchemaForUI[][] => {
       seenIds.add(id);
       (schema as SchemaForUI).id = id;
       (schema as SchemaForUI).content = schema.content || '';
-      schema.readOnly = true;
-      schema.required = false;
+      if (mode === 'designer') {
+        schema.readOnly = true;
+        schema.required = false;
+      }
     });
     normalizeAnchorRefsForUI(page as SchemaForUI[]);
   });
@@ -363,10 +369,13 @@ const convertSchemasForUI = (template: Template): SchemaForUI[][] => {
   return template.schemas as SchemaForUI[][];
 };
 
-export const template2SchemasList = async (_template: Template) => {
+export const template2SchemasList = async (
+  _template: Template,
+  mode: 'designer' | 'preview' = 'designer',
+) => {
   const template = cloneDeep(_template);
   const { basePdf, schemas } = template;
-  const schemasForUI = convertSchemasForUI(template);
+  const schemasForUI = convertSchemasForUI(template, mode);
 
   let pageSizes: Size[] = [];
   if (isBlankPdf(basePdf)) {
@@ -624,11 +633,7 @@ const roundOffset = (value: number): number => round(value, 2);
  *     anchored child can't be pushed outside the printable area, and
  *   - mm-rounding to 2dp so the prop-panel display doesn't oscillate.
  */
-const resolveAnchoredSchemas = (
-  schemas: SchemaForUI[],
-  basePdf: BasePdf,
-  pageSize: Size,
-): void => {
+const resolveAnchoredSchemas = (schemas: SchemaForUI[], basePdf: BasePdf, pageSize: Size): void => {
   const lookup = buildSchemaIndex(schemas);
 
   for (let pass = 0; pass < schemas.length; pass += 1) {

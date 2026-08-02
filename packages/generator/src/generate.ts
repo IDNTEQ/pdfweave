@@ -47,19 +47,12 @@ export type GenerateHooks = {
   postprocessing?: PostprocessingHook;
 };
 
-const generate = async (
-  props: GenerateProps & GenerateHooks,
-): Promise<Uint8Array<ArrayBuffer>> => {
+const generate = async (props: GenerateProps & GenerateHooks): Promise<Uint8Array<ArrayBuffer>> => {
   // The runtime check is over the zod-validated subset; pull the hooks out
   // first so the .strict() schema doesn't reject them as unknown keys.
   const { preprocessing: preHook, postprocessing: postHook, ...validatableProps } = props;
   checkGenerateProps(validatableProps);
-  const {
-    inputs,
-    template: _template,
-    options = {},
-    plugins: userPlugins = {},
-  } = validatableProps;
+  const { inputs, template: _template, options = {}, plugins: userPlugins = {} } = validatableProps;
   const template = cloneDeep(_template);
 
   const basePdf = template.basePdf;
@@ -118,33 +111,21 @@ const generate = async (
     });
 
     const schemas = dynamicTemplate.schemas;
-    // Create a type-safe array of schema names without using Set spread which requires downlevelIteration
-    const schemaNameSet = new Set<string>();
-    schemas.forEach((page: Schema[]) => {
-      page.forEach((schema: Schema) => {
-        if (schema.name) {
-          schemaNameSet.add(schema.name);
-        }
-      });
-    });
-    const schemaNames = Array.from(schemaNameSet);
 
     for (let j = 0; j < basePages.length; j += 1) {
       const basePage = basePages[j];
       const embedPdfBox = embedPdfBoxes[j];
 
-      // Use the visible-region origin (CropBox when present, else MediaBox)
-      // so schemas authored against the CropBox land in the visible area
-      // rather than at the MediaBox origin. For basePdfs without an explicit
-      // CropBox this resolves to MediaBox.x/y — identical to the previous
-      // behavior — keeping the change a no-op for the common case.
-      // See pdfme/pdfme#623.
+      // Convert schema positions authored from the visible box's top-left
+      // into the page renderer's coordinate space. The y offset is additive:
+      // getPageContentOffset already accounts for PDF's bottom-up axis and a
+      // nonzero MediaBox origin. See pdfme/pdfme#623.
       const contentOffset =
         basePage instanceof pdfLib.PDFEmbeddedPage
           ? getPageContentOffset(embedPdfBox)
           : { x: 0, y: 0 };
-      const boundingBoxLeft = pt2mm(contentOffset.x);
-      const boundingBoxBottom = pt2mm(contentOffset.y);
+      const contentOffsetX = pt2mm(contentOffset.x);
+      const contentOffsetY = pt2mm(contentOffset.y);
 
       const page = insertPage({ basePage, embedPdfBox, pdfDoc });
 
@@ -170,8 +151,8 @@ const generate = async (
           const staticSchemaForRender: Schema = {
             ...staticSchema,
             position: {
-              x: staticSchema.position.x + boundingBoxLeft,
-              y: staticSchema.position.y - boundingBoxBottom,
+              x: staticSchema.position.x + contentOffsetX,
+              y: staticSchema.position.y + contentOffsetY,
             },
           };
 
@@ -190,14 +171,8 @@ const generate = async (
         }
       }
 
-      for (let l = 0; l < schemaNames.length; l += 1) {
-        const name = schemaNames[l];
-        const schemaPage = schemas[j] || [];
-        const schema = schemaPage.find((s: Schema) => s.name == name);
-        if (!schema) {
-          continue;
-        }
-
+      const schemaPage = schemas[j] || [];
+      for (const schema of schemaPage) {
         const render = renderObj[schema.type];
         if (!render) {
           continue;
@@ -211,8 +186,8 @@ const generate = async (
         });
 
         schema.position = {
-          x: schema.position.x + boundingBoxLeft,
-          y: schema.position.y - boundingBoxBottom,
+          x: schema.position.x + contentOffsetX,
+          y: schema.position.y + contentOffsetY,
         };
 
         // Create properly typed render props

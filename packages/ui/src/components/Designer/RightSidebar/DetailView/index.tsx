@@ -136,8 +136,15 @@ const getPositionAxisValue = (position: unknown, axis: Axis): unknown =>
 const DetailView = (props: DetailViewProps) => {
   const { token } = theme.useToken();
 
-  const { schemasList, changeSchemas, deselectSchema, activeSchema, activeSchemas, pageSize, basePdf } =
-    props;
+  const {
+    schemasList,
+    changeSchemas,
+    deselectSchema,
+    activeSchema,
+    activeSchemas,
+    pageSize,
+    basePdf,
+  } = props;
   const formInstance = useForm();
   // form-render returns a new wrapper each render; keep one so schema updates do not reset focused fields.
   const formRef = useRef(formInstance);
@@ -257,7 +264,10 @@ const DetailView = (props: DetailViewProps) => {
   const handleWatch = debounce(function (...args: unknown[]) {
     const formSchema = args[0] as Record<string, unknown>;
     const activeLayout = getAnchoredLayout(activeSchema);
-    const displaySchema = getSchemaValuesForForm(activeSchema) as unknown as Record<string, unknown>;
+    const displaySchema = getSchemaValuesForForm(activeSchema) as unknown as Record<
+      string,
+      unknown
+    >;
     const formAndSchemaValuesDiffer = (formValue: unknown, schemaValue: unknown): boolean => {
       if (typeof formValue === 'object' && formValue !== null) {
         return !dequal(formValue, schemaValue);

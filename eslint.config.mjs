@@ -10,7 +10,7 @@ import globals from 'globals';
 import { readFileSync } from 'node:fs';
 
 const playgroundPackageJson = JSON.parse(
-  readFileSync(new URL('./playground/package.json', import.meta.url), 'utf8')
+  readFileSync(new URL('./playground/package.json', import.meta.url), 'utf8'),
 );
 
 const typeAwareProject = [
@@ -24,6 +24,7 @@ const packageNames = [
   'common',
   'converter',
   'generator',
+  'imposition',
   'manipulator',
   'pdf-lib',
   'schemas',
@@ -35,6 +36,7 @@ const packagePublicEntrypoints = {
   common: ['./index.ts'],
   converter: ['./index.ts'],
   generator: ['./index.ts'],
+  imposition: ['./index.ts'],
   manipulator: ['./index.ts'],
   'pdf-lib': ['./index.ts'],
   schemas: ['./index.ts', './builtins.ts', './tables.ts', './utils.ts'],
@@ -85,7 +87,9 @@ const warnRule = (ruleName, ruleValue) => {
 };
 
 const warnRules = (rules = {}) =>
-  Object.fromEntries(Object.entries(rules).map(([ruleName, ruleValue]) => [ruleName, warnRule(ruleName, ruleValue)]));
+  Object.fromEntries(
+    Object.entries(rules).map(([ruleName, ruleValue]) => [ruleName, warnRule(ruleName, ruleValue)]),
+  );
 
 const configWithWarnRules = (config, files = sourceFiles) => ({
   ...config,
@@ -103,7 +107,7 @@ const disableTypeScriptRulesMatching = (predicate) =>
   Object.fromEntries(
     Object.keys(tseslint.plugin.rules)
       .filter(predicate)
-      .map((ruleName) => [`@typescript-eslint/${ruleName}`, 'off'])
+      .map((ruleName) => [`@typescript-eslint/${ruleName}`, 'off']),
   );
 
 const packageBoundaryZones = packageNames.flatMap((targetPackage) =>
@@ -114,8 +118,9 @@ const packageBoundaryZones = packageNames.flatMap((targetPackage) =>
       from: `./packages/${sourcePackage}/src`,
       // The TS resolver maps public @pdfweave/* imports to src files; keep those entrypoints allowed.
       except: packagePublicEntrypoints[sourcePackage],
-      message: 'Import other packages through their @pdfweave/* entry point instead of packages/*/src.',
-    }))
+      message:
+        'Import other packages through their @pdfweave/* entry point instead of packages/*/src.',
+    })),
 );
 
 const testFiles = ['**/*.test.{ts,tsx}', '**/*.spec.{ts,tsx}', '**/__tests__/**/*.{ts,tsx}'];
@@ -316,7 +321,7 @@ export default [
         'prefer-promise-reject-errors',
         'no-redundant-type-constituents',
         'no-floating-promises',
-        'no-misused-promises'
+        'no-misused-promises',
       ),
       ...disableTypeScriptRulesMatching((ruleName) => ruleName.startsWith('no-unsafe')),
       ...disableRulesFromPlugin('sonarjs', sonarjs),

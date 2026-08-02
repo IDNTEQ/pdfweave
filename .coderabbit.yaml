@@ -30,7 +30,6 @@ reviews:
 
   path_filters:
     # Don't review what we don't own / don't ship as code.
-    - "!packages/pdf-lib/**"
     - "!**/dist/**"
     - "!**/coverage/**"
     - "!**/node_modules/**"
@@ -39,9 +38,14 @@ reviews:
     - "!**/package-lock.json"
     - "!website/**"
     - "!playground/dist/**"
-    - "!.crap-allowlist.json"
 
   path_instructions:
+    - path: "packages/pdf-lib/**"
+      instructions: |
+        This fork contains owned parser, crypto, and rendering changes. Review
+        malformed-input handling, byte and array bounds, resource limits,
+        browser/Node compatibility, and preservation of the public pdf-lib API.
+
     - path: "packages/common/src/anchorGeometry.ts"
       instructions: |
         This is the SINGLE source of truth for anchor math. Any change
@@ -59,12 +63,31 @@ reviews:
         (dataBinding) call into this module. Don't reintroduce inline
         column logic in either caller.
 
+    - path: "packages/common/src/{types,schema}.ts"
+      instructions: |
+        Stored template compatibility is a public contract. Flag newly required
+        fields, changes that make existing templates fail validation, and schema
+        changes without round-trip or migration coverage.
+
     - path: "packages/generator/src/**"
       instructions: |
         Server-side PDF emission. Do NOT introduce React or other
         browser-only deps here — the generator is meant to be
         importable in Node, Cloudflare Workers, Deno, Bun. If you see
         a `react` / `react-dom` / `antd` import added, flag it.
+
+    - path: "packages/schemas/src/boleto/**"
+      instructions: |
+        Treat boleto digit lines, barcode encoding, check digits, due-date
+        factors, amounts, and field placement as payment-critical behavior.
+        Require explicit validation, authoritative fixtures, and focused tests;
+        flag assumptions that infer beneficiary or payer data from the barcode.
+
+    - path: "packages/imposition/src/**"
+      instructions: |
+        Review physical units, source boxes, transforms, placement order,
+        clipping, collation, copies, and auto-rotation together. Placement must
+        remain deterministic and changes need manifest plus rendered-PDF tests.
 
     - path: "packages/ui/src/**"
       instructions: |
@@ -76,6 +99,25 @@ reviews:
       instructions: |
         Test files don't need JSDoc on internal helpers. They DO need
         clear test names — `it('does X when Y')`, not `it('test 1')`.
+
+    - path: "scripts/*qualification*"
+      instructions: |
+        Qualification output is release evidence. Flag missing failure
+        propagation, unsafe HTML or path handling, nondeterministic manifests,
+        and reports that can show success when rendering or artifact generation
+        failed.
+
+    - path: ".github/workflows/**"
+      instructions: |
+        Review least-privilege permissions, immutable action pinning, untrusted
+        pull-request input, cache poisoning, artifact provenance, and whether
+        deploy or release jobs can run after a failed qualification gate.
+
+    - path: ".crap-allowlist.json"
+      instructions: |
+        This file waives complexity failures. Flag new or increased allowances
+        unless the PR documents why refactoring is unsafe and includes focused
+        coverage for the waived code.
 
   tools:
     # Defer all of these to our own CI gates which are stricter.

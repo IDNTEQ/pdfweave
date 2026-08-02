@@ -1,6 +1,6 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { getPdfJsWasmUrl } from '../src/pdfjs.node.js';
+import { getPdfJsStandardFontDataUrl, getPdfJsWasmUrl } from '../src/pdfjs.node.js';
 
 describe('pdf.js node configuration', () => {
   test('resolves the wasm directory from pdfjs-dist', () => {
@@ -8,5 +8,11 @@ describe('pdf.js node configuration', () => {
 
     expect(existsSync(join(wasmUrl, 'jbig2.wasm'))).toBe(true);
     expect(existsSync(join(wasmUrl, 'openjpeg.wasm'))).toBe(true);
+  });
+
+  test('resolves the standard-font directory from pdfjs-dist', () => {
+    const standardFontDataUrl = getPdfJsStandardFontDataUrl();
+
+    expect(existsSync(join(standardFontDataUrl, 'LiberationSans-Regular.ttf'))).toBe(true);
   });
 });

@@ -290,9 +290,7 @@ describe(`PDFForm`, () => {
 
     expect(() => form.updateFieldAppearances()).not.toThrow();
 
-    expect(
-      pdfDoc.save({ updateFieldAppearances: true }),
-    ).resolves.toBeInstanceOf(Uint8Array);
+    await expect(pdfDoc.save({ updateFieldAppearances: true })).resolves.toBeInstanceOf(Uint8Array);
   });
 
   it(`it cleans references of removed fields and their widgets`, async () => {
