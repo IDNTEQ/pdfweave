@@ -145,8 +145,14 @@ viewer, form, and designer modes.
   credentials are available, and document any external release blocker.
 - Run `npm run check` before pushing, or at minimum strict lint, typecheck,
   tests, and qualification for rendering changes.
-- Every PR is reviewed by Greptile and CodeRabbit. Wait for both to comment,
-  then address findings or respond with technical reasoning before merging.
+- CodeRabbit is the advisory automatic AI reviewer for contributor PRs. Address
+  its findings or respond with technical reasoning before merging.
+- CodeRabbit's open-source review quota can be rate-limited. A rate-limited or
+  unavailable review must not deadlock a PR: record the condition in the PR and
+  substitute an independent, read-only Claude Code review with the `fable`
+  model. Bot-authored dependency PRs may instead rely on the deterministic test,
+  CodeQL, and dependency-security results. Required deterministic CI checks
+  remain the authoritative automated merge gates.
 - For substantial changes, run periodic independent, read-only reviews through
   Claude Code with the `fable` model, including one before the final push.
   Verify each finding against current code and record material fixes or

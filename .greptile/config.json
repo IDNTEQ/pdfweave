@@ -1,7 +1,0 @@
-{
-  "strictness": 2,
-  "commentTypes": ["logic", "syntax", "info"],
-  "triggerOnUpdates": true,
-  "statusCheck": true,
-  "ignorePatterns": "**/dist/**\n**/coverage/**\n**/node_modules/**\n**/__snapshots__/**\n**/*.lock\n**/package-lock.json\n.crap-allowlist.json"
-}
