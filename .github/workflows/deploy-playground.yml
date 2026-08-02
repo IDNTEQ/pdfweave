@@ -119,6 +119,7 @@ jobs:
           path: pages-artifact
 
   qualification-gate:
+    name: Enforce qualification result
     needs: build
     runs-on: ubuntu-latest
     permissions: {}
@@ -139,8 +140,13 @@ jobs:
           fi
 
   deploy:
-    needs: [build, qualification-gate]
+    name: Deploy to GitHub Pages
+    # The independent gate still fails the workflow. Deployment only needs the
+    # build so a failed qualification report remains inspectable on Pages.
+    needs: build
     runs-on: ubuntu-latest
+    # actions/deploy-pages needs Pages write access and an OIDC token for the
+    # GitHub Pages deployment API.
     permissions:
       pages: write
       id-token: write

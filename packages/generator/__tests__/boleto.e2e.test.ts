@@ -8,6 +8,10 @@ import { PDFDocument, rgb } from '@pdfweave/pdf-lib';
 import { PNG } from 'pngjs';
 import { vi } from 'vitest';
 import boleto, {
+  BOLETO_BARCODE_CENTER_FROM_BOTTOM_MM,
+  BOLETO_BARCODE_HEIGHT_MM,
+  BOLETO_BARCODE_LEFT_MM,
+  BOLETO_BARCODE_WIDTH_MM,
   buildBoletoBarcode,
   deriveDigitableLine,
   formatDigitableLine,
@@ -37,6 +41,7 @@ const REPRESENTATIVE_PAGE_INDEXES = [0, 49, 99] as const;
 const CROP_BOX_WIDTH_MM = 210;
 const CROP_BOX_HEIGHT_MM = 120;
 const CROP_BOX_BOLETO_POSITION = { x: 5, y: 10 } as const;
+const BARCODE_ACQUISITION_PADDING_MM = { top: 2, right: 5, bottom: 3, left: 5 } as const;
 const CONSTANT_INSTITUTION_LOGO =
   'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAW0lEQVR4AcXBsQ1AUAAA0XPRGkFtGyOojGUxtUGYQfKTe29a9uNloOe8+UNiEpOYxCQmMYlJTGISk9jMYOu18YfEJCYxiUlMYhKTmMQkJjGJSUxiEpOYxCQmsQ/9MgT6Xr5uTQAAAABJRU5ErkJggg==';
 
@@ -202,14 +207,30 @@ const tryDecodeItfRaster = (image: PNG, dpi: number): ItfRasterResult | undefine
   }
 };
 
-const cropBarcodeAcquisitionRegion = (pngBytes: ArrayBuffer): PNG => {
+const cropBarcodeAcquisitionRegion = (
+  pngBytes: ArrayBuffer,
+  pageWidthMm = PAGE_WIDTH_MM,
+  boletoPosition = { x: 0, y: 0 },
+  boletoHeightMm = PAGE_HEIGHT_MM,
+): PNG => {
   const source = PNG.sync.read(Buffer.from(new Uint8Array(pngBytes)));
-  const pixelsPerMillimeter = source.width / PAGE_WIDTH_MM;
+  const pixelsPerMillimeter = source.width / pageWidthMm;
+  const barcodeTop =
+    boletoPosition.y +
+    boletoHeightMm -
+    BOLETO_BARCODE_CENTER_FROM_BOTTOM_MM -
+    BOLETO_BARCODE_HEIGHT_MM / 2;
   const crop = {
-    x: 0,
-    y: 74,
-    width: 113,
-    height: 18,
+    x: boletoPosition.x + BOLETO_BARCODE_LEFT_MM - BARCODE_ACQUISITION_PADDING_MM.left,
+    y: barcodeTop - BARCODE_ACQUISITION_PADDING_MM.top,
+    width:
+      BARCODE_ACQUISITION_PADDING_MM.left +
+      BOLETO_BARCODE_WIDTH_MM +
+      BARCODE_ACQUISITION_PADDING_MM.right,
+    height:
+      BARCODE_ACQUISITION_PADDING_MM.top +
+      BOLETO_BARCODE_HEIGHT_MM +
+      BARCODE_ACQUISITION_PADDING_MM.bottom,
   };
   const target = new PNG({
     width: Math.round(crop.width * pixelsPerMillimeter),
@@ -234,10 +255,16 @@ const measureDarkRasterBounds = (
 ): DarkRasterBounds => {
   const source = PNG.sync.read(Buffer.from(new Uint8Array(pngBytes)));
   const pixelsPerMillimeter = source.width / PAGE_WIDTH_MM;
-  const startX = Math.floor(region.x * pixelsPerMillimeter);
-  const startY = Math.floor(region.y * pixelsPerMillimeter);
-  const endX = Math.ceil((region.x + region.width) * pixelsPerMillimeter);
-  const endY = Math.ceil((region.y + region.height) * pixelsPerMillimeter);
+  const startX = Math.min(source.width, Math.max(0, Math.floor(region.x * pixelsPerMillimeter)));
+  const startY = Math.min(source.height, Math.max(0, Math.floor(region.y * pixelsPerMillimeter)));
+  const endX = Math.min(
+    source.width,
+    Math.max(0, Math.ceil((region.x + region.width) * pixelsPerMillimeter)),
+  );
+  const endY = Math.min(
+    source.height,
+    Math.max(0, Math.ceil((region.y + region.height) * pixelsPerMillimeter)),
+  );
   let minimumX = endX;
   let minimumY = endY;
   let maximumX = -1;
@@ -275,6 +302,14 @@ const renderRepresentativePages = async (document: PDFDocument): Promise<ArrayBu
   const pages = await previewDocument.copyPages(document, [...REPRESENTATIVE_PAGE_INDEXES]);
   for (const page of pages) previewDocument.addPage(page);
   return pdfToImages(await previewDocument.save());
+};
+
+const getRepresentativePageNumber = (previewIndex: number): number => {
+  const sourcePageIndex = REPRESENTATIVE_PAGE_INDEXES.at(previewIndex);
+  if (sourcePageIndex === undefined) {
+    throw new Error(`Missing representative page index ${String(previewIndex)}`);
+  }
+  return sourcePageIndex + 1;
 };
 
 interface PatternedBasePdf {
@@ -360,17 +395,6 @@ const getRegionMatchRatio = (
     }
   }
   return total === 0 ? 0 : matches / total;
-};
-
-const cropMillimeterRegion = (image: PNG, pageWidthMm: number, region: MillimeterRegion): PNG => {
-  const pixelsPerMillimeter = image.width / pageWidthMm;
-  const sourceX = Math.round(region.x * pixelsPerMillimeter);
-  const sourceY = Math.round(region.y * pixelsPerMillimeter);
-  const width = Math.round(region.width * pixelsPerMillimeter);
-  const height = Math.round(region.height * pixelsPerMillimeter);
-  const target = new PNG({ width, height });
-  PNG.bitblt(image, target, sourceX, sourceY, width, height, 0, 0);
-  return target;
 };
 
 const boletoSchema: BoletoSchema = { ...(boleto.propPanel.defaultSchema as BoletoSchema) };
@@ -516,7 +540,7 @@ describe('boleto book generator evidence', () => {
       right: measureDarkRasterBounds(firstScanImage, {
         x: 199.2,
         y: 68,
-        width: 0.8,
+        width: 1.6,
         height: 5,
       }),
     };
@@ -708,8 +732,8 @@ describe('boleto book generator evidence', () => {
 
     const outputDocument = await PDFDocument.load(pdf);
     expect(outputDocument.getPageCount()).toBe(1);
-    const [outputPage] = outputDocument.getPages();
-    expect(outputPage).toBeDefined();
+    const outputPage = outputDocument.getPages().at(0);
+    if (!outputPage) throw new Error('Expected a boleto CropBox output page');
     const outputMediaBox = outputPage.getMediaBox();
     const outputCropBox = outputPage.getCropBox();
     for (const key of ['x', 'y', 'width', 'height'] as const) {
@@ -717,10 +741,9 @@ describe('boleto book generator evidence', () => {
       expect(outputCropBox[key]).toBeCloseTo(patternedBase.cropBox[key], 5);
     }
 
-    const [preview] = await pdfToImages(pdf);
-    const [scanBytes] = await pdf2img(pdf, { imageType: 'png', scale: SCAN_DPI / 72 });
-    expect(preview).toBeDefined();
-    expect(scanBytes).toBeDefined();
+    const preview = (await pdfToImages(pdf)).at(0);
+    const scanBytes = (await pdf2img(pdf, { imageType: 'png', scale: SCAN_DPI / 72 })).at(0);
+    if (!preview || !scanBytes) throw new Error('Expected boleto CropBox preview and scan');
     const scan = PNG.sync.read(Buffer.from(new Uint8Array(scanBytes)));
     const renderedHeightMm = scan.height / (scan.width / CROP_BOX_WIDTH_MM);
     expect(renderedHeightMm).toBeCloseTo(CROP_BOX_HEIGHT_MM, 0);
@@ -767,12 +790,12 @@ describe('boleto book generator evidence', () => {
       expect(ratio).toBeGreaterThan(0.95);
     }
 
-    const barcodeScan = cropMillimeterRegion(scan, CROP_BOX_WIDTH_MM, {
-      x: CROP_BOX_BOLETO_POSITION.x,
-      y: CROP_BOX_BOLETO_POSITION.y + 74,
-      width: 113,
-      height: 18,
-    });
+    const barcodeScan = cropBarcodeAcquisitionRegion(
+      scanBytes,
+      CROP_BOX_WIDTH_MM,
+      CROP_BOX_BOLETO_POSITION,
+      cropBoxSchema.height,
+    );
     const barcodeDecode = tryDecodeItfRaster(barcodeScan, SCAN_DPI);
     expect(barcodeDecode).toBeUndefined();
     await expect(preview).toMatchImage(
@@ -881,7 +904,7 @@ describe('boleto book generator evidence', () => {
       expect(representativeImages.every((image) => image.byteLength > 10_000)).toBe(true);
 
       for (const [previewIndex, image] of representativeImages.entries()) {
-        const sourcePage = REPRESENTATIVE_PAGE_INDEXES[previewIndex] + 1;
+        const sourcePage = getRepresentativePageNumber(previewIndex);
         await expect(image).toMatchImage(
           getImageSnapshotOptions(`100-boleto-records-page-${String(sourcePage).padStart(3, '0')}`),
         );
@@ -891,7 +914,7 @@ describe('boleto book generator evidence', () => {
       mkdirSync(batchArtifactDirectory, { recursive: true });
       writeFileSync(path.join(batchArtifactDirectory, '100-boleto-records.pdf'), pdf);
       for (const [previewIndex, image] of representativeImages.entries()) {
-        const sourcePage = REPRESENTATIVE_PAGE_INDEXES[previewIndex] + 1;
+        const sourcePage = getRepresentativePageNumber(previewIndex);
         writeFileSync(
           path.join(
             batchArtifactDirectory,

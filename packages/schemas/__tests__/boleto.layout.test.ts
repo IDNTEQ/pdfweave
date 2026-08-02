@@ -162,73 +162,71 @@ describe('boleto ficha layout geometry', () => {
     }
   });
 
-  it('keeps grid ink inside the ficha and merges shared cell borders', () => {
-    for (const [width, height] of [
-      [BOLETO_FICHA_MIN_WIDTH_MM, BOLETO_FICHA_MIN_HEIGHT_MM],
-      [BOLETO_FICHA_MAX_WIDTH_MM, BOLETO_FICHA_MAX_HEIGHT_MM],
-    ]) {
-      const data = createData('registered');
-      const layout = buildBoletoLayout(
-        data,
-        createSchema(width, height),
-        formatDigitableLine(data.barcode),
-      );
+  it.each([
+    [BOLETO_FICHA_MIN_WIDTH_MM, BOLETO_FICHA_MIN_HEIGHT_MM],
+    [BOLETO_FICHA_MAX_WIDTH_MM, BOLETO_FICHA_MAX_HEIGHT_MM],
+  ])('keeps grid ink inside a %d x %d mm ficha and merges shared cell borders', (width, height) => {
+    const data = createData('registered');
+    const layout = buildBoletoLayout(
+      data,
+      createSchema(width, height),
+      formatDigitableLine(data.barcode),
+    );
 
-      for (const line of layout.lines) {
-        const bounds = getBoletoLineInkBounds(line);
-        expect(bounds.left).toBeGreaterThanOrEqual(0);
-        expect(bounds.top).toBeGreaterThanOrEqual(0);
-        expect(bounds.right).toBeLessThanOrEqual(width);
-        expect(bounds.bottom).toBeLessThanOrEqual(height);
-      }
-
-      for (const [index, line] of layout.lines.entries()) {
-        const horizontal = line.y1 === line.y2;
-        const lineStart = horizontal ? Math.min(line.x1, line.x2) : Math.min(line.y1, line.y2);
-        const lineEnd = horizontal ? Math.max(line.x1, line.x2) : Math.max(line.y1, line.y2);
-        for (const candidate of layout.lines.slice(index + 1)) {
-          const candidateHorizontal = candidate.y1 === candidate.y2;
-          const sameTrack =
-            horizontal === candidateHorizontal &&
-            (horizontal ? line.y1 === candidate.y1 : line.x1 === candidate.x1) &&
-            line.thickness === candidate.thickness;
-          if (!sameTrack) continue;
-          const candidateStart = candidateHorizontal
-            ? Math.min(candidate.x1, candidate.x2)
-            : Math.min(candidate.y1, candidate.y2);
-          const candidateEnd = candidateHorizontal
-            ? Math.max(candidate.x1, candidate.x2)
-            : Math.max(candidate.y1, candidate.y2);
-          expect(Math.max(lineStart, candidateStart)).toBeGreaterThan(
-            Math.min(lineEnd, candidateEnd),
-          );
-        }
-      }
-
-      const top = layout.lines.find(({ x1, y1, x2, y2 }) => y1 === y2 && x1 === 0 && x2 === width);
-      const left = layout.lines.find(
-        ({ x1, y1, x2, y2 }) => x1 === x2 && y1 === 0 && x1 < 1 && y2 > 70,
-      );
-      const right = layout.lines.find(
-        ({ x1, y1, x2, y2 }) => x1 === x2 && y1 === 0 && x1 > width - 1 && y2 > 70,
-      );
-      expect(top).toBeDefined();
-      expect(left).toBeDefined();
-      expect(right).toBeDefined();
-      if (!top || !left || !right) throw new Error('Expected all three outer grid edges');
-      expect(getBoletoLineInkBounds(top)).toEqual({
-        left: 0,
-        top: 0,
-        right: width,
-        bottom: BOLETO_GRID_STROKE_MM,
-      });
-      expect(getBoletoLineInkBounds(left).left).toBe(0);
-      expect(getBoletoLineInkBounds(right).right).toBe(width);
+    for (const line of layout.lines) {
+      const bounds = getBoletoLineInkBounds(line);
+      expect(bounds.left).toBeGreaterThanOrEqual(0);
+      expect(bounds.top).toBeGreaterThanOrEqual(0);
+      expect(bounds.right).toBeLessThanOrEqual(width);
+      expect(bounds.bottom).toBeLessThanOrEqual(height);
     }
+
+    for (const [index, line] of layout.lines.entries()) {
+      const horizontal = line.y1 === line.y2;
+      const lineStart = horizontal ? Math.min(line.x1, line.x2) : Math.min(line.y1, line.y2);
+      const lineEnd = horizontal ? Math.max(line.x1, line.x2) : Math.max(line.y1, line.y2);
+      for (const candidate of layout.lines.slice(index + 1)) {
+        const candidateHorizontal = candidate.y1 === candidate.y2;
+        const sameTrack =
+          horizontal === candidateHorizontal &&
+          (horizontal ? line.y1 === candidate.y1 : line.x1 === candidate.x1) &&
+          line.thickness === candidate.thickness;
+        if (!sameTrack) continue;
+        const candidateStart = candidateHorizontal
+          ? Math.min(candidate.x1, candidate.x2)
+          : Math.min(candidate.y1, candidate.y2);
+        const candidateEnd = candidateHorizontal
+          ? Math.max(candidate.x1, candidate.x2)
+          : Math.max(candidate.y1, candidate.y2);
+        expect(Math.max(lineStart, candidateStart)).toBeGreaterThan(
+          Math.min(lineEnd, candidateEnd),
+        );
+      }
+    }
+
+    const top = layout.lines.find(({ x1, y1, x2, y2 }) => y1 === y2 && x1 === 0 && x2 === width);
+    const left = layout.lines.find(
+      ({ x1, y1, x2, y2 }) => x1 === x2 && y1 === 0 && x1 < 1 && y2 > 70,
+    );
+    const right = layout.lines.find(
+      ({ x1, y1, x2, y2 }) => x1 === x2 && y1 === 0 && x1 > width - 1 && y2 > 70,
+    );
+    expect(top).toBeDefined();
+    expect(left).toBeDefined();
+    expect(right).toBeDefined();
+    if (!top || !left || !right) throw new Error('Expected all three outer grid edges');
+    expect(getBoletoLineInkBounds(top)).toEqual({
+      left: 0,
+      top: 0,
+      right: width,
+      bottom: BOLETO_GRID_STROKE_MM,
+    });
+    expect(getBoletoLineInkBounds(left).left).toBe(0);
+    expect(getBoletoLineInkBounds(right).right).toBe(width);
   });
 
   it('uses the required shared vector metrics and alignment', () => {
-    const schema = createSchema(BOLETO_FICHA_MIN_WIDTH_MM, 95);
+    const schema = createSchema(BOLETO_FICHA_MIN_WIDTH_MM, BOLETO_FICHA_MIN_HEIGHT_MM);
     const data = createData('registered');
     const layout = buildBoletoLayout(data, schema, formatDigitableLine(data.barcode));
     const display = (id: string) => layout.vectorDisplays.find((primitive) => primitive.id === id);

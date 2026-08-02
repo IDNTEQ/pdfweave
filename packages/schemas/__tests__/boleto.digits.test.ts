@@ -154,4 +154,49 @@ describe('boleto digit algorithms', () => {
     expect(barcode.slice(9, 19)).toBe('0000000000');
     expect(validateBoletoBarcode(barcode)).toBe(barcode);
   });
+
+  test('encodes the largest representable fixed barcode amount', () => {
+    const barcode = buildBoletoBarcode({
+      institutionCode: '341',
+      dueDate: '2026-12-21',
+      amountMode: 'fixed',
+      documentValueCents: 9_999_999_999,
+      freeField: '1101234567880057123457000',
+    });
+
+    expect(barcode.slice(9, 19)).toBe('9999999999');
+    expect(validateBoletoBarcode(barcode)).toBe(barcode);
+  });
+
+  test('rejects invalid or unrepresentable barcode amounts', () => {
+    const base = {
+      institutionCode: '341',
+      dueDate: '2026-12-21',
+      freeField: '1101234567880057123457000',
+    } as const;
+
+    expect(() => buildBoletoBarcode({ ...base, amountMode: 'fixed' })).toThrow(
+      '[@pdfweave/schemas/boleto] fixed amount barcodes require documentValueCents greater than zero',
+    );
+    expect(() =>
+      buildBoletoBarcode({ ...base, amountMode: 'fixed', documentValueCents: 0 }),
+    ).toThrow(
+      '[@pdfweave/schemas/boleto] fixed amount barcodes require documentValueCents greater than zero',
+    );
+    expect(() =>
+      buildBoletoBarcode({
+        ...base,
+        amountMode: 'fixed',
+        documentValueCents: 10_000_000_000,
+      }),
+    ).toThrow(
+      '[@pdfweave/schemas/boleto] documentValueCents exceeds the 10-digit barcode amount field',
+    );
+    expect(() =>
+      buildBoletoBarcode({ ...base, amountMode: 'fixed', documentValueCents: 12.5 }),
+    ).toThrow('[@pdfweave/schemas/boleto] documentValueCents must be a safe integer');
+    expect(() =>
+      buildBoletoBarcode({ ...base, amountMode: 'variable', documentValueCents: -1 }),
+    ).toThrow('[@pdfweave/schemas/boleto] documentValueCents cannot be negative');
+  });
 });

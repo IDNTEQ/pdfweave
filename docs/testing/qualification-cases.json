@@ -343,7 +343,7 @@
             "tryDecodeItfRaster",
             "buildPatternedCropBoxBasePdf",
             "getRegionMatchRatio",
-            "cropMillimeterRegion",
+            "cropBarcodeAcquisitionRegion",
             "boletoSchema",
             "template",
             "buildBoletoData"
@@ -643,7 +643,7 @@
         },
         {
           "file": "packages/schemas/__tests__/boleto.layout.test.ts",
-          "title": "keeps grid ink inside the ficha and merges shared cell borders",
+          "title": "keeps grid ink inside a %d x %d mm ficha and merges shared cell borders",
           "supportingDefinitions": ["createData", "createSchema"]
         },
         {

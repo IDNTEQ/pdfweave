@@ -493,6 +493,7 @@ describe('Playground E2E Tests', () => {
       (element) => element.textContent,
     );
     expect(renderedValue).toContain(smokeInputValue);
+    expect(renderedValue).not.toContain('Fallback value');
   });
 
   // CI-skip (same as the deterministic test below): the designer render flow

@@ -247,7 +247,10 @@ describe('qualification runner', () => {
       /qualification_report_present: \$\{\{ steps\.qualification_report\.outputs\.present \}\}/,
     );
     assert.match(workflow, /Qualification report unavailable/);
-    assert.match(workflow, /qualification-gate:\n\s+needs: build/);
+    assert.match(
+      workflow,
+      /qualification-gate:\n\s+name: Enforce qualification result\n\s+needs: build/,
+    );
     assert.match(workflow, /QUALIFICATION_OUTCOME.*needs\.build\.outputs\.qualification_outcome/);
     assert.match(
       workflow,
@@ -257,12 +260,16 @@ describe('qualification runner', () => {
     assert.match(workflow, /build:\n\s+runs-on: ubuntu-latest\n\s+permissions:\n\s+contents: read/);
     assert.match(
       workflow,
-      /qualification-gate:\n\s+needs: build\n\s+runs-on: ubuntu-latest\n\s+permissions: \{\}/,
+      /qualification-gate:\n\s+name: Enforce qualification result\n\s+needs: build\n\s+runs-on: ubuntu-latest\n\s+permissions: \{\}/,
     );
-    assert.match(workflow, /deploy:\n\s+needs: \[build, qualification-gate\]/);
     assert.match(
       workflow,
-      /deploy:\n\s+needs: \[build, qualification-gate\]\n\s+runs-on: ubuntu-latest\n\s+permissions:\n\s+pages: write\n\s+id-token: write/,
+      /deploy:\n\s+name: Deploy to GitHub Pages\n(?:\s+#.*\n)+\s+needs: build/,
+    );
+    assert.doesNotMatch(workflow, /deploy:[\s\S]*?needs:.*qualification-gate/);
+    assert.match(
+      workflow,
+      /deploy:\n\s+name: Deploy to GitHub Pages\n(?:\s+#.*\n)+\s+needs: build\n\s+runs-on: ubuntu-latest\n(?:\s+#.*\n)+\s+permissions:\n\s+pages: write\n\s+id-token: write/,
     );
   });
 });

@@ -7,7 +7,7 @@ import text from '../text/index.js';
 import type { TextSchema } from '../text/types.js';
 import { hex2RgbColor } from '../utils.js';
 import { formatDigitableLine } from './digits.js';
-import { buildBoletoLayout } from './layout.js';
+import { BOLETO_BARCODE_HEIGHT_MM, BOLETO_BARCODE_WIDTH_MM, buildBoletoLayout } from './layout.js';
 import {
   getBoletoLogoMemo,
   getBoletoTextValue,
@@ -97,8 +97,8 @@ const getBarcodeSchema = (schema: BoletoSchema, x: number, y: number): BarcodeSc
   type: 'itf',
   content: '',
   position: getPosition(schema, x, y),
-  width: 103,
-  height: 13,
+  width: BOLETO_BARCODE_WIDTH_MM,
+  height: BOLETO_BARCODE_HEIGHT_MM,
   rotate: 0,
   opacity: 1,
   backgroundColor: '#ffffff',

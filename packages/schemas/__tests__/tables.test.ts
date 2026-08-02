@@ -148,9 +148,9 @@ describe('table cell padding (pdfme/pdfme#1422)', () => {
         _cache: new Map(),
       });
     const shortTable = await createTable('Print service');
-    const longTable = await createTable(
-      'Enterprise-managed document production with archival media, tamper-evident packaging, indexed quality-control records, and verified delivery',
-    );
+    const longDescription =
+      'Enterprise-managed document production with archival media, tamper-evident packaging, indexed quality-control records, and verified delivery';
+    const longTable = await createTable(longDescription);
     const expectedWidths = schema.headWidthPercentages.map(
       (percentage) => schema.width * (percentage / 100),
     );
@@ -158,7 +158,10 @@ describe('table cell padding (pdfme/pdfme#1422)', () => {
     for (const table of [shortTable, longTable]) {
       expect(table.columns.map(({ width }) => width)).toEqual(expectedWidths);
     }
-    expect(longTable.body[0].cells[0].text.length).toBeGreaterThan(1);
+    const longCell = longTable.body[0].cells[0];
+    expect(longCell.raw).toBe(longDescription);
+    expect(longCell.text.length).toBeGreaterThan(1);
+    expect(longCell.text.join(' ').replaceAll('- ', '-').trim()).toBe(longDescription);
     expect(longTable.body[0].height).toBeGreaterThan(shortTable.body[0].height);
   });
 

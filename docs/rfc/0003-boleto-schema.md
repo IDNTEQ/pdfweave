@@ -109,6 +109,9 @@ type BoletoData = FixedAmountBoletoData | VariableAmountBoletoData;
 type FixedAmountBoletoData = BoletoBaseData & {
   amountMode: 'fixed';
   documentValueCents: number;
+  discountDeductionCents?: number;
+  interestPenaltyCents?: number;
+  chargedAmountCents?: number;
 };
 
 type VariableAmountBoletoData = BoletoBaseData & {
@@ -146,9 +149,6 @@ type BoletoBaseData = {
   currencyQuantity?: string;
   currencyUnitValueCents?: number;
   instructions?: string[];
-  discountDeductionCents?: number;
-  interestPenaltyCents?: number;
-  chargedAmountCents?: number;
 };
 ```
 

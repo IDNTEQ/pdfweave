@@ -2,7 +2,16 @@ import type { Template } from '@pdfweave/common';
 import { pdf2img } from '@pdfweave/converter';
 import { generate } from '@pdfweave/generator';
 import { PDFDocument, StandardFonts, rgb, type PDFPage, type PDFFont } from '@pdfweave/pdf-lib';
-import { boleto, buildBoletoBarcode, type BoletoData, type BoletoSchema } from '@pdfweave/schemas';
+import {
+  BOLETO_BARCODE_CENTER_FROM_BOTTOM_MM,
+  BOLETO_BARCODE_HEIGHT_MM,
+  BOLETO_BARCODE_LEFT_MM,
+  BOLETO_BARCODE_WIDTH_MM,
+  boleto,
+  buildBoletoBarcode,
+  type BoletoData,
+  type BoletoSchema,
+} from '@pdfweave/schemas';
 import { impose, MM_TO_PT, type ImpositionPlan } from '../../src/index.js';
 import { pdfToImages, writeArtifacts } from '../helpers.js';
 import { cropMillimeterRegion, decodeItfRaster } from '../itfRaster.js';
@@ -13,6 +22,7 @@ const BOLETO_WIDTH_MM = 200;
 const BOLETO_HEIGHT_MM = 95;
 const A4_WIDTH_MM = 210;
 const SCAN_DPI = 300;
+const BARCODE_ACQUISITION_PADDING_MM = { top: 2, right: 5, bottom: 3, left: 5 } as const;
 const BOLETO_CLIENTS = [
   'Almeida Comercio Ltda.',
   'Borges Servicos Digitais',
@@ -285,11 +295,19 @@ describe('n-up production artifacts', () => {
     });
     if (!scanBytes) throw new Error('Expected an imposed registered boleto raster');
 
+    const barcodeTop =
+      BOLETO_HEIGHT_MM - BOLETO_BARCODE_CENTER_FROM_BOTTOM_MM - BOLETO_BARCODE_HEIGHT_MM / 2;
     const barcode = cropMillimeterRegion(scanBytes, A4_WIDTH_MM, {
-      x: 0,
-      y: 74,
-      width: 113,
-      height: 18,
+      x: BOLETO_BARCODE_LEFT_MM - BARCODE_ACQUISITION_PADDING_MM.left,
+      y: barcodeTop - BARCODE_ACQUISITION_PADDING_MM.top,
+      width:
+        BARCODE_ACQUISITION_PADDING_MM.left +
+        BOLETO_BARCODE_WIDTH_MM +
+        BARCODE_ACQUISITION_PADDING_MM.right,
+      height:
+        BARCODE_ACQUISITION_PADDING_MM.top +
+        BOLETO_BARCODE_HEIGHT_MM +
+        BARCODE_ACQUISITION_PADDING_MM.bottom,
     });
     const decoded = decodeItfRaster(barcode, SCAN_DPI);
 

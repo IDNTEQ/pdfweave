@@ -1,6 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { JSDOM } from 'jsdom';
@@ -9,6 +10,9 @@ import { PNG } from 'pngjs';
 import ts from 'typescript';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const require = createRequire(import.meta.url);
+const pdfJsDistRoot = path.dirname(require.resolve('pdfjs-dist/package.json'));
+const pdfJsStandardFontDataUrl = path.join(pdfJsDistRoot, 'standard_fonts/');
 const catalogPath = path.join(repoRoot, 'docs', 'testing', 'qualification-cases.json');
 const outputPath = path.join(repoRoot, 'test-artifacts', 'qualification-report.html');
 const validEvidenceKinds = new Set(['visual', 'hybrid', 'logic']);
@@ -160,6 +164,7 @@ const parsePdfPageCount = async (bytes, scenarioId) => {
       data: new Uint8Array(bytes),
       isEvalSupported: false,
       stopAtErrors: true,
+      standardFontDataUrl: pdfJsStandardFontDataUrl,
       useSystemFonts: false,
       verbosity: 0,
     });
