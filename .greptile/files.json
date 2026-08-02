@@ -1,0 +1,20 @@
+{
+  "files": [
+    {
+      "path": "AGENTS.md",
+      "description": "Repository engineering and review requirements"
+    },
+    {
+      "path": "GOALS.md",
+      "description": "Product mission and quality bar"
+    },
+    {
+      "path": "ROADMAP.md",
+      "description": "Current implementation priorities and known gaps"
+    },
+    {
+      "path": "docs/roadmaps/production-print-platform.md",
+      "description": "Production print architecture and acceptance roadmap"
+    }
+  ]
+}
