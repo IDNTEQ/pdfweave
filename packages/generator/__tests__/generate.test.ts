@@ -181,6 +181,57 @@ ERROR MESSAGE: Too small: expected array to have >=1 items
 --------------------------`);
     }
   });
+  test(`strictAnchorValidation rejects circular anchors`, async () => {
+    const inputs = [{ a: 'test' }];
+    // Create a simple cycle: a -> b -> a
+    const template: Template = {
+      basePdf: BLANK_PDF,
+      schemas: [
+        [
+          {
+            id: 'a',
+            name: 'a',
+            type: 'text',
+            content: '',
+            position: { x: 10, y: 10 },
+            width: 50,
+            height: 10,
+            layout: {
+              mode: 'anchored',
+              x: { mode: 'afterRightEdge', ref: { schemaId: 'b' }, offsetMm: 0 },
+              y: { mode: 'pageTop', offsetMm: 0 },
+            },
+          },
+          {
+            id: 'b',
+            name: 'b',
+            type: 'text',
+            content: '',
+            position: { x: 10, y: 30 },
+            width: 50,
+            height: 10,
+            layout: {
+              mode: 'anchored',
+              x: { mode: 'afterRightEdge', ref: { schemaId: 'a' }, offsetMm: 0 },
+              y: { mode: 'pageTop', offsetMm: 0 },
+            },
+          },
+        ],
+      ],
+    };
+
+    // Without the flag it currently fails later (during layout) with a cycle error from topoSort.
+    // With the flag it should fail early and clearly.
+    await expect(
+      generate({
+        inputs,
+        template,
+        options: { font: getFont() },
+        strictAnchorValidation: true,
+      })
+    ).rejects.toThrow(/Circular anchor detected/);
+  });
+
   test(`missing fallback font`, async () => {
     const inputs = [{ a: 'test' }];
     const template: Template = {

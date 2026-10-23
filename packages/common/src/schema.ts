@@ -294,6 +294,9 @@ export const GeneratorOptions = CommonOptions.extend({
 export const GenerateProps = CommonProps.extend({
   inputs: Inputs,
   options: GeneratorOptions.optional(),
+  // Opt-in: reject templates with circular anchor graphs before layout
+  // starts instead of degrading silently or failing late during reflow.
+  strictAnchorValidation: z.boolean().optional(),
 }).strict();
 
 // ---------------------ui------------------------
