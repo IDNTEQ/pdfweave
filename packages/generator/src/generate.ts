@@ -65,14 +65,15 @@ const generate = async (props: GenerateProps & GenerateHooks): Promise<Uint8Arra
   // Opt-in early validation: fail fast with the cycle path rather than
   // discovering a broken anchor graph deep inside the multi-pass reflow.
   if (strictAnchorValidation) {
-    const allSchemas = (template.schemas ?? []).flat();
-    const cycle = detectAnchorCycle(allSchemas);
-    if (cycle) {
-      const path = cycle.map((s) => s.name || '<unnamed>').join(' → ');
+    // Anchors resolve within a page, so check each page on its own.
+    (template.schemas ?? []).forEach((pageSchemas, pageIndex) => {
+      const cycle = detectAnchorCycle(pageSchemas);
+      if (!cycle) return;
+      const path = [...cycle, cycle[0]].map((s) => s.name || '<unnamed>').join(' → ');
       throw new Error(
-        `[@pdfweave/generator] Circular anchor detected in template (strictAnchorValidation=true): ${path}`,
+        `[@pdfweave/generator] Circular anchor detected on page ${pageIndex + 1} (strictAnchorValidation=true): ${path}`,
       );
-    }
+    });
   }
 
   const basePdf = template.basePdf;

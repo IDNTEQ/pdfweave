@@ -1390,6 +1390,12 @@ describe('sanitizeHeight / sanitizeHeights (defensive guards)', () => {
   it('never returns negative fallback', () => {
     expect(sanitizeHeight(NaN, -7)).toBe(0);
   });
+
+  it('falls back to 0 when the declared height itself is non-finite', () => {
+    expect(sanitizeHeight(NaN, Infinity)).toBe(0);
+    expect(sanitizeHeight(-1, NaN)).toBe(0);
+    expect(sanitizeHeights([NaN, 4], Infinity)).toEqual([0, 4]);
+  });
 });
 
 describe('Page-aware anchor resolution (Phase 3 — RFC 0001)', () => {

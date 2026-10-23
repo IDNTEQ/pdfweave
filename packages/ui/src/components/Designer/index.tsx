@@ -224,7 +224,7 @@ const TemplateEditor = ({
         // eslint-disable-next-line no-console
         console.error(
           '[PDFweave Designer] Refusing to commit change that would create a circular anchor:',
-          cycle.map((s) => s.name || s.id).join(' → '),
+          [...cycle, cycle[0]].map((s) => s.name || s.id).join(' → '),
         );
         return; // do not commit the bad state
       }

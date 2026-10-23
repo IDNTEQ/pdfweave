@@ -33,18 +33,22 @@ const EPSILON = 0.01;
  * loops in placeRowsOnPages, or NaN coordinates handed to pdf-lib).
  *
  * Invalid values fall back to the schema's declared height, clamped to >= 0.
+ * A non-finite declared height falls back to 0.
  */
 export function sanitizeHeight(value: number, declaredFallback: number): number {
   if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
-    return Math.max(0, declaredFallback || 0);
+    return safeFallbackHeight(declaredFallback);
   }
   return value;
 }
 
 export function sanitizeHeights(heights: number[], declaredFallback: number): number[] {
-  const fb = Math.max(0, declaredFallback || 0);
+  const fb = safeFallbackHeight(declaredFallback);
   return heights.map((h) => sanitizeHeight(h, fb));
 }
+
+const safeFallbackHeight = (declared: number): number =>
+  typeof declared === 'number' && Number.isFinite(declared) ? Math.max(0, declared) : 0;
 
 /**
  * Schema type marker for the built-in page-break primitive.

@@ -229,7 +229,7 @@ ERROR MESSAGE: Too small: expected array to have >=1 items
         options: { font: getFont() },
         strictAnchorValidation: true,
       })
-    ).rejects.toThrow(/Circular anchor detected/);
+    ).rejects.toThrow(/Circular anchor detected on page 1 \(strictAnchorValidation=true\): a → b → a/);
   });
 
   test(`missing fallback font`, async () => {

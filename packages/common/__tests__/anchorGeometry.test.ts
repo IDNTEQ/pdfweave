@@ -185,9 +185,64 @@ describe('anchorGeometry', () => {
       const index = buildSchemaIndex([schema]);
       expect(resolveAnchorX(schema, index)).toBeNull();
     });
+
+    it('returns null instead of a non-finite X on every rule mode', () => {
+      const target = makeSchema({ name: 'target', position: { x: Infinity, y: 0 }, width: 10 });
+      const afterRight = makeSchema({
+        name: 'after',
+        layout: {
+          mode: 'anchored',
+          x: { mode: 'afterRightEdge', ref: { schemaId: 'target' }, offsetMm: 0 },
+          y: { mode: 'pageTop', offsetMm: 0 },
+        },
+      });
+      const alignRight = makeSchema({
+        name: 'align',
+        layout: {
+          mode: 'anchored',
+          x: { mode: 'alignRightEdge', ref: { schemaId: 'target' }, offsetMm: 0 },
+          y: { mode: 'pageTop', offsetMm: 0 },
+        },
+      });
+      const pageLeft = makeSchema({
+        name: 'left',
+        layout: {
+          mode: 'anchored',
+          x: { mode: 'pageLeft', offsetMm: NaN },
+          y: { mode: 'pageTop', offsetMm: 0 },
+        },
+      });
+      const index = buildSchemaIndex([target, afterRight, alignRight, pageLeft]);
+      expect(resolveAnchorX(afterRight, index)).toBeNull();
+      expect(resolveAnchorX(alignRight, index)).toBeNull();
+      expect(resolveAnchorX(pageLeft, index)).toBeNull();
+    });
   });
 
   describe('resolveAnchorY', () => {
+    it('returns null instead of a non-finite Y on every rule mode', () => {
+      const target = makeSchema({ name: 'target', position: { x: 0, y: 0 }, height: NaN });
+      const below = makeSchema({
+        name: 'below',
+        layout: {
+          mode: 'anchored',
+          x: { mode: 'pageLeft', offsetMm: 0 },
+          y: { mode: 'belowBottomEdge', ref: { schemaId: 'target' }, offsetMm: 0 },
+        },
+      });
+      const pageTop = makeSchema({
+        name: 'top',
+        layout: {
+          mode: 'anchored',
+          x: { mode: 'pageLeft', offsetMm: 0 },
+          y: { mode: 'pageTop', offsetMm: Infinity },
+        },
+      });
+      const index = buildSchemaIndex([target, below, pageTop]);
+      expect(resolveAnchorY(below, index)).toBeNull();
+      expect(resolveAnchorY(pageTop, index)).toBeNull();
+    });
+
     it('pageTop: returns the absolute offsetMm', () => {
       const schema = makeSchema({
         name: 'a',
