@@ -20,6 +20,7 @@ import {
   px2mm,
   getSchemaAnchorIds,
   repairAnchorsAfterRemove,
+  detectAnchorCycle,
 } from '@pdfweave/common';
 import { DndContext } from '@dnd-kit/core';
 import RightSidebar from './RightSidebar/index.js';
@@ -214,6 +215,20 @@ const TemplateEditor = ({
 
   const commitSchemas = useCallback(
     (newSchemas: SchemaForUI[]) => {
+      // Refuse to commit a page containing a circular anchor graph. This is
+      // the design-time counterpart to the generator's strictAnchorValidation.
+      const cycle = detectAnchorCycle(newSchemas);
+      if (cycle) {
+        // Log and refuse. A richer UX (toast, highlight the cycle) can be
+        // added later without changing the contract.
+        // eslint-disable-next-line no-console
+        console.error(
+          '[PDFweave Designer] Refusing to commit change that would create a circular anchor:',
+          [...cycle, cycle[0]].map((s) => s.name || s.id).join(' → '),
+        );
+        return; // do not commit the bad state
+      }
+
       future.current = [];
       past.current.push(cloneDeep(schemasList[pageCursor]));
       const _schemasList = cloneDeep(schemasList);

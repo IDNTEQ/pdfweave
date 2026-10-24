@@ -258,3 +258,7 @@ export {
   topoSortByAnchorDeps,
 } from './anchorGeometry.js';
 export type { AnchoredLayoutRule, AnchoredSchema, SchemaIndex } from './anchorGeometry.js';
+
+// Layout engine sanitizers, exported so custom plugin authors can apply the
+// same rules the core engine applies to `measure` output.
+export { sanitizeHeight, sanitizeHeights } from './dynamicTemplate.js';

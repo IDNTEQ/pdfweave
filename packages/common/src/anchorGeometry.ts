@@ -132,7 +132,19 @@ export const resolveAnchorX = <S extends Schema>(
   const layout = getAnchoredLayout(schema);
   if (!layout) return null;
 
-  const rule = layout.x;
+  // Never return NaN/Infinity from resolution; a null result makes the
+  // caller (dynamicTemplate) keep the schema's existing position.
+  return finiteOrNull(resolveAnchorXRaw(schema, index, layout.x));
+};
+
+const finiteOrNull = (value: number | null): number | null =>
+  value !== null && Number.isFinite(value) ? value : null;
+
+const resolveAnchorXRaw = <S extends Schema>(
+  schema: S,
+  index: Map<string, S>,
+  rule: AnchoredLayoutRule['x'],
+): number | null => {
   if (rule.mode === 'pageLeft') return rule.offsetMm;
 
   const target = index.get(rule.ref.schemaId);
@@ -160,12 +172,13 @@ export const resolveAnchorY = <S extends Schema>(
   if (!layout) return null;
 
   const rule = layout.y;
-  if (rule.mode === 'pageTop') return rule.offsetMm;
+  if (rule.mode === 'pageTop') return finiteOrNull(rule.offsetMm);
 
   const target = index.get(rule.ref.schemaId);
   if (!target) return null;
 
-  return target.position.y + target.height + rule.offsetMm;
+  // Never return NaN/Infinity from resolution (see resolveAnchorX).
+  return finiteOrNull(target.position.y + target.height + rule.offsetMm);
 };
 
 /**

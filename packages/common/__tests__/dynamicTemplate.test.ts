@@ -5,6 +5,8 @@ import {
   getDynamicTemplate,
   getDynamicHeights,
   PAGE_BREAK_SCHEMA_TYPE,
+  sanitizeHeight,
+  sanitizeHeights,
 } from '../src/dynamicTemplate.js';
 import { Template, Schema, Font, Plugin, BasePdf } from '../src/index.js';
 
@@ -1369,6 +1371,83 @@ describe('Runtime anchor re-resolution (Phase 2 — RFC 0001)', () => {
     // B.y = C.position.y (30) + C.actualHeight (40) + offset (8) = 78
     expect(b?.position.x).toBe(75);
     expect(b?.position.y).toBe(78);
+  });
+});
+
+describe('sanitizeHeight / sanitizeHeights (defensive guards)', () => {
+  it('passes through valid positive heights', () => {
+    expect(sanitizeHeight(42.5, 10)).toBe(42.5);
+    expect(sanitizeHeights([10, 20.1, 0], 5)).toEqual([10, 20.1, 0]);
+  });
+
+  it('rejects NaN, negative, and Infinity and falls back to declared height', () => {
+    expect(sanitizeHeight(NaN, 15)).toBe(15);
+    expect(sanitizeHeight(-5, 15)).toBe(15);
+    expect(sanitizeHeight(Infinity, 15)).toBe(15);
+    expect(sanitizeHeights([NaN, -3, Infinity], 12)).toEqual([12, 12, 12]);
+  });
+
+  it('never returns negative fallback', () => {
+    expect(sanitizeHeight(NaN, -7)).toBe(0);
+  });
+
+  it('falls back to 0 when the declared height itself is non-finite', () => {
+    expect(sanitizeHeight(NaN, Infinity)).toBe(0);
+    expect(sanitizeHeight(-1, NaN)).toBe(0);
+    expect(sanitizeHeights([NaN, 4], Infinity)).toEqual([0, 4]);
+  });
+
+  it('sanitizes per-fragment heights from the legacy getDynamicHeights path', async () => {
+    const declared = 10;
+    const template: Template = {
+      schemas: [
+        [
+          {
+            name: 'rows',
+            content: 'rows',
+            type: 'rows',
+            position: { x: 10, y: 10 },
+            width: 50,
+            height: declared,
+          },
+          {
+            name: 'after',
+            content: 'after',
+            type: 'text',
+            position: { x: 10, y: 0 },
+            width: 50,
+            height: 5,
+            layout: {
+              mode: 'anchored',
+              x: { mode: 'pageLeft', offsetMm: 10 },
+              y: { mode: 'belowBottomEdge', ref: { schemaId: 'rows' }, offsetMm: 0 },
+            },
+          },
+        ],
+      ],
+      basePdf: { width: 100, height: 100, padding: [10, 10, 10, 10] },
+    };
+    const result = await getDynamicTemplate({
+      template,
+      input: { rows: 'x', after: 'y' },
+      options: { font: getSampleFont() },
+      _cache: new Map(),
+      getDynamicHeights: async (_value: string, args: { schema: Schema }) =>
+        args.schema.type === 'rows' ? [NaN, -5, Infinity, 7] : [args.schema.height],
+    });
+
+    const placed = result.schemas.flat();
+    for (const schema of placed) {
+      expect(Number.isFinite(schema.height)).toBe(true);
+      expect(schema.height).toBeGreaterThanOrEqual(0);
+      expect(Number.isFinite(schema.position.y)).toBe(true);
+    }
+    // Three invalid fragments each fall back to the declared height; the
+    // valid one is kept: 10 + 10 + 10 + 7.
+    const rows = placed.find((s) => s.name === 'rows');
+    expect(rows?.height).toBe(37);
+    const after = placed.find((s) => s.name === 'after');
+    expect(after?.position.y).toBe(10 + 37);
   });
 });
 

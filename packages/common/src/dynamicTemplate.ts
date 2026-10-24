@@ -25,6 +25,32 @@ import {
 const EPSILON = 0.01;
 
 /**
+ * Sanitizes a height value returned from a plugin's `measure` hook (or
+ * from dynamicHeights / fragments arrays).
+ *
+ * NaN, negative, or infinite values must never reach placement arithmetic:
+ * they produce silently corrupted PDFs (overlaps, cut-off content, infinite
+ * loops in placeRowsOnPages, or NaN coordinates handed to pdf-lib).
+ *
+ * Invalid values fall back to the schema's declared height, clamped to >= 0.
+ * A non-finite declared height falls back to 0.
+ */
+export function sanitizeHeight(value: number, declaredFallback: number): number {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
+    return safeFallbackHeight(declaredFallback);
+  }
+  return value;
+}
+
+export function sanitizeHeights(heights: number[], declaredFallback: number): number[] {
+  const fb = safeFallbackHeight(declaredFallback);
+  return heights.map((h) => sanitizeHeight(h, fb));
+}
+
+const safeFallbackHeight = (declared: number): number =>
+  typeof declared === 'number' && Number.isFinite(declared) ? Math.max(0, declared) : 0;
+
+/**
  * Schema type marker for the built-in page-break primitive.
  *
  * A pageBreak schema is a layout-engine marker (CSS `break-before: page`
@@ -119,19 +145,24 @@ function resolveAnchoredSchemas(pageSchemas: Schema[]): void {
 }
 
 function getDynamicHeightsFromLayoutResult(schema: Schema, result: LayoutMeasureResult): number[] {
+  const declared = schema.height;
+
   if (result.dynamicHeights && result.dynamicHeights.length > 0) {
-    return result.dynamicHeights;
+    return sanitizeHeights(result.dynamicHeights, declared);
   }
 
   if (result.fragments && result.fragments.length > 0) {
-    return result.fragments.map((fragment) => fragment.height);
+    return sanitizeHeights(
+      result.fragments.map((f) => f.height),
+      declared,
+    );
   }
 
   if (typeof result.height === 'number') {
-    return [result.height];
+    return [sanitizeHeight(result.height, declared)];
   }
 
-  return [schema.height];
+  return [sanitizeHeight(declared, declared)];
 }
 
 function layoutFragmentsFromHeights(
@@ -152,23 +183,30 @@ function getLayoutFragmentsFromLayoutResult(
   schema: Schema,
   result: LayoutMeasureResult,
 ): LayoutUnitFragment[] {
+  const declared = schema.height;
+
   if (result.dynamicHeights && result.dynamicHeights.length > 0) {
-    return layoutFragmentsFromHeights(result.dynamicHeights, 'dynamicHeights');
+    const safe = sanitizeHeights(result.dynamicHeights, declared);
+    return layoutFragmentsFromHeights(safe, 'dynamicHeights');
   }
 
   if (result.fragments && result.fragments.length > 0) {
-    return result.fragments.map((fragment) => ({
+    const safeHeights = sanitizeHeights(
+      result.fragments.map((f) => f.height),
+      declared,
+    );
+    return result.fragments.map((fragment, i) => ({
       ...fragment,
-      height: fragment.height,
-      __source: 'fragments',
+      height: safeHeights[i] ?? sanitizeHeight(fragment.height, declared),
+      __source: 'fragments' as const,
     }));
   }
 
   if (typeof result.height === 'number') {
-    return layoutFragmentsFromHeights([result.height], 'height');
+    return layoutFragmentsFromHeights([sanitizeHeight(result.height, declared)], 'height');
   }
 
-  return layoutFragmentsFromHeights([schema.height], 'height');
+  return layoutFragmentsFromHeights([sanitizeHeight(declared, declared)], 'height');
 }
 
 const getFragmentLineRange = (fragments: LayoutUnitFragment[]): TextLineRange | undefined => {
@@ -616,12 +654,23 @@ function applyMeasurement(
   fragments: LayoutUnitFragment[],
   originalBySchemaName: Map<string, Schema>,
 ): void {
-  item.fragments = fragments;
+  // Sanitize the fragments themselves, not just their sum: the legacy
+  // `getDynamicHeights` path builds fragments from raw plugin output, and
+  // `placeRowsOnPages` paginates on these per-fragment heights.
+  const declared = item.schema.height;
+  const safeFragments = fragments.map((fragment) => {
+    const height = sanitizeHeight(fragment.height, declared);
+    return height === fragment.height ? fragment : { ...fragment, height };
+  });
+  item.fragments = safeFragments;
+
   let actualHeight = 0;
-  for (const fragment of fragments) actualHeight += fragment.height;
-  item.schema.height = actualHeight;
+  for (const fragment of safeFragments) actualHeight += fragment.height;
+
+  const safeHeight = sanitizeHeight(actualHeight, declared);
+  item.schema.height = safeHeight;
   const original = originalBySchemaName.get(item.schema.name);
-  if (original) original.height = actualHeight;
+  if (original) original.height = safeHeight;
 }
 
 /**
