@@ -1396,6 +1396,59 @@ describe('sanitizeHeight / sanitizeHeights (defensive guards)', () => {
     expect(sanitizeHeight(-1, NaN)).toBe(0);
     expect(sanitizeHeights([NaN, 4], Infinity)).toEqual([0, 4]);
   });
+
+  it('sanitizes per-fragment heights from the legacy getDynamicHeights path', async () => {
+    const declared = 10;
+    const template: Template = {
+      schemas: [
+        [
+          {
+            name: 'rows',
+            content: 'rows',
+            type: 'rows',
+            position: { x: 10, y: 10 },
+            width: 50,
+            height: declared,
+          },
+          {
+            name: 'after',
+            content: 'after',
+            type: 'text',
+            position: { x: 10, y: 0 },
+            width: 50,
+            height: 5,
+            layout: {
+              mode: 'anchored',
+              x: { mode: 'pageLeft', offsetMm: 10 },
+              y: { mode: 'belowBottomEdge', ref: { schemaId: 'rows' }, offsetMm: 0 },
+            },
+          },
+        ],
+      ],
+      basePdf: { width: 100, height: 100, padding: [10, 10, 10, 10] },
+    };
+    const result = await getDynamicTemplate({
+      template,
+      input: { rows: 'x', after: 'y' },
+      options: { font: getSampleFont() },
+      _cache: new Map(),
+      getDynamicHeights: async (_value: string, args: { schema: Schema }) =>
+        args.schema.type === 'rows' ? [NaN, -5, Infinity, 7] : [args.schema.height],
+    });
+
+    const placed = result.schemas.flat();
+    for (const schema of placed) {
+      expect(Number.isFinite(schema.height)).toBe(true);
+      expect(schema.height).toBeGreaterThanOrEqual(0);
+      expect(Number.isFinite(schema.position.y)).toBe(true);
+    }
+    // Three invalid fragments each fall back to the declared height; the
+    // valid one is kept: 10 + 10 + 10 + 7.
+    const rows = placed.find((s) => s.name === 'rows');
+    expect(rows?.height).toBe(37);
+    const after = placed.find((s) => s.name === 'after');
+    expect(after?.position.y).toBe(10 + 37);
+  });
 });
 
 describe('Page-aware anchor resolution (Phase 3 — RFC 0001)', () => {

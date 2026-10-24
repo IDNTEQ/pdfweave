@@ -654,16 +654,20 @@ function applyMeasurement(
   fragments: LayoutUnitFragment[],
   originalBySchemaName: Map<string, Schema>,
 ): void {
-  item.fragments = fragments;
+  // Sanitize the fragments themselves, not just their sum: the legacy
+  // `getDynamicHeights` path builds fragments from raw plugin output, and
+  // `placeRowsOnPages` paginates on these per-fragment heights.
+  const declared = item.schema.height;
+  const safeFragments = fragments.map((fragment) => {
+    const height = sanitizeHeight(fragment.height, declared);
+    return height === fragment.height ? fragment : { ...fragment, height };
+  });
+  item.fragments = safeFragments;
 
-  // Sanitize again where the measured height is committed back onto the
-  // schema objects that downstream anchor resolution reads.
   let actualHeight = 0;
-  for (const fragment of fragments) {
-    actualHeight += sanitizeHeight(fragment.height, item.schema.height);
-  }
+  for (const fragment of safeFragments) actualHeight += fragment.height;
 
-  const safeHeight = sanitizeHeight(actualHeight, item.schema.height);
+  const safeHeight = sanitizeHeight(actualHeight, declared);
   item.schema.height = safeHeight;
   const original = originalBySchemaName.get(item.schema.name);
   if (original) original.height = safeHeight;
