@@ -60,7 +60,7 @@
     "clsx": "^2.1.1",
     "dayjs": "^1.11.20",
     "dequal": "^2.0.3",
-    "dompurify": "^3.4.12",
+    "dompurify": "^3.4.17",
     "form-render": "^2.5.5",
     "hotkeys-js": "^4.0.3",
     "lucide-react": "^1.12.0",

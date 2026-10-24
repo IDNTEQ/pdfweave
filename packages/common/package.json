@@ -54,7 +54,7 @@
     "@pdfweave/pdf-lib": "0.1.0",
     "acorn": "^8.16.0",
     "buffer": "^6.0.3",
-    "zod": "^4.3.6"
+    "zod": "^4.6.6"
   },
   "devDependencies": {
     "@types/estree": "^1.0.9"
