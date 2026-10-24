@@ -145,18 +145,40 @@ viewer, form, and designer modes.
   credentials are available, and document any external release blocker.
 - Run `npm run check` before pushing, or at minimum strict lint, typecheck,
   tests, and qualification for rendering changes.
-- CodeRabbit is the advisory automatic AI reviewer for contributor PRs. Address
-  its findings or respond with technical reasoning before merging.
-- CodeRabbit's open-source review quota can be rate-limited. A rate-limited or
-  unavailable review must not deadlock a PR: record the condition in the PR and
-  substitute an independent, read-only Claude Code review with the `fable`
-  model. Bot-authored dependency PRs may instead rely on the deterministic test,
-  CodeQL, and dependency-security results. Required deterministic CI checks
-  remain the authoritative automated merge gates.
-- For substantial changes, run periodic independent, read-only reviews through
-  Claude Code with the `fable` model, including one before the final push.
-  Verify each finding against current code and record material fixes or
-  reasoned rejections in the PR.
+- Codex is the primary AI reviewer. Every non-bot PR gets a Codex review
+  before merge: automatic when enabled for the repository, otherwise request
+  one by commenting `@codex review` on the PR. Codex reports only P0/P1
+  findings. Verify each finding against current code and record the fix or a
+  reasoned rejection in the PR thread before merging.
+- CodeRabbit remains installed as a free, advisory second opinion. Its
+  open-source quota is rate-limited and it may never review a PR; never wait
+  on it or request it more than once per push.
+- When no AI review is available, substitute an independent, read-only Claude
+  Code review with the `fable` model and say so in the PR. Bot-authored
+  dependency PRs may rely on the deterministic test, CodeQL, and
+  dependency-security results. Required deterministic CI checks remain the
+  authoritative automated merge gates.
+- For substantial changes, also run an independent, read-only Claude Code
+  review before the final push and record material fixes or reasoned
+  rejections in the PR.
+
+## Review Guidance
+
+Applies to every reviewer, human or AI, reading this file.
+
+- Prioritise correctness of the production-document contracts: data binding,
+  anchor layout and reflow, smart tables, stationery stamping, imposition, and
+  PDF output bytes. A silent wrong-layout result is a P0.
+- Treat NaN/Infinity/negative geometry, unbounded loops in pagination, and
+  anything that can reach `pdf-lib` with bad coordinates as defects.
+- Security: expression evaluation (`expression.ts`), file and font loading,
+  and anything that parses untrusted PDFs or templates.
+- Public API: flag unexported-but-needed types, breaking signature changes,
+  and zod schema changes without matching TypeScript types.
+- Tests: new behaviour needs a unit test; rendering changes need an
+  intentional snapshot update, not a blanket regeneration.
+- Skip formatting, naming, and lint-level style. oxlint and the strict ESLint
+  gate own those.
 
 ## Fork Relationship
 
