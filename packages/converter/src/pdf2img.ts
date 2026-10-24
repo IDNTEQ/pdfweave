@@ -4,7 +4,11 @@ import type { ImageType } from './types.js';
 interface Environment {
   getDocument: (pdf: ArrayBuffer | Uint8Array) => Promise<PDFDocumentProxy>;
   destroyDocument?: (pdfDoc: PDFDocumentProxy) => Promise<void>;
-  createCanvas: (width: number, height: number) => HTMLCanvasElement | OffscreenCanvas;
+  createCanvas: (
+    width: number,
+    height: number,
+    pdfDoc: PDFDocumentProxy,
+  ) => HTMLCanvasElement | OffscreenCanvas;
   canvasToArrayBuffer: (
     canvas: HTMLCanvasElement | OffscreenCanvas,
     imageType: ImageType,
@@ -44,7 +48,7 @@ export async function pdf2img(
         const page = await pdfDoc.getPage(pageNum);
         const viewport = page.getViewport({ scale });
 
-        const canvas = createCanvas(viewport.width, viewport.height);
+        const canvas = createCanvas(viewport.width, viewport.height, pdfDoc);
         if (!canvas) {
           throw new Error('Failed to create canvas');
         }

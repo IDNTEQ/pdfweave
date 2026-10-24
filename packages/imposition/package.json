@@ -53,7 +53,7 @@
   },
   "dependencies": {
     "@pdfweave/pdf-lib": "0.1.0",
-    "zod": "^4.3.6"
+    "zod": "^4.6.6"
   },
   "devDependencies": {
     "@pdfweave/common": "0.1.0",
